@@ -26,3 +26,6 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
 add_executable(SpaceRenderer ${CPP_SOURCES} ${HEADERS})
+
+target_include_directories(SpaceRenderer PUBLIC "include" ${Vulkan_INCLUDE_DIRS})
+target_link_libraries(SpaceRenderer volk::volk glfw)
