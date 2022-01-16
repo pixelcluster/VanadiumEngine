@@ -2,66 +2,49 @@
 
 #include <string_view>
 #include <unordered_map>
+#include <variant>
+#include <gpu/VGPUResource.hpp>
 
 class VEngine;
 
-template<typename T>
-struct VModuleVariableTemplate {
-	std::string name;
-};
-
-//placeholder, may want to include typeid of variable in debug for type safety-checking
-struct VModuleVariable {
+struct VCPUResource {
 	void* data;
+	size_t size;
 };
 
-struct VModuleVariableContainer {
-  public:
-	template<typename... Ts>
-	VModuleVariableContainer(const VModuleVariableTemplate<Ts> templates...);
-	~VModuleVariableContainer();
+enum class VInputOutputVariableType {
+	Int,
+	Float,
+	Bool,
+	String,
+	CPUResource,
+	GPUResource
+};
 
-  private:
-	  template<typename T> void allocateVariableTemplate(const VModuleVariableTemplate<T>& variableTemplate);
-
-	std::unordered_map<std::string, VModuleVariable> m_variables;
-	void* m_data;
+struct VInputOutputVariable {
+	VInputOutputVariableType type;
+	std::variant<int, float, bool, std::string, VCPUResource, gpu::VGPUResource> data;
 };
 
 class VModule {
   public:
 	virtual ~VModule() = 0;
 
-
 	virtual void OnCreate(VEngine& engine) = 0;
 	virtual void OnDestroy(VEngine& engine) = 0;
 
-	template <typename T> const T& getTypedOutput(const std::string_view& name) const;
+	const VInputOutputVariable& outputVariable(const std::string_view& name) const;
 
   protected:
-	template <typename T> void initializeTypedOutput(const std::string_view& name);
+	void initializeTypedOutput(const std::string_view& name, VInputOutputVariableType type);
 
-	template <typename T> void writeTypedOutput(const std::string_view& name, T& value);
+	void writeOutput(const std::string_view& name, int value);
+	void writeOutput(const std::string_view& name, float value);
+	void writeOutput(const std::string_view& name, bool value);
+	void writeOutput(const std::string_view& name, const std::string& value);
+	void writeOutput(const std::string_view& name, const VCPUResource& value);
+	void writeOutput(const std::string_view& name, const gpu::VGPUResource& value);
+
   private:
-	VModuleVariableContainer m_outputVariables;
+	std::unordered_map<std::string, VInputOutputVariable> m_outputVariables;
 };
-
-template <typename T> inline const T& VModule::getTypedOutput(const std::string_view& name) const {
-	auto iterator = m_outputVariables.find(name);
-}
-
-template <typename T> inline void VModule::initializeTypedOutput(const std::string_view& name) {}
-
-template <typename T> inline void VModule::writeTypedOutput(const std::string_view& name, T& value) {}
-
-template <typename... Ts>
-inline VModuleVariableContainer::VModuleVariableContainer(const VModuleVariableTemplate<Ts> templates...) {
-	m_data = std::malloc(sizeof(Ts) + ...);
-
-	(allocateVariableTemplate(templates), ...);
-}
-
-template <typename T>
-inline void VModuleVariableContainer::allocateVariableTemplate(const VModuleVariableTemplate<T>& variableTemplate) {
-
-}

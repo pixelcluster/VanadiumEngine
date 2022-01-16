@@ -18,6 +18,14 @@ elseif(WIN32)
 	set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
 endif()
 
+if("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
+	set(VANADIUM_DEBUG true)
+else()
+	set(VANADIUM_DEBUG false)
+endif()
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/VDebug.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/include/VDebug.hpp")
+
 file(GLOB_RECURSE CPP_SOURCES CONFIGURE_DEPENDS 
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
