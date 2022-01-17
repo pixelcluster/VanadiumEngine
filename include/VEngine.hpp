@@ -38,6 +38,8 @@ class VEngine {
 	void activateModuleOnce(VModule* moduleToActivate);
 	void deactivateModule(VModule* moduleToDeactivate);
 
+	void destroyModule(VModule* moduleToDestroy);
+
 	// Both from and to must be activated modules
 	void addModuleDependency(VModule* from, VModule* to);
 
@@ -51,6 +53,7 @@ class VEngine {
 	std::vector<VModule*> m_modules;
 	std::vector<VModule*> m_activatedModules;
 	std::vector<VModule*> m_modulesToDeactivate;
+	std::vector<VModule*> m_modulesToDestroy;
 	std::vector<VModuleDependency> m_moduleDependencies;
 
 	std::vector<std::vector<VModuleExecutionInfo>> m_threadExecutionInfos;
@@ -62,5 +65,6 @@ class VEngine {
 template <typename T, typename... Args>
 requires(DerivesFrom<VModule, T>&& ConstructibleWith<T, Args...>) inline T* VEngine::createModule(Args... args) {
 	m_modules.push_back(new T(args...));
+	m_modules.back()->onCreate(*this);
 	return m_modules.back();
 }

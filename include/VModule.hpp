@@ -30,8 +30,9 @@ class VModule {
   public:
 	virtual ~VModule() = 0;
 
-	virtual void OnCreate(VEngine& engine) = 0;
-	virtual void OnDestroy(VEngine& engine) = 0;
+	virtual void onCreate(VEngine& engine) = 0;
+	virtual void onExecute(VEngine& engine) = 0;
+	virtual void onDestroy(VEngine& engine) = 0;
 
 	const VInputOutputVariable& outputVariable(const std::string_view& name) const;
 
