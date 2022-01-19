@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required (VERSION 3.8)
 
-project ("SpaceRenderer")
+project ("VanadiumEngine")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -33,7 +33,9 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
-add_executable(SpaceRenderer ${CPP_SOURCES} ${HEADERS})
+add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS})
 
-target_include_directories(SpaceRenderer PUBLIC "include" ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(SpaceRenderer volk::volk glfw)
+target_include_directories(VanadiumEngine PUBLIC "include" ${Vulkan_INCLUDE_DIRS})
+target_link_libraries(VanadiumEngine volk::volk glfw)
+
+add_subdirectory(examples)

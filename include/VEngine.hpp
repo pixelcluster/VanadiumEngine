@@ -1,38 +1,34 @@
 #pragma once
 
-#include <VModule.hpp>
+#include <thread>
+#include <helper/VModuleThread.hpp>
+#include <helper/VScoreboarding.hpp>
 #include <cstddef>
 #include <semaphore>
 #include <string_view>
-
-template <typename Base, typename T>
-concept DerivesFrom = requires(T* t) {
-	static_cast<Base*>(t);
-};
 
 template <typename T, typename... Args>
 concept ConstructibleWith = requires(Args... args) {
 	T(args...);
 };
 
-struct VModuleDependency {
-	VModule* from;
-	VModule* to;
-};
+using VScoreboardingFunction = void (*)(const std::vector<VModule*>& activatedModules,
+										const std::vector<VModuleDependency>& moduleDependencies,
+										std::vector<std::vector<VModuleExecutionInfo>>& threadExecutionInfos);
 
-struct VModuleExecutionInfo {
-	std::vector<std::atomic<bool>*> waitAtomics;
-	VModule* executedModule;
-	std::optional<std::atomic<bool>> signalAtomic;
-};
+constexpr VScoreboardingFunction vEngineScoreboardingFunction = singleThreadScoreboard;
 
 class VEngine {
   public:
-	VEngine(const std::string_view& appName, uint32_t appVersion);
+	VEngine() {}
+	VEngine(const VEngine&) = delete;
+	VEngine& operator=(const VEngine&) = delete;
+	VEngine(VEngine&&) = default;
+	VEngine& operator=(VEngine&&) = default;
 	~VEngine();
 
-	template <typename T, typename... Args>
-	requires(DerivesFrom<VModule, T>&& ConstructibleWith<T, Args...>) T* createModule(Args... args);
+	template <DerivesFrom<VModule> T, typename... Args>
+	requires(ConstructibleWith<T, Args...>) T* createModule(Args... args);
 
 	void activateModule(VModule* moduleToActivate);
 	void activateModuleOnce(VModule* moduleToActivate);
@@ -40,13 +36,25 @@ class VEngine {
 
 	void destroyModule(VModule* moduleToDestroy);
 
+	template <DerivesFrom<VModuleGroup> T, typename... Args>
+	requires(ConstructibleWith<T, Args...>) T* createModuleGroup(Args... args);
+
+	void addModuleToGroup(VModuleGroup* group, VModule* moduleToAdd);
+	void removeModuleFromGroup(VModuleGroup* group, VModule* moduleToRemove);
+	
+	void destroyModuleGroup(VModuleGroup* groupToDestroy);
+
 	// Both from and to must be activated modules
 	void addModuleDependency(VModule* from, VModule* to);
 
 	void run();
 
+	void setExitFlag();
+
+	const std::vector<VModule*> modules() const { return m_modules; }
+
   private:
-	void recalculateScoreboard();
+	void recreateModuleThreads();
 
 	void removeModuleDependencies(VModule* removeModule);
 
@@ -56,15 +64,28 @@ class VEngine {
 	std::vector<VModule*> m_modulesToDestroy;
 	std::vector<VModuleDependency> m_moduleDependencies;
 
+	std::vector<VModuleThreadParameters> m_threadParameters;
+	std::vector<std::jthread> m_moduleThreads;
+
 	std::vector<std::vector<VModuleExecutionInfo>> m_threadExecutionInfos;
 	bool m_scoreboardDirty;
 
-	bool m_shouldExit = false;
+	std::atomic<bool> m_shouldExit = false;
+
+	std::vector<VModuleGroup*> m_moduleGroups;
+	std::vector<VModuleGroup*> m_moduleGroupsToDestroy;
 };
 
-template <typename T, typename... Args>
-requires(DerivesFrom<VModule, T>&& ConstructibleWith<T, Args...>) inline T* VEngine::createModule(Args... args) {
+template <DerivesFrom<VModule> T, typename... Args>
+requires(ConstructibleWith<T, Args...>) inline T* VEngine::createModule(Args... args) {
 	m_modules.push_back(new T(args...));
 	m_modules.back()->onCreate(*this);
 	return m_modules.back();
+}
+
+template <DerivesFrom<VModuleGroup> T, typename... Args>
+requires(ConstructibleWith<T, Args...>) inline T* VEngine::createModuleGroup(Args... args) {
+	m_moduleGroups.push_back(new T(args...));
+	m_moduleGroups.back()->onCreate(*this);
+	return m_moduleGroups.back();
 }
