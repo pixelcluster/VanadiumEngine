@@ -1,11 +1,11 @@
-#include <VScoreboarding.hpp>
+#include <helper/VScoreboarding.hpp>
 #include <algorithm>
 
 void singleThreadScoreboard(const std::vector<VModule*>& activatedModules,
 							const std::vector<VModuleDependency>& moduleDependencies,
 							std::vector<std::vector<VModuleExecutionInfo>>& threadExecutionInfos) {
 	if (threadExecutionInfos.empty()) {
-		threadExecutionInfos.push_back({});
+		threadExecutionInfos.resize(1);
 	}
 
 	threadExecutionInfos[0].clear();

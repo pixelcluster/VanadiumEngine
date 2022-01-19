@@ -20,7 +20,7 @@ void HelloWorldModule::onDeactivate(VEngine& engine) { std::cout << "onDeactivat
 
 void HelloWorldModule::onDestroy(VEngine& engine) { std::cout << "onDestroy called!\n"; }
 
-void main() { 
+int main() { 
 	VEngine engine;
 	HelloWorldModule* helloModule = engine.createModule<HelloWorldModule>();
 	engine.activateModule(helloModule);

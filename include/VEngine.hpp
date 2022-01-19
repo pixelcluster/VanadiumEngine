@@ -80,7 +80,7 @@ template <DerivesFrom<VModule> T, typename... Args>
 requires(ConstructibleWith<T, Args...>) inline T* VEngine::createModule(Args... args) {
 	m_modules.push_back(new T(args...));
 	m_modules.back()->onCreate(*this);
-	return m_modules.back();
+	return reinterpret_cast<T*>(m_modules.back());
 }
 
 template <DerivesFrom<VModuleGroup> T, typename... Args>

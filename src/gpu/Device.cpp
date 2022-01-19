@@ -1,6 +1,7 @@
-#include <gpu/Device.hpp>
-#include <helper/EnumerationHelper.hpp>
-#include <helper/ErrorHelper.hpp>
+#include <modules/gpu/Device.hpp>
+#include <modules/gpu/helper/EnumerationHelper.hpp>
+#include <modules/gpu/helper/ErrorHelper.hpp>
+#include <modules/gpu/QueueFamilyLayout.hpp>
 #include <volk.h>
 
 namespace gpu {

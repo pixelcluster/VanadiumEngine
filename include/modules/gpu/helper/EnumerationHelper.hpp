@@ -2,7 +2,7 @@
 
 #include <vector>
 #define VK_NO_PROTOTYPES
-#include <helper/ErrorHelper.hpp>
+#include <modules/gpu/helper/ErrorHelper.hpp>
 #include <vulkan/vulkan.h>
 
 template <typename HandleType, typename Enumerant, typename... AdditionalParams>

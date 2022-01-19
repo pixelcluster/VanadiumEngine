@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-#include <gpu/QueueFamilyLayout.hpp>
+#include <modules/gpu/QueueFamilyLayout.hpp>
 
 
 namespace gpu {

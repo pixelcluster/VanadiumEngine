@@ -51,7 +51,7 @@ class VModuleGroup {
 
 class VModule {
   public:
-	virtual ~VModule() = 0;
+	virtual ~VModule() {}
 
 	virtual void onCreate(VEngine& engine) = 0;
 	virtual void onActivate(VEngine& engine) = 0;
@@ -62,7 +62,7 @@ class VModule {
 	virtual void onDeactivate(VEngine& engine) = 0;
 	virtual void onDestroy(VEngine& engine) = 0;
 
-	std::optional<const VInputOutputVariable&> outputVariable(const std::string_view& name) const;
+	std::optional<const VInputOutputVariable*> outputVariable(const std::string_view& name) const;
 
 	void addInputVariable(const VInputVariableReference& inputVariableReference);
 

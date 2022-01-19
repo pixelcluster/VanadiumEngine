@@ -110,7 +110,7 @@ void VEngine::run() {
 		}
 
 		for (auto& parameters : m_threadParameters) {
-			parameters.runFlag.wait(true);
+			parameters.runFlag.value.wait(true);
 		}
 
 		for (auto& moduleToDeactivate : m_modulesToDeactivate) {
@@ -173,9 +173,8 @@ void VEngine::recreateModuleThreads() {
 	m_threadParameters.reserve(m_threadExecutionInfos.size() - 1);
 
 	for (size_t i = 1; i < m_threadExecutionInfos.size(); ++i) {
-		m_threadParameters.push_back(
-			{ .executionInfo = m_threadExecutionInfos[i], .engine = *this, .runFlag = false, .exitFlag = false });
-		m_moduleThreads.push_back(std::jthread(moduleThreadFunction, m_threadParameters.back()));
+		m_threadParameters.push_back({ .executionInfo = &m_threadExecutionInfos[i], .engine = this, .runFlag = false, .exitFlag = false });
+		m_moduleThreads.push_back(std::jthread(moduleThreadFunction, &m_threadParameters.back()));
 	}
 }
 

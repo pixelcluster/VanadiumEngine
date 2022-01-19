@@ -1,11 +1,11 @@
 #include <VModule.hpp>
 
-std::optional<const VInputOutputVariable&> VModule::outputVariable(const std::string_view& name) const {
+std::optional<const VInputOutputVariable*> VModule::outputVariable(const std::string_view& name) const {
 	auto iterator = m_outputVariables.find(std::string(name));
 	if (iterator == m_outputVariables.end())
 		return std::nullopt;
 	else {
-		return iterator->second;
+		return &iterator->second;
 	}
 }
 

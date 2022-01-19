@@ -1,15 +1,15 @@
 #include <helper/VModuleThread.hpp>
 #include <atomic>
 
-void moduleThreadFunction(VModuleThreadParameters& parameters) {
-	parameters.runFlag.wait(false);
-	while (!parameters.exitFlag) {
-		for (auto& executionInfo : parameters.executionInfo) {
-			executeModule(executionInfo, parameters.engine);
+void moduleThreadFunction(VModuleThreadParameters* parameters) {
+	parameters->runFlag.value.wait(false);
+	while (!parameters->exitFlag.value) {
+		for (auto& executionInfo : *parameters->executionInfo) {
+			executeModule(executionInfo, *parameters->engine);
 		}
 
-		parameters.runFlag = false;
-		parameters.runFlag.wait(false);
+		parameters->runFlag = false;
+		parameters->runFlag.value.wait(false);
 	}
 }
 
@@ -25,7 +25,7 @@ void executeModule(VModuleExecutionInfo& info, VEngine& engine) {
 		auto outputVariable = variable.outputModule->outputVariable(variable.outputVariableName);
 		if (outputVariable.has_value())
 			moduleInputVariables.insert(
-				std::pair<std::string, const VInputOutputVariable*>(variable.inputVariableName, &outputVariable.value()));
+				std::pair<std::string, const VInputOutputVariable*>(variable.inputVariableName, outputVariable.value()));
 	}
 
 	info.executedModule->onExecute(engine, moduleInputVariables);
