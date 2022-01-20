@@ -1,12 +1,12 @@
-#include <modules/gpu/Device.hpp>
+#include <modules/gpu/VDevice.hpp>
 #include <modules/gpu/helper/EnumerationHelper.hpp>
 #include <modules/gpu/helper/ErrorHelper.hpp>
-#include <modules/gpu/QueueFamilyLayout.hpp>
+#include <modules/gpu/VQueueFamilyLayout.hpp>
 #include <volk.h>
 
 namespace gpu {
 
-	Device::Device(VkInstance instance, VkSurfaceKHR surface, const std::vector<QueueFamilyLayout> queueFamilies,
+	VDevice::VDevice(VkInstance instance, VkSurfaceKHR surface, const std::vector<VQueueFamilyLayout> queueFamilies,
 				   const std::vector<std::string_view>& extensions, const VkPhysicalDeviceFeatures2& features) {
 		std::vector<VkPhysicalDevice> devices = enumerate(instance, vkEnumeratePhysicalDevices);
 

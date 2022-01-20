@@ -24,6 +24,7 @@ void VEngine::activateModule(VModule* moduleToActivate) {
 	if (std::find(m_activatedModules.begin(), m_activatedModules.end(), moduleToActivate) != m_activatedModules.end()) {
 		// TODO: log activating a module twice
 	} else {
+		moduleToActivate->onActivate(*this);
 		m_activatedModules.push_back(moduleToActivate);
 	}
 }
@@ -32,7 +33,9 @@ void VEngine::activateModuleOnce(VModule* moduleToActivate) {
 	if (std::find(m_activatedModules.begin(), m_activatedModules.end(), moduleToActivate) != m_activatedModules.end()) {
 		// TODO: log activating a module twice
 	} else {
+		moduleToActivate->onActivate(*this);
 		m_activatedModules.push_back(moduleToActivate);
+		m_modulesToDeactivate.push_back(moduleToActivate);
 	}
 }
 

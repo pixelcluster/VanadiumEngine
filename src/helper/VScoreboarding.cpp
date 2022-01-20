@@ -21,5 +21,6 @@ void singleThreadScoreboard(const std::vector<VModule*>& activatedModules,
 					  if (dependency.from == oneObject.executedModule && dependency.to == otherObject.executedModule)
 						  return true;
 				  }
+				  return false;
 			  });
 }

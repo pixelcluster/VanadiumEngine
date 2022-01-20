@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.h>
 
 namespace gpu {
-	struct QueueFamilyLayout {
+	struct VQueueFamilyLayout {
 		VkQueueFlags queueCapabilityFlags;
 		bool shouldSupportPresent;
 		size_t queueCount;

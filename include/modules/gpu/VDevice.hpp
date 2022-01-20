@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-#include <modules/gpu/QueueFamilyLayout.hpp>
+#include <modules/gpu/VQueueFamilyLayout.hpp>
 
 
 namespace gpu {
@@ -18,9 +18,9 @@ namespace gpu {
 		t.pNext;
 	};
 
-	class Device {
+	class VDevice {
 	  public:
-		Device(VkInstance instance, VkSurfaceKHR surface, const std::vector<QueueFamilyLayout> queueFamilies,
+		VDevice(VkInstance instance, VkSurfaceKHR surface, const std::vector<VQueueFamilyLayout> queueFamilies,
 			   const std::vector<std::string_view>& extensions, const VkPhysicalDeviceFeatures2& features);
 
 		VkDevice device() { return m_device; }
@@ -34,6 +34,6 @@ namespace gpu {
 		VkPhysicalDeviceProperties m_deviceProperties;
 
 		std::vector<std::string> m_enabledExtensions;
-		std::vector<QueueFamilyLayout> m_usedQueueFamilies;
+		std::vector<VQueueFamilyLayout> m_usedQueueFamilies;
 	};
 } // namespace gpu
