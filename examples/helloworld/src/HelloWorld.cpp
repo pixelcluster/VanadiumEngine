@@ -8,10 +8,13 @@ void HelloWorldModule::onCreate(VEngine& engine) {
 void HelloWorldModule::onActivate(VEngine& engine) { std::cout << "onActivate called!\n"; }
 
 void HelloWorldModule::onExecute(
-	VEngine& engine,
-			   const std::unordered_map<std::string, const VInputOutputVariable*>& inputVariables) {
+	VEngine& engine) {
 	std::cout << "onExecute called! Previous executions: " << m_nExecutions++ << "\n";
-	if (m_nExecutions >= 5) {
+	if (m_nExecutions % 5 == 0) {
+		HelloWorld2Module* helloModule2 = engine.createModule<HelloWorld2Module>();
+		engine.activateModule(helloModule2);
+	}
+	if (m_nExecutions > 1000) {
 		engine.setExitFlag();
 	}
 }
@@ -20,7 +23,11 @@ void HelloWorldModule::onDeactivate(VEngine& engine) { std::cout << "onDeactivat
 
 void HelloWorldModule::onDestroy(VEngine& engine) { std::cout << "onDestroy called!\n"; }
 
-int main() { 
+void HelloWorld2Module::onExecute(VEngine& engine) {
+	engine.destroyModule(this);
+}
+
+int main() {
 	VEngine engine;
 	HelloWorldModule* helloModule = engine.createModule<HelloWorldModule>();
 	engine.activateModule(helloModule);

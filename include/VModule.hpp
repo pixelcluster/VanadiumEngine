@@ -13,16 +13,11 @@ concept DerivesFrom = requires(Derived* derived) {
 	static_cast<Base*>(derived);
 };
 
-struct VResource {
-	void* data;
-	size_t size;
-};
+enum class VOptionVariableType { Int, Float, Bool, String };
 
-enum class VInputOutputVariableType { Int, Float, Bool, String, Resource };
-
-struct VInputOutputVariable {
-	VInputOutputVariableType type;
-	std::variant<int, float, bool, std::string, VResource> data;
+struct VOptionVariable {
+	VOptionVariableType type;
+	std::variant<int, float, bool, std::string> data;
 };
 
 struct VInputVariableReference {
@@ -31,23 +26,10 @@ struct VInputVariableReference {
 	std::string outputVariableName;
 };
 
-class VModuleGroup {
-  public:
-	virtual ~VModuleGroup() = 0;
-
-	virtual void onCreate(VEngine& engine) = 0;
-	virtual void onModuleAdd(VEngine& engine, VModule* addedModule) = 0;
-
-	virtual void onModuleRemove(VEngine& engine, VModule* removedModule) = 0;
-	virtual void onDestroy(VEngine& engine) = 0;
-
-	const std::vector<VModule*>& modules() const { return m_modules; }
-
-  private:
-	std::vector<VModule*> m_modules;
-	friend class VEngine;
+struct VModuleOutputData {
+	const void* value;
+	size_t typeHash;
 };
-
 
 class VModule {
   public:
@@ -56,34 +38,68 @@ class VModule {
 	virtual void onCreate(VEngine& engine) = 0;
 	virtual void onActivate(VEngine& engine) = 0;
 
-	virtual void onExecute(VEngine& engine,
-						   const std::unordered_map<std::string, const VInputOutputVariable*>& inputVariables) = 0;
+	virtual void onExecute(VEngine& engine) = 0;
 
 	virtual void onDeactivate(VEngine& engine) = 0;
 	virtual void onDestroy(VEngine& engine) = 0;
 
-	std::optional<const VInputOutputVariable*> outputVariable(const std::string_view& name) const;
+	const std::vector<VInputVariableReference>& inputVariables() const { return m_inputVariableReferences; }
+	const std::unordered_map<std::string, VModuleOutputData>& outputVariables() const { return m_outputData; }
+
+	const VModuleOutputData* outputVariable(const std::string_view& name) const;
+	void setInputVariable(const std::string& name, const VModuleOutputData& value);
+
+	void setOptionVariable(const std::string_view& name, const VOptionVariable& value);
+	void removeOptionVariable(const std::string& name);
 
 	void addInputVariable(const VInputVariableReference& inputVariableReference);
 
-	const std::vector<VInputVariableReference>& inputVariables() const { return m_inputVariableReferences; }
-
 	void removeInputVariable(size_t index);
 	void removeInputVariable(const std::string_view& name);
+	void removeReferencedInputs(VModule* moduleToRemove);
 
   protected:
-	void initializeTypedOutput(const std::string_view& name, VInputOutputVariableType type);
+	template <typename T> const T* retrieveInputVariable(const std::string& name);
 
-	void writeOutput(const std::string_view& name, int value);
-	void writeOutput(const std::string_view& name, float value);
-	void writeOutput(const std::string_view& name, bool value);
-	void writeOutput(const std::string_view& name, const std::string& value);
-	void writeOutput(const std::string_view& name, const VResource& value);
+	template <typename T> void addOutputVariable(const std::string_view& name);
 
-	VModuleGroup* m_moduleGroup = nullptr;
+	template <typename T> void setOutputVariable(const std::string_view& name, const T* value);
 
+	std::unordered_map<std::string, VOptionVariable> m_optionVariables;
 	friend class VEngine;
   private:
-	std::unordered_map<std::string, VInputOutputVariable> m_outputVariables;
 	std::vector<VInputVariableReference> m_inputVariableReferences;
+	std::unordered_map<std::string, VModuleOutputData> m_inputVariableValues;
+	std::unordered_map<std::string, VModuleOutputData> m_outputData;
 };
+
+template <typename T> inline const T* VModule::retrieveInputVariable(const std::string& name) {
+	constexpr size_t hash = typeid(T).hash_code();
+	auto iterator = m_inputVariableValues.find(name);
+	if (iterator != m_inputVariableValues.end()) {
+		if (iterator->second.typeHash != hash) {
+			// TODO: log setting an output variable to an invalid type
+		} else {
+			return reinterpret_cast<const T*>(iterator->second.value);
+		}
+	}
+	return nullptr;
+}
+
+template <typename T> inline void VModule::addOutputVariable(const std::string_view& name) {
+	constexpr size_t hash = typeid(T).hash_code();
+	m_outputData.insert(std::pair<std::string, VModuleOutputData>(name, {nullptr, hash }));
+}
+
+template <typename T> inline void VModule::setOutputVariable(const std::string_view& name, const T* value) {
+	auto variableIterator = m_outputData.find(std::string(name));
+	constexpr size_t hash = typeid(T).hash_code();
+	if (variableIterator != m_outputData.end()) {
+		if (variableIterator->second.typeHash != hash) {
+			//TODO: log setting an output variable to an invalid type
+		}
+		else {
+			variableIterator->second.value = value;
+		}
+	}
+}

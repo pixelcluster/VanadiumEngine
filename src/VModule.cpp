@@ -1,12 +1,17 @@
 #include <VModule.hpp>
 
-std::optional<const VInputOutputVariable*> VModule::outputVariable(const std::string_view& name) const {
-	auto iterator = m_outputVariables.find(std::string(name));
-	if (iterator == m_outputVariables.end())
-		return std::nullopt;
+
+const VModuleOutputData* VModule::outputVariable(const std::string_view& name) const {
+	auto iterator = m_outputData.find(std::string(name));
+	if (iterator == m_outputData.end())
+		return nullptr;
 	else {
 		return &iterator->second;
 	}
+}
+
+void VModule::setInputVariable(const std::string& name, const VModuleOutputData& value) {
+	m_inputVariableValues[name] = value;
 }
 
 void VModule::addInputVariable(const VInputVariableReference& inputVariableReference) {
@@ -24,63 +29,16 @@ void VModule::removeInputVariable(const std::string_view& name) {
 		m_inputVariableReferences.erase(iterator);
 }
 
-void VModule::initializeTypedOutput(const std::string_view& name, VInputOutputVariableType variableType) {
-	m_outputVariables.insert(
-		std::pair<std::string, VInputOutputVariable>(std::string(name), VInputOutputVariable{ .type = variableType }));
+void VModule::setOptionVariable(const std::string_view& name, const VOptionVariable& value) {
+	m_optionVariables.insert({ std::string(name), value });
 }
 
-void VModule::writeOutput(const std::string_view& name, int value) {
-	auto iterator = m_outputVariables.find(std::string(name));
-	if (iterator == m_outputVariables.end()) {
-		// TODO: log attempt to set undeclared output variable
-	} else if (iterator->second.type != VInputOutputVariableType::Int) {
-		// TODO: log attempt to set wrong output variable type
-	} else {
-		iterator->second.data = value;
-	}
-}
+void VModule::removeOptionVariable(const std::string& name) { m_optionVariables.erase(name); }
 
-void VModule::writeOutput(const std::string_view& name, float value) {
-	auto iterator = m_outputVariables.find(std::string(name));
-	if (iterator == m_outputVariables.end()) {
-		//TODO: log attempt to set undeclared output variable
-	} else if (iterator->second.type != VInputOutputVariableType::Float) {
-		// TODO: log attempt to set wrong output variable type
-	} 
-	else {
-		iterator->second.data = value;
-	}
-}
-
-void VModule::writeOutput(const std::string_view& name, bool value) {
-	auto iterator = m_outputVariables.find(std::string(name));
-	if (iterator == m_outputVariables.end()) {
-		// TODO: log attempt to set undeclared output variable
-	} else if (iterator->second.type != VInputOutputVariableType::Bool) {
-		// TODO: log attempt to set wrong output variable type
-	} else {
-		iterator->second.data = value;
-	}
-}
-
-void VModule::writeOutput(const std::string_view& name, const std::string& value) {
-	auto iterator = m_outputVariables.find(std::string(name));
-	if (iterator == m_outputVariables.end()) {
-		// TODO: log attempt to set undeclared output variable
-	} else if (iterator->second.type != VInputOutputVariableType::String) {
-		// TODO: log attempt to set wrong output variable type
-	} else {
-		iterator->second.data = value;
-	}
-}
-
-void VModule::writeOutput(const std::string_view& name, const VResource& value) {
-	auto iterator = m_outputVariables.find(std::string(name));
-	if (iterator == m_outputVariables.end()) {
-		// TODO: log attempt to set undeclared output variable
-	} else if (iterator->second.type != VInputOutputVariableType::Resource) {
-		// TODO: log attempt to set wrong output variable type
-	} else {
-		iterator->second.data = value;
+void VModule::removeReferencedInputs(VModule* moduleToRemove) {
+	for (size_t i = 0; i < m_inputVariableReferences.size(); ++i) {
+		if (m_inputVariableReferences[i].outputModule == moduleToRemove) {
+			
+		}
 	}
 }

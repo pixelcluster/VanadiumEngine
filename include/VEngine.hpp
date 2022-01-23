@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <semaphore>
 #include <string_view>
+#include <mutex>
 
 template <typename T, typename... Args>
 concept ConstructibleWith = requires(Args... args) {
@@ -31,18 +32,9 @@ class VEngine {
 	requires(ConstructibleWith<T, Args...>) T* createModule(Args... args);
 
 	void activateModule(VModule* moduleToActivate);
-	void activateModuleOnce(VModule* moduleToActivate);
 	void deactivateModule(VModule* moduleToDeactivate);
 
 	void destroyModule(VModule* moduleToDestroy);
-
-	template <DerivesFrom<VModuleGroup> T, typename... Args>
-	requires(ConstructibleWith<T, Args...>) T* createModuleGroup(Args... args);
-
-	void addModuleToGroup(VModuleGroup* group, VModule* moduleToAdd);
-	void removeModuleFromGroup(VModuleGroup* group, VModule* moduleToRemove);
-	
-	void destroyModuleGroup(VModuleGroup* groupToDestroy);
 
 	// Both from and to must be activated modules
 	void addModuleDependency(VModule* from, VModule* to);
@@ -60,7 +52,6 @@ class VEngine {
 
 	std::vector<VModule*> m_modules;
 	std::vector<VModule*> m_activatedModules;
-	std::vector<VModule*> m_modulesToDeactivate;
 	std::vector<VModule*> m_modulesToDestroy;
 	std::vector<VModuleDependency> m_moduleDependencies;
 
@@ -68,24 +59,16 @@ class VEngine {
 	std::vector<std::jthread> m_moduleThreads;
 
 	std::vector<std::vector<VModuleExecutionInfo>> m_threadExecutionInfos;
-	bool m_scoreboardDirty;
+	bool m_scoreboardDirty = true;
 
 	std::atomic<bool> m_shouldExit = false;
-
-	std::vector<VModuleGroup*> m_moduleGroups;
-	std::vector<VModuleGroup*> m_moduleGroupsToDestroy;
+	std::mutex m_moduleAccessMutex;
 };
 
 template <DerivesFrom<VModule> T, typename... Args>
 requires(ConstructibleWith<T, Args...>) inline T* VEngine::createModule(Args... args) {
+	auto lock = std::lock_guard<std::mutex>(m_moduleAccessMutex);
 	m_modules.push_back(new T(args...));
 	m_modules.back()->onCreate(*this);
 	return reinterpret_cast<T*>(m_modules.back());
-}
-
-template <DerivesFrom<VModuleGroup> T, typename... Args>
-requires(ConstructibleWith<T, Args...>) inline T* VEngine::createModuleGroup(Args... args) {
-	m_moduleGroups.push_back(new T(args...));
-	m_moduleGroups.back()->onCreate(*this);
-	return m_moduleGroups.back();
 }

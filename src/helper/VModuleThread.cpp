@@ -18,17 +18,14 @@ void executeModule(VModuleExecutionInfo& info, VEngine& engine) {
 		waitAtomic->wait(false);
 	}
 
-	std::unordered_map<std::string, const VInputOutputVariable*> moduleInputVariables;
-	moduleInputVariables.reserve(info.executedModule->inputVariables().size());
 
 	for (auto& variable : info.executedModule->inputVariables()) {
 		auto outputVariable = variable.outputModule->outputVariable(variable.outputVariableName);
-		if (outputVariable.has_value())
-			moduleInputVariables.insert(
-				std::pair<std::string, const VInputOutputVariable*>(variable.inputVariableName, outputVariable.value()));
+		if (outputVariable)
+			info.executedModule->setInputVariable(variable.inputVariableName, *outputVariable);
 	}
 
-	info.executedModule->onExecute(engine, moduleInputVariables);
+	info.executedModule->onExecute(engine);
 
 	if (info.signalAtomic.has_value()) {
 		info.signalAtomic.value() = true;
