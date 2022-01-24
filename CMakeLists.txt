@@ -1,4 +1,4 @@
-﻿cmake_minimum_required (VERSION 3.8)
+﻿cmake_minimum_required (VERSION 3.16)
 
 project ("VanadiumEngine")
 
@@ -12,17 +12,21 @@ if(UNIX AND NOT APPLE)
 	option(USE_WAYLAND "Use Wayland instead of X11")
 	if(USE_WAYLAND)
 		set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WAYLAND_KHR)
+		add_compile_definitions(VK_USE_PLATFORM_WAYLAND_KHR)
 		set(GLFW_USE_WAYLAND TRUE)
 	endif()
 elseif(WIN32)
 	set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
+	add_compile_definitions(VK_USE_PLATFORM_WIN32_KHR NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()
 
 if("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
-	set(VANADIUM_DEBUG true)
+	set(VANADIUM_DEBUG true CACHE BOOL "Enable debug utilities")
 else()
-	set(VANADIUM_DEBUG false)
+	set(VANADIUM_DEBUG false CACHE BOOL "Enable debug utilities")
 endif()
+
+set(VANADIUM_GPU_DEBUG false CACHE BOOL "Enable debug utilities for GPU modules")
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/VDebug.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/include/VDebug.hpp")
 
@@ -34,6 +38,8 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
 add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS})
+
+target_precompile_headers(VanadiumEngine PRIVATE "include/VEngine.hpp")
 
 target_include_directories(VanadiumEngine PUBLIC "include" ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(VanadiumEngine volk::volk glfw)

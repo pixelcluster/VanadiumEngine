@@ -1,3 +1,4 @@
 #pragma once
 
 constexpr bool vanadiumDebug = ${VANADIUM_DEBUG};
+constexpr bool vanadiumGPUDebug = ${VANADIUM_GPU_DEBUG};

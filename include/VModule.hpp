@@ -43,6 +43,8 @@ class VModule {
 	virtual void onDeactivate(VEngine& engine) = 0;
 	virtual void onDestroy(VEngine& engine) = 0;
 
+	virtual void onDependentModuleDeactivate(VEngine& engine, VModule* moduleToDestroy) {}
+
 	const std::vector<VInputVariableReference>& inputVariables() const { return m_inputVariableReferences; }
 	const std::unordered_map<std::string, VModuleOutputData>& outputVariables() const { return m_outputData; }
 

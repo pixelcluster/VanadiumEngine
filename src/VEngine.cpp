@@ -104,6 +104,8 @@ void VEngine::run() {
 			}
 
 			delete moduleToDestroy;
+
+			m_scoreboardDirty = true;
 		}
 		m_modulesToDestroy.clear();
 	}
@@ -134,6 +136,9 @@ void VEngine::recreateModuleThreads() {
 
 void VEngine::removeModuleDependencies(VModule* removeModule) {
 	for (size_t i = 0; i < m_moduleDependencies.size(); ++i) {
+		if (m_moduleDependencies[i].from == removeModule) {
+			m_moduleDependencies[i].to->onDependentModuleDeactivate(*this, removeModule);
+		}
 		if (m_moduleDependencies[i].from == removeModule || m_moduleDependencies[i].to == removeModule) {
 			m_moduleDependencies.erase(m_moduleDependencies.begin() + i);
 			--i;
