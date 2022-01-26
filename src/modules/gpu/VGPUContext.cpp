@@ -98,6 +98,22 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 
 	std::vector<const char*> deviceExtensionNames = { "VK_KHR_swapchain" };
 
+	std::vector<VkExtensionProperties> availableDeviceExtensions =
+		enumerate<VkPhysicalDevice, VkExtensionProperties, const char*>(m_physicalDevice, nullptr,
+																		vkEnumerateDeviceExtensionProperties);
+
+	for (auto& extension : availableDeviceExtensions) {
+		if (!strcmp(extension.extensionName, "VK_EXT_memory_budget")) {
+			deviceExtensionNames.push_back("VK_EXT_memory_budget");
+			deviceExtensionNames.push_back("VK_KHR_get_physical_device_properties2");
+			m_capabilities.memoryBudget = true;
+		}
+		if (!strcmp(extension.extensionName, "VK_EXT_memory_priority")) {
+			deviceExtensionNames.push_back("VK_EXT_memory_priority");
+			m_capabilities.memoryPriority = true;
+		}
+	}
+
 	float priority = 1.0f;
 	VkDeviceQueueCreateInfo queueCreateInfo = { .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 												.queueFamilyIndex = chosenQueueFamilyIndex,

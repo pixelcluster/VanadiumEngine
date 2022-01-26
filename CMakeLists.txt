@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_subdirectory(dependencies/glfw)
 add_subdirectory(dependencies/volk)
+add_subdirectory(dependencies/VulkanMemoryAllocator)
 
 if(UNIX AND NOT APPLE)
 	option(USE_WAYLAND "Use Wayland instead of X11")
@@ -42,6 +43,6 @@ add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS})
 target_precompile_headers(VanadiumEngine PRIVATE "include/VEngine.hpp")
 
 target_include_directories(VanadiumEngine PUBLIC "include" ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(VanadiumEngine volk::volk glfw)
+target_link_libraries(VanadiumEngine volk::volk glfw VulkanMemoryAllocator)
 
 add_subdirectory(examples)

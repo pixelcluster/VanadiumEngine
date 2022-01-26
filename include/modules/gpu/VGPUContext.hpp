@@ -5,18 +5,32 @@
 #include <vulkan/vulkan.h>
 #include <modules/window/VWindowModule.hpp>
 
+struct VGPUCapabilities {
+	bool memoryBudget;
+	bool memoryPriority;
+};
+
 class VGPUContext {
   public:
 	VGPUContext() {}
 	VGPUContext(const VGPUContext& other) = delete;
 	VGPUContext& operator=(const VGPUContext& other) = delete;
-	VGPUContext(VGPUContext&& other) = default;
-	VGPUContext& operator=(VGPUContext&& other) = default;
+	VGPUContext(VGPUContext&& other) = delete;
+	VGPUContext& operator=(VGPUContext&& other) = delete;
 
 	void create(const std::string_view& appName, uint32_t appVersion, VWindowModule* windowModule);
 	void destroy();
 
+	const VGPUCapabilities& gpuCapabilities() const { return m_capabilities; };
+
+	VkInstance instance() { return m_instance; }
+
+	VkPhysicalDevice physicalDevice() { return m_physicalDevice; }
+	VkDevice device() { return m_device; }
+
   private:
+	VGPUCapabilities m_capabilities = {};
+
 	VkInstance m_instance = VK_NULL_HANDLE;
 
 	VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
