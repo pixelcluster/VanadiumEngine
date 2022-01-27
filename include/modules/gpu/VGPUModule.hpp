@@ -18,4 +18,6 @@ class VGPUModule : public VModule {
   private:
 	VGPUContext m_context;
 	VWindowModule* m_windowModule;
+
+	bool m_wasSwapchainInvalid = false;
 };

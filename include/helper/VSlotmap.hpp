@@ -228,13 +228,13 @@ template <typename T> class VSlotmap {
 
 template <typename T> inline VSlotmapHandle VSlotmap<T>::addElement(const T& newElement) {
 	if (keys.size() == 0)
-		keys.append(0);
+		keys.push_back(0);
 	elements.push_back(newElement);
 	eraseMap.push_back(freeKeyHead);
 	if (freeKeyHead == freeKeyTail) {
 		size_t newFreeSlotIndex = keys.size();
 
-		keys.append(newFreeSlotIndex);
+		keys.push_back(newFreeSlotIndex);
 
 		keys[freeKeyTail] = newFreeSlotIndex;
 		freeKeyTail = newFreeSlotIndex;

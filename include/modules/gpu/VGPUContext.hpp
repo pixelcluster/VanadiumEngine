@@ -5,9 +5,22 @@
 #include <vulkan/vulkan.h>
 #include <modules/window/VWindowModule.hpp>
 
+constexpr uint32_t frameInFlightCount = 3U;
+
 struct VGPUCapabilities {
 	bool memoryBudget;
 	bool memoryPriority;
+};
+
+enum class SwapchainState {
+	OK, Suboptimal, Invalid
+};
+
+struct AcquireResult {
+	SwapchainState swapchainState;
+	uint32_t imageIndex = -1U;
+	uint32_t frameIndex;
+	VkSemaphore imageSemaphore;
 };
 
 class VGPUContext {
@@ -21,12 +34,19 @@ class VGPUContext {
 	void create(const std::string_view& appName, uint32_t appVersion, VWindowModule* windowModule);
 	void destroy();
 
+	AcquireResult acquireImage();
+	SwapchainState presentImage(uint32_t imageIndex, VkSemaphore waitSemaphore);
+
 	const VGPUCapabilities& gpuCapabilities() const { return m_capabilities; };
 
 	VkInstance instance() { return m_instance; }
 
 	VkPhysicalDevice physicalDevice() { return m_physicalDevice; }
 	VkDevice device() { return m_device; }
+
+	VkCommandBuffer frameCommandBuffer() { return m_frameCommandBuffers[m_frameIndex]; }
+
+	VkFence frameCompletionFence() { return m_frameCompletionFences[m_frameIndex]; }
 
   private:
 	VGPUCapabilities m_capabilities = {};
@@ -38,6 +58,16 @@ class VGPUContext {
 	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 	VkDevice m_device = VK_NULL_HANDLE;
 
+	VkQueue m_graphicsQueue = VK_NULL_HANDLE;
+
 	VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
+
+	VkSemaphore m_swapchainImageSemaphores[frameInFlightCount];
+	uint32_t m_frameIndex;
+
+	VkCommandPool m_frameCommandPools[frameInFlightCount];
+	VkCommandBuffer m_frameCommandBuffers[frameInFlightCount];
+
+	VkFence m_frameCompletionFences[frameInFlightCount];
 };

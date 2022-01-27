@@ -36,13 +36,20 @@ void VGPUResourceAllocator::create(VGPUContext* gpuContext) {
 	}
 
 	verifyResult(vmaCreateAllocator(&allocatorCreateInfo, &m_allocator));
+
+	VkPhysicalDeviceMemoryProperties memoryProperties = {};
+	vkGetPhysicalDeviceMemoryProperties(gpuContext->physicalDevice(), &memoryProperties);
+
+	m_memoryTypes = std::vector<VkMemoryType>(memoryProperties.memoryTypeCount);
+	std::memcpy(m_memoryTypes.data(), memoryProperties.memoryTypes,
+				memoryProperties.memoryTypeCount * sizeof(VkMemoryType));
 }
 
 VBufferResourceHandle VGPUResourceAllocator::createBuffer(const VkBufferCreateInfo& bufferCreateInfo,
 														 VmaMemoryUsage usage, float priority, bool createMapped) {
 	VBufferAllocation allocation;
 	VmaAllocationCreateInfo allocationCreateInfo = {
-		.flags = createMapped ? VMA_ALLOCATION_CREATE_MAPPED_BIT : 0,
+		.flags = createMapped ? VMA_ALLOCATION_CREATE_MAPPED_BIT : 0U,
 		.usage = usage,
 		.priority = priority
 	};
@@ -51,7 +58,21 @@ VBufferResourceHandle VGPUResourceAllocator::createBuffer(const VkBufferCreateIn
 					&allocationInfo));
 	allocation.mappedData = allocationInfo.pMappedData;
 
+	allocation.capabilities.deviceLocal =
+		m_memoryTypes[allocationInfo.memoryType].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	allocation.capabilities.hostVisible =
+		m_memoryTypes[allocationInfo.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+	allocation.capabilities.hostCoherent =
+		m_memoryTypes[allocationInfo.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
 	return m_buffers.addElement(allocation);
+}
+
+void* VGPUResourceAllocator::mappedBufferData(VBufferResourceHandle handle) { return m_buffers[handle].mappedData; }
+
+void VGPUResourceAllocator::destroyBuffer(VBufferResourceHandle handle) {
+	vmaDestroyBuffer(m_allocator, m_buffers[handle].buffer, m_buffers[handle].allocation);
+	m_buffers.removeElement(handle);
 }
 
 void VGPUResourceAllocator::destroy() { vmaDestroyAllocator(m_allocator); }

@@ -10,6 +10,18 @@ void VGPUModule::onCreate(VEngine& engine) {}
 void VGPUModule::onActivate(VEngine& engine) {}
 
 void VGPUModule::onExecute(VEngine& engine) {
+	AcquireResult result = m_context.acquireImage();
+
+	if (result.swapchainState == SwapchainState::Invalid) {
+		m_wasSwapchainInvalid = true;
+		return;
+	}
+
+
+	SwapchainState state = m_context.presentImage(result.imageIndex, result.imageSemaphore);
+	if (state == SwapchainState::Invalid) {
+		m_wasSwapchainInvalid = true;
+	}
 }
 
 void VGPUModule::onDeactivate(VEngine& engine) {}

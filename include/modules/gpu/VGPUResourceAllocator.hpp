@@ -5,11 +5,15 @@
 #include <array>
 #include <vk_mem_alloc.h>
 
-struct V {
-
+struct VBufferMemoryCapabilities {
+	bool deviceLocal;
+	bool hostVisible;
+	bool hostCoherent;
 };
 
 struct VBufferAllocation {
+	VBufferMemoryCapabilities capabilities;
+
 	VmaAllocation allocation;
 	VkBuffer buffer;
 	void* mappedData;
@@ -37,6 +41,8 @@ class VGPUResourceAllocator {
   private:
 	VGPUContext* m_context = nullptr;
 	VmaAllocator m_allocator;
+
+	std::vector<VkMemoryType> m_memoryTypes;
 
 	VSlotmap<VBufferAllocation> m_buffers;
 };

@@ -96,6 +96,8 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 		std::exit(-5);
 	}
 
+	m_physicalDevice = chosenDevice.value();
+
 	std::vector<const char*> deviceExtensionNames = { "VK_KHR_swapchain" };
 
 	std::vector<VkExtensionProperties> availableDeviceExtensions =
@@ -103,13 +105,12 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 																		vkEnumerateDeviceExtensionProperties);
 
 	for (auto& extension : availableDeviceExtensions) {
-		if (!strcmp(extension.extensionName, "VK_EXT_memory_budget")) {
-			deviceExtensionNames.push_back("VK_EXT_memory_budget");
-			deviceExtensionNames.push_back("VK_KHR_get_physical_device_properties2");
+		if (!strcmp(extension.extensionName, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)) {
+			deviceExtensionNames.push_back(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
 			m_capabilities.memoryBudget = true;
 		}
-		if (!strcmp(extension.extensionName, "VK_EXT_memory_priority")) {
-			deviceExtensionNames.push_back("VK_EXT_memory_priority");
+		if (!strcmp(extension.extensionName, VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME)) {
+			deviceExtensionNames.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
 			m_capabilities.memoryPriority = true;
 		}
 	}
@@ -162,6 +163,30 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 													 .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 													 .clipped = VK_TRUE };
 	verifyResult(vkCreateSwapchainKHR(m_device, &swapchainCreateInfo, nullptr, &m_swapchain));
+
+	vkGetDeviceQueue(m_device, chosenQueueFamilyIndex, 0, &m_graphicsQueue);
+
+	VkCommandPoolCreateInfo poolCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+											   .queueFamilyIndex = chosenQueueFamilyIndex };
+
+	VkFenceCreateInfo fenceCreateInfo = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+										  .flags = VK_FENCE_CREATE_SIGNALED_BIT };
+
+	VkSemaphoreCreateInfo semaphoreCreateInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+
+	for (size_t i = 0; i < frameInFlightCount; ++i) {
+		verifyResult(vkCreateCommandPool(m_device, &poolCreateInfo, nullptr, &m_frameCommandPools[i]));
+
+		VkCommandBufferAllocateInfo allocateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+													 .commandPool = m_frameCommandPools[i],
+													 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY };
+		verifyResult(vkAllocateCommandBuffers(m_device, &allocateInfo, &m_frameCommandBuffers[i]));
+
+		verifyResult(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameCompletionFences[i]));
+		verifyResult(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_swapchainImageSemaphores[i]));
+	}
+
+	m_frameIndex = 0;
 }
 
 void VGPUContext::destroy() {
@@ -174,4 +199,58 @@ void VGPUContext::destroy() {
 		vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 	}
 	vkDestroyInstance(m_instance, nullptr);
+}
+
+AcquireResult VGPUContext::acquireImage() {
+	verifyResult(vkWaitForFences(m_device, 1, &m_frameCompletionFences[m_frameIndex], VK_TRUE, UINT64_MAX));
+
+	verifyResult(vkResetCommandPool(m_device, m_frameCommandPools[m_frameIndex], 0));
+
+	AcquireResult acquireResult;
+	VkResult result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_swapchainImageSemaphores[m_frameIndex],
+											VK_NULL_HANDLE, &acquireResult.imageIndex);
+
+	switch (result) {
+		case VK_SUBOPTIMAL_KHR:
+			acquireResult.swapchainState = SwapchainState::Suboptimal;
+			break;
+		case VK_ERROR_OUT_OF_DATE_KHR:
+			acquireResult.swapchainState = SwapchainState::Invalid;
+			break;
+		default:
+			verifyResult(result);
+			break;
+	}
+	acquireResult.frameIndex = m_frameIndex;
+	acquireResult.imageSemaphore = m_swapchainImageSemaphores[m_frameIndex];
+	return acquireResult;
+}
+
+SwapchainState VGPUContext::presentImage(uint32_t imageIndex, VkSemaphore semaphore) {
+	VkResult presentResult;
+	VkPresentInfoKHR presentInfo = {
+		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &semaphore,
+		.swapchainCount = 1,
+		.pSwapchains = &m_swapchain,
+		.pImageIndices = &imageIndex,
+		.pResults = &presentResult
+	};
+
+	vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
+
+	switch (presentResult) {
+		case VK_SUBOPTIMAL_KHR:
+			return SwapchainState::Suboptimal;
+			break;
+		case VK_ERROR_OUT_OF_DATE_KHR:
+			return SwapchainState::Invalid;
+			break;
+		default:
+			return SwapchainState::OK;
+			break;
+	}
+
+	++m_frameIndex %= 3;
 }
