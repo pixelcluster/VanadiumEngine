@@ -34,9 +34,6 @@ class VGPUContext {
 	void create(const std::string_view& appName, uint32_t appVersion, VWindowModule* windowModule);
 	void destroy();
 
-	AcquireResult acquireImage();
-	SwapchainState presentImage(uint32_t imageIndex, VkSemaphore waitSemaphore);
-
 	const VGPUCapabilities& gpuCapabilities() const { return m_capabilities; };
 
 	VkInstance instance() { return m_instance; }
@@ -45,8 +42,13 @@ class VGPUContext {
 	VkDevice device() { return m_device; }
 
 	VkCommandBuffer frameCommandBuffer() { return m_frameCommandBuffers[m_frameIndex]; }
-
 	VkFence frameCompletionFence() { return m_frameCompletionFences[m_frameIndex]; }
+
+	AcquireResult acquireImage();
+	SwapchainState presentImage(uint32_t imageIndex, VkSemaphore waitSemaphore);
+	void recreateSwapchain(VWindowModule* windowModule);
+
+	const std::vector<VkImage>& swapchainImages();
 
   private:
 	VGPUCapabilities m_capabilities = {};
@@ -70,4 +72,7 @@ class VGPUContext {
 	VkCommandBuffer m_frameCommandBuffers[frameInFlightCount];
 
 	VkFence m_frameCompletionFences[frameInFlightCount];
+
+	std::vector<VkImage> m_swapchainImages;
+	std::vector<VkImageView> m_swapchainImageViews;
 };

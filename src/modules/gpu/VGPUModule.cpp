@@ -10,10 +10,21 @@ void VGPUModule::onCreate(VEngine& engine) {}
 void VGPUModule::onActivate(VEngine& engine) {}
 
 void VGPUModule::onExecute(VEngine& engine) {
-	AcquireResult result = m_context.acquireImage();
+	if (m_wasSwapchainInvalid || m_windowModule->wasResized()) {
+		m_context.recreateSwapchain(m_windowModule);
+	}
+
+	AcquireResult result;
+	if (m_wasSwapchainInvalid && m_invalidAcquiredResult.imageIndex) {
+		result = m_invalidAcquiredResult;
+		result.swapchainState = SwapchainState::OK; //don't fail right away
+	} else {
+		result = m_context.acquireImage();
+	}
 
 	if (result.swapchainState == SwapchainState::Invalid) {
 		m_wasSwapchainInvalid = true;
+		m_invalidAcquiredResult.imageIndex = -1U;
 		return;
 	}
 
@@ -21,7 +32,11 @@ void VGPUModule::onExecute(VEngine& engine) {
 	SwapchainState state = m_context.presentImage(result.imageIndex, result.imageSemaphore);
 	if (state == SwapchainState::Invalid) {
 		m_wasSwapchainInvalid = true;
+		m_invalidAcquiredResult = result;
+		return;
 	}
+
+	m_wasSwapchainInvalid = false;
 }
 
 void VGPUModule::onDeactivate(VEngine& engine) {}

@@ -20,4 +20,5 @@ class VGPUModule : public VModule {
 	VWindowModule* m_windowModule;
 
 	bool m_wasSwapchainInvalid = false;
+	AcquireResult m_invalidAcquiredResult = {.imageIndex = -1U};
 };

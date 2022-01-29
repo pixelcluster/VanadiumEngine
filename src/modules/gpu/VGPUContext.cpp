@@ -107,10 +107,26 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 	for (auto& extension : availableDeviceExtensions) {
 		if (!strcmp(extension.extensionName, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)) {
 			deviceExtensionNames.push_back(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
+
+			auto propertyExtensionIterator =
+				std::find_if(deviceExtensionNames.begin(), deviceExtensionNames.end(), [](const auto& str) {
+					return !strcmp(str, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+				});
+			if (propertyExtensionIterator == deviceExtensionNames.end()) {
+				deviceExtensionNames.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+			}
 			m_capabilities.memoryBudget = true;
 		}
 		if (!strcmp(extension.extensionName, VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME)) {
 			deviceExtensionNames.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+
+			auto propertyExtensionIterator =
+				std::find_if(deviceExtensionNames.begin(), deviceExtensionNames.end(), [](const auto& str) {
+					return !strcmp(str, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+				});
+			if (propertyExtensionIterator == deviceExtensionNames.end()) {
+				deviceExtensionNames.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+			}
 			m_capabilities.memoryPriority = true;
 		}
 	}
@@ -140,29 +156,7 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 		std::exit(-6);
 	}
 
-	VkSurfaceCapabilitiesKHR surfaceCapabilities;
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCapabilities);
-
-	uint32_t minImageCount = std::max(3U, surfaceCapabilities.minImageCount);
-
-	if (surfaceCapabilities.maxImageCount) {
-		minImageCount = std::min(minImageCount, surfaceCapabilities.maxImageCount);
-	}
-
-	VkSwapchainCreateInfoKHR swapchainCreateInfo = { .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-													 .surface = m_surface,
-													 .minImageCount = minImageCount,
-													 .imageFormat = VK_FORMAT_R8G8B8A8_SRGB,
-													 .imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-													 .imageExtent = { .width = windowModule->width(),
-																	  .height = windowModule->height() },
-													 .imageArrayLayers = 1,
-													 .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-													 .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
-													 .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
-													 .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-													 .clipped = VK_TRUE };
-	verifyResult(vkCreateSwapchainKHR(m_device, &swapchainCreateInfo, nullptr, &m_swapchain));
+	recreateSwapchain(windowModule);
 
 	vkGetDeviceQueue(m_device, chosenQueueFamilyIndex, 0, &m_graphicsQueue);
 
@@ -186,14 +180,38 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 		verifyResult(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_swapchainImageSemaphores[i]));
 	}
 
+	VkPhysicalDeviceMemoryBudgetPropertiesEXT budgetProperties = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT
+	};
+
+	VkPhysicalDeviceMemoryProperties2KHR memoryProperties2 = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2_KHR
+	};
+
+	vkGetPhysicalDeviceMemoryProperties2KHR(m_physicalDevice, &memoryProperties2);
+
 	m_frameIndex = 0;
 }
 
 void VGPUContext::destroy() {
 	vkDeviceWaitIdle(m_device);
 
+	for (auto& semaphore : m_swapchainImageSemaphores) {
+		vkDestroySemaphore(m_device, semaphore, nullptr);
+	}
+
+	for (auto& fence : m_frameCompletionFences) {
+		vkDestroyFence(m_device, fence, nullptr);
+	}
+
+	for (auto& pool : m_frameCommandPools) {
+		vkDestroyCommandPool(m_device, pool, nullptr);
+	}
+
 	vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 	vkDestroyDevice(m_device, nullptr);
+
+	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 
 	if constexpr (vanadiumGPUDebug) {
 		vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
@@ -228,15 +246,13 @@ AcquireResult VGPUContext::acquireImage() {
 
 SwapchainState VGPUContext::presentImage(uint32_t imageIndex, VkSemaphore semaphore) {
 	VkResult presentResult;
-	VkPresentInfoKHR presentInfo = {
-		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = &semaphore,
-		.swapchainCount = 1,
-		.pSwapchains = &m_swapchain,
-		.pImageIndices = &imageIndex,
-		.pResults = &presentResult
-	};
+	VkPresentInfoKHR presentInfo = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+									 .waitSemaphoreCount = 1,
+									 .pWaitSemaphores = &semaphore,
+									 .swapchainCount = 1,
+									 .pSwapchains = &m_swapchain,
+									 .pImageIndices = &imageIndex,
+									 .pResults = &presentResult };
 
 	vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
 
@@ -253,4 +269,43 @@ SwapchainState VGPUContext::presentImage(uint32_t imageIndex, VkSemaphore semaph
 	}
 
 	++m_frameIndex %= 3;
+}
+
+void VGPUContext::recreateSwapchain(VWindowModule* windowModule) {
+	verifyResult(vkDeviceWaitIdle(m_device));
+
+	VkSurfaceCapabilitiesKHR surfaceCapabilities;
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCapabilities);
+
+	uint32_t minImageCount = std::max(3U, surfaceCapabilities.minImageCount);
+
+	if (surfaceCapabilities.maxImageCount) {
+		minImageCount = std::min(minImageCount, surfaceCapabilities.maxImageCount);
+	}
+
+	VkSwapchainKHR oldSwapchain = m_swapchain;
+
+	VkSwapchainCreateInfoKHR swapchainCreateInfo = { .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+													 .surface = m_surface,
+													 .minImageCount = minImageCount,
+													 .imageFormat = VK_FORMAT_R8G8B8A8_SRGB,
+													 .imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+													 .imageExtent = { .width = windowModule->width(),
+																	  .height = windowModule->height() },
+													 .imageArrayLayers = 1,
+													 .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+													 .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+													 .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+													 .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+													 .clipped = VK_TRUE,
+													 .oldSwapchain = m_swapchain };
+	verifyResult(vkCreateSwapchainKHR(m_device, &swapchainCreateInfo, nullptr, &m_swapchain));
+
+	vkDestroySwapchainKHR(m_device, oldSwapchain, nullptr);
+
+	uint32_t swapchainImageCount;
+	verifyResult(vkGetSwapchainImagesKHR(m_device, m_swapchain, &swapchainImageCount, nullptr));
+
+	m_swapchainImages.resize(swapchainImageCount);
+	verifyResult(vkGetSwapchainImagesKHR(m_device, m_swapchain, &swapchainImageCount, m_swapchainImages.data()));
 }
