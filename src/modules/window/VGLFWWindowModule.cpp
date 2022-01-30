@@ -19,7 +19,12 @@ void VGLFWWindowModule::onCreate(VEngine& engine) {}
 void VGLFWWindowModule::onActivate(VEngine& engine) {}
 
 void VGLFWWindowModule::onExecute(VEngine& engine) { 
-	glfwPollEvents();
+	if (m_waitFlag) {
+		glfwWaitEvents();
+		m_waitFlag = false;
+	} else {
+		glfwPollEvents();
+	}
 	if (glfwWindowShouldClose(m_window)) {
 		engine.destroyModule(this);
 	}

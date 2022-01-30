@@ -7,6 +7,7 @@
 #include <modules/gpu/helper/ErrorHelper.hpp>
 
 #include <algorithm>
+#include <iostream>
 #include <optional>
 #include <vector>
 
@@ -22,7 +23,16 @@ const char* platformSurfaceExtensionName() {
 #endif
 }
 
+VKAPI_ATTR VkBool32 VKAPI_CALL debugLog(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+										VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+										const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
+	std::cout << pCallbackData->pMessage << "\n";
+	return VK_FALSE;
+}
+
 void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, VWindowModule* windowModule) {
+	verifyResult(volkInitialize());
+
 	VkApplicationInfo appInfo = { .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 								  .pApplicationName = appName.data(),
 								  .applicationVersion = appVersion,
@@ -31,6 +41,14 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 								  .apiVersion = VK_API_VERSION_1_0 };
 
 	std::vector<const char*> instanceExtensionNames = { platformSurfaceExtensionName(), "VK_KHR_surface" };
+
+	std::vector<VkExtensionProperties> availableInstanceExtensions =
+		enumerate<const char*, VkExtensionProperties>(nullptr, vkEnumerateInstanceExtensionProperties);
+	for (auto& extensionProperties : availableInstanceExtensions) {
+		if (!strcmp(extensionProperties.extensionName, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)) {
+			instanceExtensionNames.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+		}
+	}
 
 	VkInstanceCreateInfo instanceCreateInfo = { .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 												.pApplicationInfo = &appInfo };
@@ -41,7 +59,8 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 						   VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
 						   VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
 		.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-					   VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+					   VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
+		.pfnUserCallback = debugLog
 	};
 
 	if constexpr (vanadiumGPUDebug) {
@@ -52,7 +71,6 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 	instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensionNames.size()),
 	instanceCreateInfo.ppEnabledExtensionNames = instanceExtensionNames.data();
 
-	verifyResult(volkInitialize());
 	verifyResult(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
 
 	volkLoadInstanceOnly(m_instance);
@@ -107,26 +125,10 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 	for (auto& extension : availableDeviceExtensions) {
 		if (!strcmp(extension.extensionName, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)) {
 			deviceExtensionNames.push_back(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
-
-			auto propertyExtensionIterator =
-				std::find_if(deviceExtensionNames.begin(), deviceExtensionNames.end(), [](const auto& str) {
-					return !strcmp(str, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-				});
-			if (propertyExtensionIterator == deviceExtensionNames.end()) {
-				deviceExtensionNames.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-			}
 			m_capabilities.memoryBudget = true;
 		}
 		if (!strcmp(extension.extensionName, VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME)) {
 			deviceExtensionNames.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
-
-			auto propertyExtensionIterator =
-				std::find_if(deviceExtensionNames.begin(), deviceExtensionNames.end(), [](const auto& str) {
-					return !strcmp(str, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-				});
-			if (propertyExtensionIterator == deviceExtensionNames.end()) {
-				deviceExtensionNames.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-			}
 			m_capabilities.memoryPriority = true;
 		}
 	}
@@ -173,7 +175,8 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 
 		VkCommandBufferAllocateInfo allocateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 													 .commandPool = m_frameCommandPools[i],
-													 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY };
+													 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+													 .commandBufferCount = 1 };
 		verifyResult(vkAllocateCommandBuffers(m_device, &allocateInfo, &m_frameCommandBuffers[i]));
 
 		verifyResult(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameCompletionFences[i]));
@@ -194,8 +197,6 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 }
 
 void VGPUContext::destroy() {
-	vkDeviceWaitIdle(m_device);
-
 	for (auto& semaphore : m_swapchainImageSemaphores) {
 		vkDestroySemaphore(m_device, semaphore, nullptr);
 	}
@@ -221,6 +222,7 @@ void VGPUContext::destroy() {
 
 AcquireResult VGPUContext::acquireImage() {
 	verifyResult(vkWaitForFences(m_device, 1, &m_frameCompletionFences[m_frameIndex], VK_TRUE, UINT64_MAX));
+	verifyResult(vkResetFences(m_device, 1, &m_frameCompletionFences[m_frameIndex]));
 
 	verifyResult(vkResetCommandPool(m_device, m_frameCommandPools[m_frameIndex], 0));
 
@@ -236,6 +238,7 @@ AcquireResult VGPUContext::acquireImage() {
 			acquireResult.swapchainState = SwapchainState::Invalid;
 			break;
 		default:
+			acquireResult.swapchainState = SwapchainState::OK;
 			verifyResult(result);
 			break;
 	}
@@ -271,11 +274,18 @@ SwapchainState VGPUContext::presentImage(uint32_t imageIndex, VkSemaphore semaph
 	++m_frameIndex %= 3;
 }
 
-void VGPUContext::recreateSwapchain(VWindowModule* windowModule) {
+bool VGPUContext::recreateSwapchain(VWindowModule* windowModule) {
 	verifyResult(vkDeviceWaitIdle(m_device));
 
 	VkSurfaceCapabilitiesKHR surfaceCapabilities;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCapabilities);
+
+	if (surfaceCapabilities.minImageExtent.width > windowModule->width() ||
+		surfaceCapabilities.minImageExtent.height > windowModule->height() ||
+		surfaceCapabilities.maxImageExtent.width < windowModule->width() ||
+		surfaceCapabilities.maxImageExtent.height < windowModule->height() ||
+		surfaceCapabilities.maxImageExtent.width == 0 || surfaceCapabilities.maxImageExtent.height == 0)
+		return false;
 
 	uint32_t minImageCount = std::max(3U, surfaceCapabilities.minImageCount);
 
@@ -288,12 +298,12 @@ void VGPUContext::recreateSwapchain(VWindowModule* windowModule) {
 	VkSwapchainCreateInfoKHR swapchainCreateInfo = { .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 													 .surface = m_surface,
 													 .minImageCount = minImageCount,
-													 .imageFormat = VK_FORMAT_R8G8B8A8_SRGB,
+													 .imageFormat = VK_FORMAT_B8G8R8A8_SRGB,
 													 .imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
 													 .imageExtent = { .width = windowModule->width(),
 																	  .height = windowModule->height() },
 													 .imageArrayLayers = 1,
-													 .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+													 .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
 													 .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
 													 .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
 													 .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
@@ -308,4 +318,5 @@ void VGPUContext::recreateSwapchain(VWindowModule* windowModule) {
 
 	m_swapchainImages.resize(swapchainImageCount);
 	verifyResult(vkGetSwapchainImagesKHR(m_device, m_swapchain, &swapchainImageCount, m_swapchainImages.data()));
+	return true;
 }

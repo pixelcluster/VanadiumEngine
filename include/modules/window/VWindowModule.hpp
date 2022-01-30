@@ -13,8 +13,11 @@ class VWindowModule : public VModule {
 
 	  bool isFocused() const { return m_isFocused; }
 	  bool wasResized() const { return m_wasResized; }
+
+	  void waitForEvents() { m_waitFlag = true; }
   protected:
 	uint32_t m_width, m_height;
 	bool m_isFocused = false, m_wasResized = false;
+	  bool m_waitFlag = false;
 	//TODO: add input interface
 };

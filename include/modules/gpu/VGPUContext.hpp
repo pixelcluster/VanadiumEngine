@@ -41,14 +41,16 @@ class VGPUContext {
 	VkPhysicalDevice physicalDevice() { return m_physicalDevice; }
 	VkDevice device() { return m_device; }
 
+	VkQueue graphicsQueue() { return m_graphicsQueue; }
+
 	VkCommandBuffer frameCommandBuffer() { return m_frameCommandBuffers[m_frameIndex]; }
 	VkFence frameCompletionFence() { return m_frameCompletionFences[m_frameIndex]; }
 
 	AcquireResult acquireImage();
 	SwapchainState presentImage(uint32_t imageIndex, VkSemaphore waitSemaphore);
-	void recreateSwapchain(VWindowModule* windowModule);
+	bool recreateSwapchain(VWindowModule* windowModule);
 
-	const std::vector<VkImage>& swapchainImages();
+	const std::vector<VkImage>& swapchainImages() { return m_swapchainImages; }
 
   private:
 	VGPUCapabilities m_capabilities = {};

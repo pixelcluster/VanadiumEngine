@@ -20,6 +20,7 @@ struct VBufferAllocation {
 };
 
 using VBufferResourceHandle = VSlotmapHandle;
+using VImageResourceHandle = VSlotmapHandle;
 
 class VGPUResourceAllocator {
   public:

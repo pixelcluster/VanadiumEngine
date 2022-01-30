@@ -21,4 +21,6 @@ class VGPUModule : public VModule {
 
 	bool m_wasSwapchainInvalid = false;
 	AcquireResult m_invalidAcquiredResult = {.imageIndex = -1U};
+
+	VkSemaphore m_signalSemaphores[frameInFlightCount];
 };
