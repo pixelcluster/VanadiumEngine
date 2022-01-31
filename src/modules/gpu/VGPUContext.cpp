@@ -181,16 +181,6 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 		verifyResult(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_swapchainImageSemaphores[i]));
 	}
 
-	VkPhysicalDeviceMemoryBudgetPropertiesEXT budgetProperties = {
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT
-	};
-
-	VkPhysicalDeviceMemoryProperties2KHR memoryProperties2 = {
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2_KHR
-	};
-
-	vkGetPhysicalDeviceMemoryProperties2KHR(m_physicalDevice, &memoryProperties2);
-
 	m_frameIndex = 0;
 }
 
