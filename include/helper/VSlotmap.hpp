@@ -251,13 +251,13 @@ template <typename T> inline VSlotmapHandle VSlotmap<T>::addElement(const T& new
 
 template <typename T> inline VSlotmapHandle VSlotmap<T>::addElement(T&& newElement) {
 	if (keys.size() == 0)
-		keys.append(0);
+		keys.push_back(0);
 	elements.push_back(std::forward<T>(newElement));
 	eraseMap.push_back(freeKeyHead);
 	if (freeKeyHead == freeKeyTail) {
 		size_t newFreeSlotIndex = keys.size();
 
-		keys.append(newFreeSlotIndex);
+		keys.push_back(newFreeSlotIndex);
 
 		keys[freeKeyTail] = newFreeSlotIndex;
 		freeKeyTail = newFreeSlotIndex;
@@ -321,7 +321,7 @@ template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::end() {
 }
 
 template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::find(VSlotmapHandle handle) {
-	return iterator(elements + keys[std::max(handle, keys.size())]);
+	return iterator(elements.data() + keys[std::min(handle, keys.size())]);
 }
 
 template <typename T> inline VSlotmapHandle VSlotmap<T>::handle(const VSlotmap<T>::iterator& handleIterator) {

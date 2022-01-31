@@ -158,8 +158,6 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 		std::exit(-6);
 	}
 
-	recreateSwapchain(windowModule);
-
 	vkGetDeviceQueue(m_device, chosenQueueFamilyIndex, 0, &m_graphicsQueue);
 
 	VkCommandPoolCreateInfo poolCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -274,7 +272,7 @@ SwapchainState VGPUContext::presentImage(uint32_t imageIndex, VkSemaphore semaph
 	++m_frameIndex %= 3;
 }
 
-bool VGPUContext::recreateSwapchain(VWindowModule* windowModule) {
+bool VGPUContext::recreateSwapchain(VWindowModule* windowModule, VkImageUsageFlags imageUsageFlags) {
 	verifyResult(vkDeviceWaitIdle(m_device));
 
 	VkSurfaceCapabilitiesKHR surfaceCapabilities;
@@ -303,7 +301,7 @@ bool VGPUContext::recreateSwapchain(VWindowModule* windowModule) {
 													 .imageExtent = { .width = windowModule->width(),
 																	  .height = windowModule->height() },
 													 .imageArrayLayers = 1,
-													 .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+													 .imageUsage = imageUsageFlags,
 													 .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
 													 .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
 													 .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,

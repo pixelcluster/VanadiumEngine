@@ -6,6 +6,10 @@ VGPUModule::VGPUModule(const std::string_view& appName, uint32_t appVersion, VWi
 	m_context.create(appName, appVersion, windowModule);
 	m_windowModule = windowModule;
 
+	m_resourceAllocator.create(&m_context);
+	m_framegraphContext.create(&m_context, &m_resourceAllocator);
+	m_context.recreateSwapchain(m_windowModule, m_framegraphContext.imageUsageFlags("Swapchain image"));
+
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
 	for (size_t i = 0; i < frameInFlightCount; ++i) {
@@ -15,18 +19,18 @@ VGPUModule::VGPUModule(const std::string_view& appName, uint32_t appVersion, VWi
 
 void VGPUModule::onCreate(VEngine& engine) {}
 
-void VGPUModule::onActivate(VEngine& engine) {}
+void VGPUModule::onActivate(VEngine& engine) { m_framegraphContext.setupResources(); }
 
 void VGPUModule::onExecute(VEngine& engine) {
 	if (m_wasSwapchainInvalid || m_windowModule->wasResized()) {
-		if (!m_context.recreateSwapchain(m_windowModule)) {
+		if (!m_context.recreateSwapchain(m_windowModule, m_framegraphContext.imageUsageFlags("Swapchain image"))) {
 			m_windowModule->waitForEvents();
 			return;
 		}
 	}
 
 	AcquireResult result;
-	if (m_wasSwapchainInvalid && m_invalidAcquiredResult.imageIndex) {
+	if (m_wasSwapchainInvalid && m_invalidAcquiredResult.imageIndex != -1U) {
 		result = m_invalidAcquiredResult;
 		result.swapchainState = SwapchainState::OK; // don't fail right away
 	} else {
@@ -39,57 +43,7 @@ void VGPUModule::onExecute(VEngine& engine) {
 		return;
 	}
 
-	VkCommandBuffer frameCommandBuffer = m_context.frameCommandBuffer();
-	VkCommandBufferBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-										   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
-	verifyResult(vkBeginCommandBuffer(frameCommandBuffer, &beginInfo));
-
-	VkImageMemoryBarrier memoryBarrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-										   .srcAccessMask = 0,
-										   .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-										   .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-										   .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-										   .image = m_context.swapchainImages()[result.imageIndex],
-										   .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-																 .baseMipLevel = 0,
-																 .levelCount = 1,
-																 .baseArrayLayer = 0,
-																 .layerCount = 1 } };
-	vkCmdPipelineBarrier(frameCommandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0,
-						 nullptr, 0, nullptr, 1, &memoryBarrier);
-
-	VkClearColorValue clearColor = { .float32 = { 0.2f, 0.2f, 0.2f, 1.0f } };
-
-	VkImageSubresourceRange range = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-									  .baseMipLevel = 0,
-									  .levelCount = 1,
-									  .baseArrayLayer = 0,
-									  .layerCount = 1 };
-
-	vkCmdClearColorImage(frameCommandBuffer, m_context.swapchainImages()[result.imageIndex],
-						 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &range);
-
-	memoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	memoryBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	memoryBarrier.dstAccessMask = 0;
-	
-	vkCmdPipelineBarrier(frameCommandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0,
-						 nullptr, 0, nullptr, 1, &memoryBarrier);
-
-	verifyResult(vkEndCommandBuffer(frameCommandBuffer));
-
-	VkPipelineStageFlags semaphoreWaitStages = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-	VkSubmitInfo submitInfo = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-								.waitSemaphoreCount = 1,
-								.pWaitSemaphores = &result.imageSemaphore,
-								.pWaitDstStageMask = &semaphoreWaitStages,
-								.commandBufferCount = 1,
-								.pCommandBuffers = &frameCommandBuffer,
-								.signalSemaphoreCount = 1,
-								.pSignalSemaphores = &m_signalSemaphores[result.frameIndex] };
-	vkQueueSubmit(m_context.graphicsQueue(), 1, &submitInfo, m_context.frameCompletionFence());
+	m_framegraphContext.executeFrame(result, m_signalSemaphores[result.frameIndex]);
 
 	SwapchainState state = m_context.presentImage(result.imageIndex, m_signalSemaphores[result.frameIndex]);
 	if (state == SwapchainState::Invalid) {

@@ -2,6 +2,8 @@
 
 #include <VEngine.hpp>
 #include <modules/gpu/VGPUContext.hpp>
+#include <modules/gpu/framegraph/VFramegraphContext.hpp>
+#include <modules/gpu/VGPUResourceAllocator.hpp>
 
 class VGPUModule : public VModule {
   public:
@@ -15,11 +17,18 @@ class VGPUModule : public VModule {
 
 	virtual void onDependentModuleDeactivate(VEngine& engine, VModule* moduleToDestroy);
 
+	//No more nodes can be added after the module is activated once
+	VFramegraphContext& framegraphContext() { return m_framegraphContext; }
+
   private:
 	VGPUContext m_context;
+
+	VFramegraphContext m_framegraphContext;
+	VGPUResourceAllocator m_resourceAllocator;
+
 	VWindowModule* m_windowModule;
 
-	bool m_wasSwapchainInvalid = false;
+	bool m_wasSwapchainInvalid = true;
 	AcquireResult m_invalidAcquiredResult = {.imageIndex = -1U};
 
 	VkSemaphore m_signalSemaphores[frameInFlightCount];

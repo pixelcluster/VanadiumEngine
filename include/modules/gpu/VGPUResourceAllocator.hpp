@@ -20,7 +20,7 @@ struct VBufferAllocation {
 };
 
 struct VImageAllocation {
-	VmaAllocation allocation = VMA_NULL;
+	VmaAllocation allocation = nullptr;
 	VkImage image;
 };
 

@@ -19,6 +19,7 @@ void VGLFWWindowModule::onCreate(VEngine& engine) {}
 void VGLFWWindowModule::onActivate(VEngine& engine) {}
 
 void VGLFWWindowModule::onExecute(VEngine& engine) { 
+	m_wasResized = false;
 	if (m_waitFlag) {
 		glfwWaitEvents();
 		m_waitFlag = false;

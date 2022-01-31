@@ -48,7 +48,7 @@ class VGPUContext {
 
 	AcquireResult acquireImage();
 	SwapchainState presentImage(uint32_t imageIndex, VkSemaphore waitSemaphore);
-	bool recreateSwapchain(VWindowModule* windowModule);
+	bool recreateSwapchain(VWindowModule* windowModule, VkImageUsageFlags imageUsageFlags);
 
 	const std::vector<VkImage>& swapchainImages() { return m_swapchainImages; }
 

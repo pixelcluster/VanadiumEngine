@@ -76,7 +76,7 @@ void VGPUResourceAllocator::destroyBuffer(VBufferResourceHandle handle) {
 }
 
 VImageResourceHandle VGPUResourceAllocator::createExternalImage(VkImage image) {
-	m_images.addElement({ .image = image });
+	return m_images.addElement(VImageAllocation { .image = image });
 }
 
 void VGPUResourceAllocator::updateExternalImage(VImageResourceHandle handle, VkImage image) {
