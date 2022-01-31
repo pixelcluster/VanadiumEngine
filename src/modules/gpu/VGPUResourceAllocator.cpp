@@ -75,4 +75,20 @@ void VGPUResourceAllocator::destroyBuffer(VBufferResourceHandle handle) {
 	m_buffers.removeElement(handle);
 }
 
+VImageResourceHandle VGPUResourceAllocator::createExternalImage(VkImage image) {
+	m_images.addElement({ .image = image });
+}
+
+void VGPUResourceAllocator::updateExternalImage(VImageResourceHandle handle, VkImage image) {
+	auto iterator = m_images.find(handle);
+
+	if (iterator == m_images.end()) {
+		//TODO: log trying to update an external image that wasn't external
+	} else {
+		iterator->image = image;
+	}
+}
+
+VkImage VGPUResourceAllocator::nativeImageHandle(VImageResourceHandle handle) { return m_images[handle].image; }
+
 void VGPUResourceAllocator::destroy() { vmaDestroyAllocator(m_allocator); }

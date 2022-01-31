@@ -1,5 +1,19 @@
 #include <modules/gpu/framegraph/VFramegraphContext.hpp>
-#include <modules/gpu/framegraph/VFramegraphRenderingNode.hpp>
+#include <modules/gpu/framegraph/VFramegraphNode.hpp>
+
+void VFramegraphContext::create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator) {
+	m_gpuContext = context;
+	m_resourceAllocator = m_resourceAllocator;
+
+	VImageResourceHandle swapchainImageHandle = resourceAllocator->createExternalImage(VK_NULL_HANDLE);
+
+	declareImportedImage("Swapchain image", swapchainImageHandle,
+						 { .pipelineStages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+						   .accessTypes = 0,
+						   .finishLayout = VK_IMAGE_LAYOUT_UNDEFINED });
+
+
+}
 
 void VFramegraphContext::declareCreatedBuffer(VFramegraphNode* creator, const std::string_view& name,
 											  const VFramegraphNodeBufferUsage& usage) {
@@ -70,11 +84,11 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
 	m_nodeImageDependencies[nodeIndex].push_back({ .resourceName = std::string(name),
-									.srcStages = usageIterator->second.pipelineStages,
-									.dstStages = usage.pipelineStages,
-									.srcAccesses = usageIterator->second.accessTypes,
-									.dstAccesses = usage.accessTypes,
-									.oldLayout = usageIterator->second.finishLayout,
-									.newLayout = usage.startLayout });
+												   .srcStages = usageIterator->second.pipelineStages,
+												   .dstStages = usage.pipelineStages,
+												   .srcAccesses = usageIterator->second.accessTypes,
+												   .dstAccesses = usage.accessTypes,
+												   .oldLayout = usageIterator->second.finishLayout,
+												   .newLayout = usage.startLayout });
 	usageIterator->second = usage;
 }

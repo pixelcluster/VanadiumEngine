@@ -49,6 +49,8 @@ class VFramegraphContext {
   public:
 	VFramegraphContext() {}
 
+	void create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator);
+
 	template<DerivesFrom<VFramegraphNode> T, typename... Args> requires(ConstructibleWith<T, Args...>) 
 	VFramegraphNode* appendNode(Args... constructorArgs);
 
@@ -66,7 +68,17 @@ class VFramegraphContext {
 								 const VFramegraphNodeBufferUsage& usage);
 	void declareReferencedImage(VFramegraphNode* user, const std::string_view& name, const VFramegraphNodeImageUsage& usage);
 
+	VGPUContext* gpuContext() { return m_gpuContext; }
+	VGPUResourceAllocator* resourceAllocator() { return m_resourceAllocator; }
+
+	VkImage nativeImageHandle(const std::string& name) {
+		return m_resourceAllocator->nativeImageHandle(m_images[name].imageResourceHandle);
+	}
+
   private:
+	VGPUContext* m_gpuContext;
+	VGPUResourceAllocator* m_resourceAllocator;
+
 	std::vector<VFramegraphNode*> m_nodes;
 
 	std::vector<std::vector<VFramegraphBufferDependency>> m_nodeBufferDependencies;

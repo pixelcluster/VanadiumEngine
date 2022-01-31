@@ -19,6 +19,11 @@ struct VBufferAllocation {
 	void* mappedData;
 };
 
+struct VImageAllocation {
+	VmaAllocation allocation = VMA_NULL;
+	VkImage image;
+};
+
 using VBufferResourceHandle = VSlotmapHandle;
 using VImageResourceHandle = VSlotmapHandle;
 
@@ -37,6 +42,10 @@ class VGPUResourceAllocator {
 	void* mappedBufferData(VBufferResourceHandle handle);
 	void destroyBuffer(VBufferResourceHandle handle);
 
+	VImageResourceHandle createExternalImage(VkImage image);
+	void updateExternalImage(VImageResourceHandle handle, VkImage image);
+	VkImage nativeImageHandle(VImageResourceHandle handle);
+
 	void destroy();
 
   private:
@@ -46,4 +55,5 @@ class VGPUResourceAllocator {
 	std::vector<VkMemoryType> m_memoryTypes;
 
 	VSlotmap<VBufferAllocation> m_buffers;
+	VSlotmap<VImageAllocation> m_images;
 };
