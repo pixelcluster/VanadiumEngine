@@ -91,4 +91,8 @@ void VGPUResourceAllocator::updateExternalImage(VImageResourceHandle handle, VkI
 
 VkImage VGPUResourceAllocator::nativeImageHandle(VImageResourceHandle handle) { return m_images[handle].image; }
 
+const VImageResourceInfo& VGPUResourceAllocator::imageResourceInfo(VImageResourceHandle handle) {
+	return m_images[handle].resourceInfo;
+}
+
 void VGPUResourceAllocator::destroy() { vmaDestroyAllocator(m_allocator); }

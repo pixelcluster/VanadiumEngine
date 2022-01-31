@@ -1,9 +1,9 @@
-#include <modules/gpu/framegraph/nodes/VSwapchainClearNode.hpp>
+#include <framegraph_nodes/SwapchainClearNode.hpp>
 #include <volk.h>
 
-VSwapchainClearNode::VSwapchainClearNode() {}
+SwapchainClearNode::SwapchainClearNode() {}
 
-void VSwapchainClearNode::setupResources(VFramegraphContext* context) {
+void SwapchainClearNode::setupResources(VFramegraphContext* context) {
 	context->declareReferencedImage(this, "Swapchain image",
 									{
 										.pipelineStages = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -14,7 +14,7 @@ void VSwapchainClearNode::setupResources(VFramegraphContext* context) {
 									});
 }
 
-void VSwapchainClearNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer) {
+void SwapchainClearNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer) {
 	VkClearColorValue clearValue = { .float32 = { 0.2f, 0.2f, 0.2f, 1.0f } };
 
 	VkImageSubresourceRange resourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,

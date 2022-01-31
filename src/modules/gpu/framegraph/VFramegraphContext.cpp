@@ -17,20 +17,18 @@ void VFramegraphContext::create(VGPUContext* context, VGPUResourceAllocator* res
 
 void VFramegraphContext::setupResources() {
 	for (auto& node : m_nodes) {
-		node->setupResources(this);
+		node.node->setupResources(this);
 	}
 }
 
 void VFramegraphContext::declareCreatedBuffer(VFramegraphNode* creator, const std::string_view& name,
-											  VImageResourceHandle handle,
-											  const VFramegraphNodeBufferUsage& usage) {
+											  VImageResourceHandle handle, const VFramegraphNodeBufferUsage& usage) {
 	m_buffers.insert(std::pair<std::string, VFramegraphBufferResource>(
 		name, VFramegraphBufferResource{ .creator = creator, .bufferResourceHandle = handle, .usage = usage }));
 }
 
 void VFramegraphContext::declareCreatedImage(VFramegraphNode* creator, const std::string_view& name,
-											 VImageResourceHandle handle,
-											 const VFramegraphNodeImageUsage& usage) {
+											 VImageResourceHandle handle, const VFramegraphNodeImageUsage& usage) {
 	m_images.insert(std::pair<std::string, VFramegraphImageResource>(
 		name, VFramegraphImageResource{ .creator = creator, .imageResourceHandle = handle, .usage = usage }));
 }
@@ -52,7 +50,8 @@ void VFramegraphContext::declareReferencedBuffer(VFramegraphNode* user, const st
 	m_nodeBufferDependencies.resize(m_nodes.size());
 	m_nodeImageDependencies.resize(m_nodes.size());
 
-	auto nodeIterator = std::find(m_nodes.begin(), m_nodes.end(), user);
+	auto nodeIterator =
+		std::find_if(m_nodes.begin(), m_nodes.end(), [user](const auto& info) { return info.node == user; });
 	if (nodeIterator == m_nodes.end()) {
 		// TODO: log invalid node for dependency
 		return;
@@ -82,7 +81,8 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std
 	m_nodeBufferDependencies.resize(m_nodes.size());
 	m_nodeImageDependencies.resize(m_nodes.size());
 
-	auto nodeIterator = std::find(m_nodes.begin(), m_nodes.end(), user);
+	auto nodeIterator =
+		std::find_if(m_nodes.begin(), m_nodes.end(), [user](const auto& info) { return info.node == user; });
 	if (nodeIterator == m_nodes.end()) {
 		// TODO: log invalid node for dependency
 		return;
@@ -106,6 +106,22 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std
 	VkImageUsageFlags previousUsageFlags = usageIterator->second.usage.usageFlags;
 	usageIterator->second.usage = usage;
 	usageIterator->second.usage.usageFlags |= previousUsageFlags;
+}
+
+const VFramegraphBufferResource VFramegraphContext::bufferResource(const std::string& name) const {
+	auto iterator = m_buffers.find(name);
+	if (iterator == m_buffers.end())
+		return {};
+	else
+		return iterator->second;
+}
+
+const VFramegraphImageResource VFramegraphContext::imageResource(const std::string& name) const {
+	auto iterator = m_images.find(name);
+	if (iterator == m_images.end())
+		return {};
+	else
+		return iterator->second;
 }
 
 void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore signalSemaphore) {
@@ -167,7 +183,7 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 								 static_cast<uint32_t>(imageMemoryBarriers.size()), imageMemoryBarriers.data());
 		}
 
-		node->recordCommands(this, frameCommandBuffer);
+		node.node->recordCommands(this, frameCommandBuffer);
 
 		bufferMemoryBarriers.clear();
 		imageMemoryBarriers.clear();

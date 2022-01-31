@@ -19,7 +19,24 @@ struct VBufferAllocation {
 	void* mappedData;
 };
 
+struct VImageResourceViewInfo {
+	VkImageViewCreateFlags flags;
+	VkImageViewType viewType;
+	VkComponentMapping components;
+	VkImageSubresourceRange subresourceRange;
+};
+
+struct VImageResourceInfo {
+	VkFormat format;
+	VkExtent3D dimensions;
+
+	uint32_t mipLevelCount;
+	uint32_t arrayLayerCount;
+};
+
 struct VImageAllocation {
+	VImageResourceInfo resourceInfo;
+
 	VmaAllocation allocation = nullptr;
 	VkImage image;
 };
@@ -45,6 +62,7 @@ class VGPUResourceAllocator {
 	VImageResourceHandle createExternalImage(VkImage image);
 	void updateExternalImage(VImageResourceHandle handle, VkImage image);
 	VkImage nativeImageHandle(VImageResourceHandle handle);
+	const VImageResourceInfo& imageResourceInfo(VImageResourceHandle handle);
 
 	void destroy();
 

@@ -76,5 +76,4 @@ class VGPUContext {
 	VkFence m_frameCompletionFences[frameInFlightCount];
 
 	std::vector<VkImage> m_swapchainImages;
-	std::vector<VkImageView> m_swapchainImageViews;
 };

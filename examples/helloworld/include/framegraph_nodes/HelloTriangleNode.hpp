@@ -2,7 +2,7 @@
 
 #include <modules/gpu/framegraph/VFramegraphNode.hpp>
 
-class VHelloTriangleNode : public VFramegraphNode {
+class HelloTriangleNode : public VFramegraphNode {
   public:
 	void setupResources(VFramegraphContext* context) override;
 
@@ -12,6 +12,7 @@ class VHelloTriangleNode : public VFramegraphNode {
 
   private:
 	VkPipeline m_graphicsPipeline;
+	VkPipelineLayout m_pipelineLayout;
 	VkRenderPass m_renderPass;
 
 	std::vector<VkFramebuffer> m_framebuffers;

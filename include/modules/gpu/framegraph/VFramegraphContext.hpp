@@ -35,6 +35,7 @@ struct VFramegraphNodeImageUsage {
 	VkImageLayout startLayout;
 	VkImageLayout finishLayout;
 	VkImageUsageFlags usageFlags;
+	std::optional<VImageResourceViewInfo> viewInfo;
 };
 
 struct VFramegraphBufferResource {
@@ -47,6 +48,16 @@ struct VFramegraphImageResource {
 	VFramegraphNode* creator = nullptr;
 	VImageResourceHandle imageResourceHandle;
 	VFramegraphNodeImageUsage usage;
+};
+
+struct VFramegraphImageResourceView {
+	VImageResourceViewInfo info;
+	VkImageView handle;
+};
+
+struct VFramegraphNodeInfo {
+	VFramegraphNode* node;
+	std::unordered_map<std::string, VFramegraphImageResourceView> resourceViewInfos;
 };
 
 class VFramegraphContext {
@@ -76,8 +87,14 @@ class VFramegraphContext {
 	void declareReferencedImage(VFramegraphNode* user, const std::string_view& name,
 								const VFramegraphNodeImageUsage& usage);
 
+	void invalidateBuffer(const std::string& name, VBufferResourceHandle newHandle);
+	void invalidateImage(const std::string& name, VImageResourceHandle newHandle);
+
 	VGPUContext* gpuContext() { return m_gpuContext; }
 	VGPUResourceAllocator* resourceAllocator() { return m_resourceAllocator; }
+
+	const VFramegraphBufferResource bufferResource(const std::string& name) const;
+	const VFramegraphImageResource imageResource(const std::string& name) const;
 
 	VkBuffer nativeBufferHandle(const std::string& name) {
 		return m_resourceAllocator->nativeBufferHandle(m_buffers[name].bufferResourceHandle);
@@ -95,7 +112,7 @@ class VFramegraphContext {
 	VGPUContext* m_gpuContext;
 	VGPUResourceAllocator* m_resourceAllocator;
 
-	std::vector<VFramegraphNode*> m_nodes;
+	std::vector<VFramegraphNodeInfo> m_nodes;
 
 	std::vector<std::vector<VFramegraphBufferDependency>> m_nodeBufferDependencies;
 	std::vector<std::vector<VFramegraphImageDependency>> m_nodeImageDependencies;
@@ -107,6 +124,6 @@ class VFramegraphContext {
 template <DerivesFrom<VFramegraphNode> T, typename... Args>
 requires(ConstructibleWith<T, Args...>) inline VFramegraphNode* VFramegraphContext::appendNode(
 	Args... constructorArgs) {
-	m_nodes.push_back(new T(constructorArgs...));
-	return m_nodes.back();
+	m_nodes.push_back({ .node = new T(constructorArgs...) });
+	return m_nodes.back().node;
 }

@@ -2,9 +2,9 @@
 
 #include <modules/gpu/framegraph/VFramegraphNode.hpp>
 
-class VSwapchainClearNode : public VFramegraphNode {
+class SwapchainClearNode : public VFramegraphNode {
   public:
-	VSwapchainClearNode();
+	SwapchainClearNode();
 
 	void setupResources(VFramegraphContext* context) override;
 

@@ -38,7 +38,7 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
-add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS} "include/modules/gpu/framegraph/nodes/VSwapchainClearNode.hpp")
+add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS})
 
 target_precompile_headers(VanadiumEngine PRIVATE "include/VEngine.hpp")
 
