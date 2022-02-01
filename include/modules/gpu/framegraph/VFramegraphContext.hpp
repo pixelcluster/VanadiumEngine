@@ -5,9 +5,13 @@
 
 class VFramegraphNode;
 
-struct VFramegraphFrameInfo {
+struct VFramegraphNodeContext {
 	uint32_t frameIndex;
 	uint32_t imageIndex;
+	VkImage swapchainImage;
+
+	VkImageView swapchainImageView;
+	std::unordered_map<std::string, VkImageView> resourceImageViews;
 };
 
 struct VFramegraphBufferDependency {
@@ -20,6 +24,7 @@ struct VFramegraphBufferDependency {
 
 struct VFramegraphImageDependency {
 	std::string resourceName;
+	VkImageAspectFlags aspectFlags;
 	VkPipelineStageFlags srcStages;
 	VkPipelineStageFlags dstStages;
 	VkAccessFlags srcAccesses;
@@ -36,6 +41,7 @@ struct VFramegraphNodeBufferUsage {
 
 struct VFramegraphNodeImageUsage {
 	VkPipelineStageFlags pipelineStages;
+	VkImageAspectFlags aspectFlags;
 	VkAccessFlags accessTypes;
 	VkImageLayout startLayout;
 	VkImageLayout finishLayout;
@@ -57,7 +63,9 @@ struct VFramegraphImageResource {
 
 struct VFramegraphNodeInfo {
 	VFramegraphNode* node;
+
 	std::unordered_map<std::string, VImageResourceViewInfo> resourceViewInfos;
+	std::optional<VImageResourceViewInfo> swapchainResourceViewInfo;
 };
 
 class VFramegraphContext {
@@ -76,16 +84,13 @@ class VFramegraphContext {
 	void declareCreatedImage(VFramegraphNode* creator, const std::string_view& name, VImageResourceHandle handle,
 							 const VFramegraphNodeImageUsage& usage);
 
-	void declareImportedBuffer(const std::string_view& name, VBufferResourceHandle handle,
-							   const VFramegraphNodeBufferUsage& usage);
-	void declareImportedImage(const std::string_view& name, VImageResourceHandle handle,
-							  const VFramegraphNodeImageUsage& usage);
-
 	// These functions depend on the fact that all references are inserted in execution order!
 	void declareReferencedBuffer(VFramegraphNode* user, const std::string_view& name,
 								 const VFramegraphNodeBufferUsage& usage);
 	void declareReferencedImage(VFramegraphNode* user, const std::string_view& name,
 								const VFramegraphNodeImageUsage& usage);
+
+	void declareReferencedSwapchainImage(VFramegraphNode* user, const VFramegraphNodeImageUsage& usage);
 
 	void invalidateBuffer(const std::string& name, VBufferResourceHandle newHandle);
 	void invalidateImage(const std::string& name, VImageResourceHandle newHandle);
@@ -107,6 +112,8 @@ class VFramegraphContext {
 	VkBufferUsageFlags bufferUsageFlags(const std::string& name) { return m_buffers[name].usage.usageFlags; }
 	VkImageUsageFlags imageUsageFlags(const std::string& name) { return m_images[name].usage.usageFlags; }
 
+	VkImageUsageFlags swapchainImageUsageFlags() const { return m_swapchainImageUsage.usageFlags; }
+
 	void executeFrame(const AcquireResult& result, VkSemaphore signalSemaphore);
 
 	void handleSwapchainResize(uint32_t width, uint32_t height);
@@ -123,6 +130,8 @@ class VFramegraphContext {
 	std::unordered_map<std::string, VFramegraphBufferResource> m_buffers;
 	std::unordered_map<std::string, VFramegraphImageResource> m_images;
 
+	VFramegraphNodeImageUsage m_swapchainImageUsage = { .pipelineStages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT };
+	std::unordered_map<size_t, VFramegraphImageDependency> m_nodeSwapchainImageDependencies;
 	std::vector<std::unordered_map<VImageResourceViewInfo, VkImageView>> m_swapchainImageViews = { {} };
 };
 

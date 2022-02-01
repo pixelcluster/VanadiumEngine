@@ -6,16 +6,11 @@
 void VFramegraphContext::create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator) {
 	m_gpuContext = context;
 	m_resourceAllocator = resourceAllocator;
-
-	VImageResourceHandle swapchainImageHandle = resourceAllocator->createExternalImage(VK_NULL_HANDLE);
-
-	declareImportedImage("Swapchain image", swapchainImageHandle,
-						 { .pipelineStages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-						   .accessTypes = 0,
-						   .finishLayout = VK_IMAGE_LAYOUT_UNDEFINED });
 }
 
 void VFramegraphContext::setupResources() {
+	m_nodeBufferDependencies.resize(m_nodes.size());
+	m_nodeImageDependencies.resize(m_nodes.size());
 	for (auto& node : m_nodes) {
 		node.node->setupResources(this);
 	}
@@ -38,32 +33,13 @@ void VFramegraphContext::declareCreatedImage(VFramegraphNode* creator, const std
 			// TODO: log invalid node as creator
 			return;
 		}
-		if (name == "Swapchain image") {
-			m_swapchainImageViews[0].insert(
-				std::pair<VImageResourceViewInfo, VkImageView>(usage.viewInfo.value(), VK_NULL_HANDLE));
-		}
 		nodeIterator->resourceViewInfos.insert(
 			std::pair<std::string, VImageResourceViewInfo>(name, usage.viewInfo.value()));
 	}
 }
 
-void VFramegraphContext::declareImportedBuffer(const std::string_view& name, VBufferResourceHandle handle,
-											   const VFramegraphNodeBufferUsage& usage) {
-	m_buffers.insert(std::pair<std::string, VFramegraphBufferResource>(
-		name, VFramegraphBufferResource{ .bufferResourceHandle = handle, .usage = usage }));
-}
-
-void VFramegraphContext::declareImportedImage(const std::string_view& name, VImageResourceHandle handle,
-											  const VFramegraphNodeImageUsage& usage) {
-	m_images.insert(std::pair<std::string, VFramegraphImageResource>(
-		name, VFramegraphImageResource{ .imageResourceHandle = handle, .usage = usage }));
-}
-
 void VFramegraphContext::declareReferencedBuffer(VFramegraphNode* user, const std::string_view& name,
 												 const VFramegraphNodeBufferUsage& usage) {
-	m_nodeBufferDependencies.resize(m_nodes.size());
-	m_nodeImageDependencies.resize(m_nodes.size());
-
 	auto nodeIterator =
 		std::find_if(m_nodes.begin(), m_nodes.end(), [user](const auto& info) { return info.node == user; });
 	if (nodeIterator == m_nodes.end()) {
@@ -92,8 +68,6 @@ void VFramegraphContext::declareReferencedBuffer(VFramegraphNode* user, const st
 
 void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std::string_view& name,
 												const VFramegraphNodeImageUsage& usage) {
-	m_nodeBufferDependencies.resize(m_nodes.size());
-	m_nodeImageDependencies.resize(m_nodes.size());
 
 	auto nodeIterator =
 		std::find_if(m_nodes.begin(), m_nodes.end(), [user](const auto& info) { return info.node == user; });
@@ -111,12 +85,15 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
 	m_nodeImageDependencies[nodeIndex].push_back({ .resourceName = std::string(name),
+												   .aspectFlags = usage.aspectFlags,
 												   .srcStages = usageIterator->second.usage.pipelineStages,
 												   .dstStages = usage.pipelineStages,
 												   .srcAccesses = usageIterator->second.usage.accessTypes,
 												   .dstAccesses = usage.accessTypes,
 												   .oldLayout = usageIterator->second.usage.finishLayout,
-												   .newLayout = usage.startLayout });
+												   .newLayout = usage.startLayout == VK_IMAGE_LAYOUT_UNDEFINED
+																	? usageIterator->second.usage.finishLayout
+																	: VK_IMAGE_LAYOUT_UNDEFINED });
 	VkImageUsageFlags previousUsageFlags = usageIterator->second.usage.usageFlags;
 	usageIterator->second.usage = usage;
 	usageIterator->second.usage.usageFlags |= previousUsageFlags;
@@ -126,12 +103,42 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std
 			// TODO: log invalid node as creator
 			return;
 		}
-		if (name == "Swapchain image") {
-			m_swapchainImageViews[0].insert(
-				std::pair<VImageResourceViewInfo, VkImageView>(usage.viewInfo.value(), VK_NULL_HANDLE));
-		}
 		nodeIterator->resourceViewInfos.insert(
 			std::pair<std::string, VImageResourceViewInfo>(name, usage.viewInfo.value()));
+	}
+}
+
+void VFramegraphContext::declareReferencedSwapchainImage(VFramegraphNode* user,
+														 const VFramegraphNodeImageUsage& usage) {
+	auto nodeIterator =
+		std::find_if(m_nodes.begin(), m_nodes.end(), [user](const auto& info) { return info.node == user; });
+	if (nodeIterator == m_nodes.end()) {
+		// TODO: log invalid node for dependency
+		return;
+	}
+
+	size_t nodeIndex = nodeIterator - m_nodes.begin();
+
+	m_nodeSwapchainImageDependencies.insert(std::pair<size_t, VFramegraphImageDependency>(
+		nodeIndex, { .srcStages = m_swapchainImageUsage.pipelineStages,
+					 .dstStages = usage.pipelineStages,
+					 .srcAccesses = m_swapchainImageUsage.accessTypes,
+					 .dstAccesses = usage.accessTypes,
+					 .oldLayout = m_swapchainImageUsage.finishLayout,
+					 .newLayout = usage.startLayout == VK_IMAGE_LAYOUT_UNDEFINED ? m_swapchainImageUsage.finishLayout
+																				 : usage.startLayout }));
+	VkImageUsageFlags previousUsageFlags = m_swapchainImageUsage.usageFlags;
+	m_swapchainImageUsage = usage;
+	m_swapchainImageUsage.usageFlags |= previousUsageFlags;
+
+	if (usage.viewInfo.has_value()) {
+		if (nodeIterator == m_nodes.end()) {
+			// TODO: log invalid node as creator
+			return;
+		}
+		nodeIterator->swapchainResourceViewInfo = usage.viewInfo.value();
+		m_swapchainImageViews[0].insert(
+			std::pair<VImageResourceViewInfo, VkImageView>(usage.viewInfo.value(), VK_NULL_HANDLE));
 	}
 }
 
@@ -167,33 +174,26 @@ VkImageView VFramegraphContext::swapchainImageView(VFramegraphNode* node, uint32
 		return VK_NULL_HANDLE;
 	}
 
-	auto imageIterator = nodeIterator->resourceViewInfos.find("Swapchain image");
-	if (imageIterator == nodeIterator->resourceViewInfos.end()) {
+	if (!nodeIterator->swapchainResourceViewInfo.has_value()) {
 		// TODO: log getting swapchain image
 		return VK_NULL_HANDLE;
 	} else
-		return m_swapchainImageViews[index][imageIterator->second];
+		return m_swapchainImageViews[index][nodeIterator->swapchainResourceViewInfo.value()];
 }
 
 void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore signalSemaphore) {
-	m_nodeBufferDependencies.resize(m_nodes.size());
-	m_nodeImageDependencies.resize(m_nodes.size());
-
-	m_resourceAllocator->updateExternalImage(m_images["Swapchain image"].imageResourceHandle,
-											 m_gpuContext->swapchainImages()[result.imageIndex]);
-
 	VkCommandBuffer frameCommandBuffer = m_gpuContext->frameCommandBuffer();
 	VkCommandBufferBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 										   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
 	verifyResult(vkBeginCommandBuffer(frameCommandBuffer, &beginInfo));
 
-	VFramegraphFrameInfo frameInfo = { .frameIndex = result.frameIndex, .imageIndex = result.imageIndex };
-
 	size_t nodeIndex = 0;
 	std::vector<VkBufferMemoryBarrier> bufferMemoryBarriers;
 	std::vector<VkImageMemoryBarrier> imageMemoryBarriers;
 
-	std::unordered_map<std::string, VkImageView> nodeImageViews;
+	VFramegraphNodeContext nodeContext = { .frameIndex = result.frameIndex,
+										   .imageIndex = result.imageIndex,
+										   .swapchainImage = m_gpuContext->swapchainImages()[result.imageIndex] };
 	for (auto& node : m_nodes) {
 		bufferMemoryBarriers.reserve(m_nodeBufferDependencies[nodeIndex].size());
 		imageMemoryBarriers.reserve(m_nodeImageDependencies[nodeIndex].size());
@@ -214,22 +214,40 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 			dstStageFlags |= dependency.dstStages;
 		}
 		for (auto& dependency : m_nodeImageDependencies[nodeIndex]) {
-			imageMemoryBarriers.push_back(
-				{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-				  .srcAccessMask = dependency.srcAccesses,
-				  .dstAccessMask = dependency.dstAccesses,
-				  .oldLayout = dependency.oldLayout,
-				  .newLayout = dependency.newLayout,
-				  .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				  .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				  .image = nativeImageHandle(dependency.resourceName),
-				  .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT | VK_IMAGE_ASPECT_DEPTH_BIT,
-										.baseMipLevel = 0,
-										.levelCount = VK_REMAINING_MIP_LEVELS,
-										.baseArrayLayer = 0,
-										.layerCount = VK_REMAINING_ARRAY_LAYERS } });
+			imageMemoryBarriers.push_back({ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+											.srcAccessMask = dependency.srcAccesses,
+											.dstAccessMask = dependency.dstAccesses,
+											.oldLayout = dependency.oldLayout,
+											.newLayout = dependency.newLayout,
+											.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+											.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+											.image = nativeImageHandle(dependency.resourceName),
+											.subresourceRange = { .aspectMask = dependency.aspectFlags,
+																  .baseMipLevel = 0,
+																  .levelCount = VK_REMAINING_MIP_LEVELS,
+																  .baseArrayLayer = 0,
+																  .layerCount = VK_REMAINING_ARRAY_LAYERS } });
 			srcStageFlags |= dependency.srcStages;
 			dstStageFlags |= dependency.dstStages;
+		}
+
+		auto swapchainDependencyIterator = m_nodeSwapchainImageDependencies.find(nodeIndex);
+		if (swapchainDependencyIterator != m_nodeSwapchainImageDependencies.end()) {
+			imageMemoryBarriers.push_back({ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+											.srcAccessMask = swapchainDependencyIterator->second.srcAccesses,
+											.dstAccessMask = swapchainDependencyIterator->second.dstAccesses,
+											.oldLayout = swapchainDependencyIterator->second.oldLayout,
+											.newLayout = swapchainDependencyIterator->second.newLayout,
+											.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+											.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+											.image = nodeContext.swapchainImage,
+											.subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+																  .baseMipLevel = 0,
+																  .levelCount = VK_REMAINING_MIP_LEVELS,
+																  .baseArrayLayer = 0,
+																  .layerCount = VK_REMAINING_ARRAY_LAYERS } });
+			srcStageFlags |= swapchainDependencyIterator->second.srcStages;
+			dstStageFlags |= swapchainDependencyIterator->second.dstStages;
 		}
 
 		if (!bufferMemoryBarriers.empty() || !imageMemoryBarriers.empty()) {
@@ -239,35 +257,34 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 		}
 
 		for (auto& viewInfo : node.resourceViewInfos) {
-			if (viewInfo.first == "Swapchain image") {
-				nodeImageViews.insert(std::pair<std::string, VkImageView>(
-					"Swapchain image", m_swapchainImageViews[result.imageIndex][viewInfo.second]));
-			} else {
 			VkImageView view =
 				m_resourceAllocator->requestImageView(m_images[viewInfo.first].imageResourceHandle, viewInfo.second);
-				nodeImageViews.insert(std::pair<std::string, VkImageView>(viewInfo.first, view));
-			}
+			nodeContext.resourceImageViews.insert(std::pair<std::string, VkImageView>(viewInfo.first, view));
 		}
 
-		node.node->recordCommands(this, frameCommandBuffer, nodeImageViews);
+		if (node.swapchainResourceViewInfo.has_value()) {
+			nodeContext.swapchainImageView =
+				m_swapchainImageViews[result.imageIndex][node.swapchainResourceViewInfo.value()];
+		}
+
+		node.node->recordCommands(this, frameCommandBuffer, nodeContext);
 
 		bufferMemoryBarriers.clear();
 		imageMemoryBarriers.clear();
-		nodeImageViews.clear();
+		nodeContext.resourceImageViews.clear();
 		++nodeIndex;
 	}
 
-	if (m_images["Swapchain image"].usage.finishLayout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+	if (m_swapchainImageUsage.finishLayout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
 		VkImageMemoryBarrier transitionBarrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 												   .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
 												   .dstAccessMask = 0,
-												   .oldLayout = m_images["Swapchain image"].usage.finishLayout,
+												   .oldLayout = m_swapchainImageUsage.finishLayout,
 												   .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 												   .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 												   .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 												   .image = m_gpuContext->swapchainImages()[result.imageIndex],
-												   .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT |
-																					   VK_IMAGE_ASPECT_DEPTH_BIT,
+												   .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 																		 .baseMipLevel = 0,
 																		 .levelCount = VK_REMAINING_MIP_LEVELS,
 																		 .baseArrayLayer = 0,
@@ -279,9 +296,12 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 
 	verifyResult(vkEndCommandBuffer(frameCommandBuffer));
 
+	VkPipelineStageFlags semaphoreWaitStages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
 	VkSubmitInfo submitInfo = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 								.waitSemaphoreCount = 1,
 								.pWaitSemaphores = &result.imageSemaphore,
+								.pWaitDstStageMask = &semaphoreWaitStages,
 								.commandBufferCount = 1,
 								.pCommandBuffers = &frameCommandBuffer,
 								.signalSemaphoreCount = 1,

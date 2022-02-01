@@ -20,12 +20,12 @@ void VGPUModule::onCreate(VEngine& engine) {}
 
 void VGPUModule::onActivate(VEngine& engine) {
 	m_framegraphContext.setupResources();
-	m_context.recreateSwapchain(m_windowModule, m_framegraphContext.imageUsageFlags("Swapchain image"));
+	m_context.recreateSwapchain(m_windowModule, m_framegraphContext.swapchainImageUsageFlags());
 }
 
 void VGPUModule::onExecute(VEngine& engine) {
 	if (m_wasSwapchainInvalid || m_windowModule->wasResized()) {
-		if (!m_context.recreateSwapchain(m_windowModule, m_framegraphContext.imageUsageFlags("Swapchain image"))) {
+		if (!m_context.recreateSwapchain(m_windowModule, m_framegraphContext.swapchainImageUsageFlags())) {
 			m_windowModule->waitForEvents();
 			return;
 		}

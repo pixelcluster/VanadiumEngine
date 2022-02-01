@@ -87,12 +87,9 @@ class VGPUResourceAllocator {
 	void* mappedBufferData(VBufferResourceHandle handle);
 	void destroyBuffer(VBufferResourceHandle handle);
 
-	VImageResourceHandle createExternalImage(VkImage image);
-	void updateExternalImage(VImageResourceHandle handle, VkImage image);
 	VkImage nativeImageHandle(VImageResourceHandle handle);
 	const VImageResourceInfo& imageResourceInfo(VImageResourceHandle handle);
 	VkImageView requestImageView(VImageResourceHandle handle, const VImageResourceViewInfo& info);
-	void destroyExternalImage(VImageResourceHandle handle);
 
 	void destroy();
 

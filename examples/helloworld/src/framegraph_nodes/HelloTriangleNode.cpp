@@ -58,7 +58,8 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 		.polygonMode = VK_POLYGON_MODE_FILL,
 		.cullMode = VK_CULL_MODE_BACK_BIT,
-		.frontFace = VK_FRONT_FACE_CLOCKWISE
+		.frontFace = VK_FRONT_FACE_CLOCKWISE,
+		.lineWidth = 1.0f
 	};
 
 	VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo = {
@@ -73,6 +74,17 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 																				   VK_COLOR_COMPONENT_G_BIT |
 																				   VK_COLOR_COMPONENT_B_BIT |
 																				   VK_COLOR_COMPONENT_A_BIT };
+
+	VkViewport viewport{};
+	VkRect2D scissor{};
+
+	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+		.viewportCount = 1,
+		.pViewports = &viewport,
+		.scissorCount = 1,
+		.pScissors = &scissor
+	};
 
 	VkPipelineColorBlendStateCreateInfo blendStateCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
@@ -126,6 +138,7 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 														.pStages = shaderStageCreateInfos,
 														.pVertexInputState = &inputStateCreateInfo,
 														.pInputAssemblyState = &inputAssemblyCreateInfo,
+														.pViewportState = &viewportStateCreateInfo,
 														.pRasterizationState = &rasterizationStateCreateInfo,
 														.pMultisampleState = &multisampleStateCreateInfo,
 														.pDepthStencilState = &depthStencilStateCreateInfo,
@@ -161,18 +174,17 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 			}
 		} 
 	};
-	context->declareReferencedImage(this, "Swapchain image", usage);
+	context->declareReferencedSwapchainImage(this, usage);
 }
 
-void HelloTriangleNode::recordCommands(
-	VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-	const VFramegraphFrameInfo& frameInfo,
-									   const std::unordered_map<std::string, VkImageView> imageViewHandles) {
-	VkRenderPassBeginInfo beginInfo = {
-		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-		.renderPass = m_renderPass,
-		.framebuffer = m
-	}
+void HelloTriangleNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+									   const VFramegraphNodeContext& nodeContext) {
+	VkRenderPassBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+										.renderPass = m_renderPass,
+										.framebuffer = m_framebuffers[nodeContext.imageIndex],
+										.renderArea = { .extent = { m_width, m_height } } };
+	vkCmdBeginRenderPass(targetCommandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdEndRenderPass(targetCommandBuffer);
 }
 
 void HelloTriangleNode::handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height) {

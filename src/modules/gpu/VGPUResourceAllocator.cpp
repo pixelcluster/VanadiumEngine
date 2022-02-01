@@ -77,31 +77,6 @@ void VGPUResourceAllocator::destroyBuffer(VBufferResourceHandle handle) {
 	m_buffers.removeElement(handle);
 }
 
-VImageResourceHandle VGPUResourceAllocator::createExternalImage(VkImage image) {
-	return m_images.addElement(VImageAllocation { .image = image });
-}
-
-void VGPUResourceAllocator::updateExternalImage(VImageResourceHandle handle, VkImage image) {
-	auto iterator = m_images.find(handle);
-
-	if (iterator == m_images.end()) {
-		//TODO: log trying to update an external image that wasn't registered
-	} else {
-		for (auto& view : m_images[handle].views) {
-			vkDestroyImageView(m_context->device(), view.second, nullptr);
-			VkImageViewCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-												 .flags = view.first.flags,
-												 .image = iterator->image,
-												 .viewType = view.first.viewType,
-												 .format = iterator->resourceInfo.format,
-												 .components = view.first.components,
-												 .subresourceRange = view.first.subresourceRange };
-			verifyResult(vkCreateImageView(m_context->device(), &createInfo, nullptr, &view.second));
-		}
-		iterator->image = image;
-	}
-}
-
 VkImage VGPUResourceAllocator::nativeImageHandle(VImageResourceHandle handle) { return m_images[handle].image; }
 
 const VImageResourceInfo& VGPUResourceAllocator::imageResourceInfo(VImageResourceHandle handle) {
@@ -125,13 +100,6 @@ VkImageView VGPUResourceAllocator::requestImageView(VImageResourceHandle handle,
 		return view;
 	} else
 		return viewIterator->second;
-}
-
-void VGPUResourceAllocator::destroyExternalImage(VImageResourceHandle handle) {
-	for (auto& view : m_images[handle].views) {
-		vkDestroyImageView(m_context->device(), view.second, nullptr);
-	}
-	m_images.removeElement(handle);
 }
 
 void VGPUResourceAllocator::destroy() { vmaDestroyAllocator(m_allocator); }

@@ -9,7 +9,7 @@ class SwapchainClearNode : public VFramegraphNode {
 	void setupResources(VFramegraphContext* context) override;
 
 	void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-						const std::unordered_map<std::string, VkImageView> imageViewHandles) override;
+						const VFramegraphNodeContext& nodeContext) override;
 
   private:
 };

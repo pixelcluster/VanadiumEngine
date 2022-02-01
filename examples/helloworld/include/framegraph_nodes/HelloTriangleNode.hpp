@@ -7,8 +7,7 @@ class HelloTriangleNode : public VFramegraphNode {
 	void setupResources(VFramegraphContext* context) override;
 
 	void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-						const VFramegraphFrameInfo& frameInfo,
-						const std::unordered_map<std::string, VkImageView> imageViewHandles) override;
+						const VFramegraphNodeContext& nodeContext) override;
 
 	void handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height) override;
 
