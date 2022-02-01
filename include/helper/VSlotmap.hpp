@@ -321,7 +321,9 @@ template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::end() {
 }
 
 template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::find(VSlotmapHandle handle) {
-	return iterator(elements.data() + keys[std::min(handle, keys.size())]);
+	if (handle >= keys.size())
+		return iterator(elements.data() + elements.size());
+	return iterator(elements.data() + keys[handle]);
 }
 
 template <typename T> inline VSlotmapHandle VSlotmap<T>::handle(const VSlotmap<T>::iterator& handleIterator) {

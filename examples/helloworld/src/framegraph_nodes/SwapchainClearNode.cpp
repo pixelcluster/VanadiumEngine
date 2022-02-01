@@ -14,7 +14,8 @@ void SwapchainClearNode::setupResources(VFramegraphContext* context) {
 									});
 }
 
-void SwapchainClearNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer) {
+void SwapchainClearNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+										const std::unordered_map<std::string, VkImageView> imageViewHandles) {
 	VkClearColorValue clearValue = { .float32 = { 0.2f, 0.2f, 0.2f, 1.0f } };
 
 	VkImageSubresourceRange resourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,

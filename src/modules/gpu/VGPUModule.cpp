@@ -8,7 +8,6 @@ VGPUModule::VGPUModule(const std::string_view& appName, uint32_t appVersion, VWi
 
 	m_resourceAllocator.create(&m_context);
 	m_framegraphContext.create(&m_context, &m_resourceAllocator);
-	m_context.recreateSwapchain(m_windowModule, m_framegraphContext.imageUsageFlags("Swapchain image"));
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
@@ -19,7 +18,10 @@ VGPUModule::VGPUModule(const std::string_view& appName, uint32_t appVersion, VWi
 
 void VGPUModule::onCreate(VEngine& engine) {}
 
-void VGPUModule::onActivate(VEngine& engine) { m_framegraphContext.setupResources(); }
+void VGPUModule::onActivate(VEngine& engine) {
+	m_framegraphContext.setupResources();
+	m_context.recreateSwapchain(m_windowModule, m_framegraphContext.imageUsageFlags("Swapchain image"));
+}
 
 void VGPUModule::onExecute(VEngine& engine) {
 	if (m_wasSwapchainInvalid || m_windowModule->wasResized()) {
@@ -27,6 +29,7 @@ void VGPUModule::onExecute(VEngine& engine) {
 			m_windowModule->waitForEvents();
 			return;
 		}
+		m_framegraphContext.handleSwapchainResize(m_windowModule->width(), m_windowModule->height());
 	}
 
 	AcquireResult result;

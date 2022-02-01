@@ -5,6 +5,11 @@
 
 class VFramegraphNode;
 
+struct VFramegraphFrameInfo {
+	uint32_t frameIndex;
+	uint32_t imageIndex;
+};
+
 struct VFramegraphBufferDependency {
 	std::string resourceName;
 	VkPipelineStageFlags srcStages;
@@ -50,14 +55,9 @@ struct VFramegraphImageResource {
 	VFramegraphNodeImageUsage usage;
 };
 
-struct VFramegraphImageResourceView {
-	VImageResourceViewInfo info;
-	VkImageView handle;
-};
-
 struct VFramegraphNodeInfo {
 	VFramegraphNode* node;
-	std::unordered_map<std::string, VFramegraphImageResourceView> resourceViewInfos;
+	std::unordered_map<std::string, VImageResourceViewInfo> resourceViewInfos;
 };
 
 class VFramegraphContext {
@@ -102,11 +102,14 @@ class VFramegraphContext {
 	VkImage nativeImageHandle(const std::string& name) {
 		return m_resourceAllocator->nativeImageHandle(m_images[name].imageResourceHandle);
 	}
+	VkImageView swapchainImageView(VFramegraphNode* node, uint32_t index);
 
 	VkBufferUsageFlags bufferUsageFlags(const std::string& name) { return m_buffers[name].usage.usageFlags; }
 	VkImageUsageFlags imageUsageFlags(const std::string& name) { return m_images[name].usage.usageFlags; }
 
 	void executeFrame(const AcquireResult& result, VkSemaphore signalSemaphore);
+
+	void handleSwapchainResize(uint32_t width, uint32_t height);
 
   private:
 	VGPUContext* m_gpuContext;
@@ -119,6 +122,8 @@ class VFramegraphContext {
 
 	std::unordered_map<std::string, VFramegraphBufferResource> m_buffers;
 	std::unordered_map<std::string, VFramegraphImageResource> m_images;
+
+	std::vector<std::unordered_map<VImageResourceViewInfo, VkImageView>> m_swapchainImageViews = { {} };
 };
 
 template <DerivesFrom<VFramegraphNode> T, typename... Args>

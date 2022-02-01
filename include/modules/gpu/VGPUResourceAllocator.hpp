@@ -26,6 +26,33 @@ struct VImageResourceViewInfo {
 	VkImageSubresourceRange subresourceRange;
 };
 
+inline bool operator==(const VImageResourceViewInfo& one, const VImageResourceViewInfo& other) {
+	return one.flags == other.flags && one.viewType == other.viewType && one.components.r == other.components.r &&
+		   one.components.g == other.components.g && one.components.b == other.components.b &&
+		   one.components.a == other.components.a &&
+		   one.subresourceRange.aspectMask == other.subresourceRange.aspectMask &&
+		   one.subresourceRange.baseArrayLayer == other.subresourceRange.baseArrayLayer &&
+		   one.subresourceRange.layerCount == other.subresourceRange.layerCount &&
+		   one.subresourceRange.baseMipLevel == other.subresourceRange.baseMipLevel &&
+		   one.subresourceRange.levelCount == other.subresourceRange.levelCount;
+}
+
+namespace std {
+	template <> struct hash<VImageResourceViewInfo> {
+		size_t operator()(const VImageResourceViewInfo& info) const { 
+			uint32_t componentMappingID =
+				info.components.r << 9 | info.components.g << 6 | info.components.b << 3 | info.components.a;
+			size_t subresourceRangeHash = ((std::hash<VkImageAspectFlags>()(info.subresourceRange.aspectMask) ^
+											std::hash<uint32_t>()(info.subresourceRange.baseArrayLayer)) +
+										   (std::hash<uint32_t>()(info.subresourceRange.layerCount) ^
+											std::hash<uint32_t>()(info.subresourceRange.baseMipLevel))) *
+										  std::hash<uint32_t>()(info.subresourceRange.levelCount);
+			return (std::hash<VkImageViewCreateFlags>()(info.flags) ^ std::hash<VkImageViewType>()(info.viewType)) +
+				   (std::hash<uint32_t>()(componentMappingID) ^ subresourceRangeHash);
+		}
+	};
+}
+
 struct VImageResourceInfo {
 	VkFormat format;
 	VkExtent3D dimensions;
@@ -36,6 +63,7 @@ struct VImageResourceInfo {
 
 struct VImageAllocation {
 	VImageResourceInfo resourceInfo;
+	std::unordered_map<VImageResourceViewInfo, VkImageView> views;
 
 	VmaAllocation allocation = nullptr;
 	VkImage image;
@@ -63,6 +91,8 @@ class VGPUResourceAllocator {
 	void updateExternalImage(VImageResourceHandle handle, VkImage image);
 	VkImage nativeImageHandle(VImageResourceHandle handle);
 	const VImageResourceInfo& imageResourceInfo(VImageResourceHandle handle);
+	VkImageView requestImageView(VImageResourceHandle handle, const VImageResourceViewInfo& info);
+	void destroyExternalImage(VImageResourceHandle handle);
 
 	void destroy();
 

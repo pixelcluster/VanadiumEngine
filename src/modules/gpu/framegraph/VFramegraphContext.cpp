@@ -31,6 +31,20 @@ void VFramegraphContext::declareCreatedImage(VFramegraphNode* creator, const std
 											 VImageResourceHandle handle, const VFramegraphNodeImageUsage& usage) {
 	m_images.insert(std::pair<std::string, VFramegraphImageResource>(
 		name, VFramegraphImageResource{ .creator = creator, .imageResourceHandle = handle, .usage = usage }));
+	if (usage.viewInfo.has_value()) {
+		auto nodeIterator =
+			std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
+		if (nodeIterator == m_nodes.end()) {
+			// TODO: log invalid node as creator
+			return;
+		}
+		if (name == "Swapchain image") {
+			m_swapchainImageViews[0].insert(
+				std::pair<VImageResourceViewInfo, VkImageView>(usage.viewInfo.value(), VK_NULL_HANDLE));
+		}
+		nodeIterator->resourceViewInfos.insert(
+			std::pair<std::string, VImageResourceViewInfo>(name, usage.viewInfo.value()));
+	}
 }
 
 void VFramegraphContext::declareImportedBuffer(const std::string_view& name, VBufferResourceHandle handle,
@@ -106,6 +120,27 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std
 	VkImageUsageFlags previousUsageFlags = usageIterator->second.usage.usageFlags;
 	usageIterator->second.usage = usage;
 	usageIterator->second.usage.usageFlags |= previousUsageFlags;
+
+	if (usage.viewInfo.has_value()) {
+		if (nodeIterator == m_nodes.end()) {
+			// TODO: log invalid node as creator
+			return;
+		}
+		if (name == "Swapchain image") {
+			m_swapchainImageViews[0].insert(
+				std::pair<VImageResourceViewInfo, VkImageView>(usage.viewInfo.value(), VK_NULL_HANDLE));
+		}
+		nodeIterator->resourceViewInfos.insert(
+			std::pair<std::string, VImageResourceViewInfo>(name, usage.viewInfo.value()));
+	}
+}
+
+void VFramegraphContext::invalidateBuffer(const std::string& name, VBufferResourceHandle newHandle) {
+	m_buffers[name].bufferResourceHandle = newHandle;
+}
+
+void VFramegraphContext::invalidateImage(const std::string& name, VImageResourceHandle newHandle) {
+	m_images[name].imageResourceHandle = newHandle;
 }
 
 const VFramegraphBufferResource VFramegraphContext::bufferResource(const std::string& name) const {
@@ -124,6 +159,22 @@ const VFramegraphImageResource VFramegraphContext::imageResource(const std::stri
 		return iterator->second;
 }
 
+VkImageView VFramegraphContext::swapchainImageView(VFramegraphNode* node, uint32_t index) {
+	auto nodeIterator =
+		std::find_if(m_nodes.begin(), m_nodes.end(), [node](const auto& info) { return info.node == node; });
+	if (nodeIterator == m_nodes.end()) {
+		// TODO: log getting image view of unknown node
+		return VK_NULL_HANDLE;
+	}
+
+	auto imageIterator = nodeIterator->resourceViewInfos.find("Swapchain image");
+	if (imageIterator == nodeIterator->resourceViewInfos.end()) {
+		// TODO: log getting swapchain image
+		return VK_NULL_HANDLE;
+	} else
+		return m_swapchainImageViews[index][imageIterator->second];
+}
+
 void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore signalSemaphore) {
 	m_nodeBufferDependencies.resize(m_nodes.size());
 	m_nodeImageDependencies.resize(m_nodes.size());
@@ -136,9 +187,13 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 										   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
 	verifyResult(vkBeginCommandBuffer(frameCommandBuffer, &beginInfo));
 
+	VFramegraphFrameInfo frameInfo = { .frameIndex = result.frameIndex, .imageIndex = result.imageIndex };
+
 	size_t nodeIndex = 0;
 	std::vector<VkBufferMemoryBarrier> bufferMemoryBarriers;
 	std::vector<VkImageMemoryBarrier> imageMemoryBarriers;
+
+	std::unordered_map<std::string, VkImageView> nodeImageViews;
 	for (auto& node : m_nodes) {
 		bufferMemoryBarriers.reserve(m_nodeBufferDependencies[nodeIndex].size());
 		imageMemoryBarriers.reserve(m_nodeImageDependencies[nodeIndex].size());
@@ -183,10 +238,22 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 								 static_cast<uint32_t>(imageMemoryBarriers.size()), imageMemoryBarriers.data());
 		}
 
-		node.node->recordCommands(this, frameCommandBuffer);
+		for (auto& viewInfo : node.resourceViewInfos) {
+			if (viewInfo.first == "Swapchain image") {
+				nodeImageViews.insert(std::pair<std::string, VkImageView>(
+					"Swapchain image", m_swapchainImageViews[result.imageIndex][viewInfo.second]));
+			} else {
+			VkImageView view =
+				m_resourceAllocator->requestImageView(m_images[viewInfo.first].imageResourceHandle, viewInfo.second);
+				nodeImageViews.insert(std::pair<std::string, VkImageView>(viewInfo.first, view));
+			}
+		}
+
+		node.node->recordCommands(this, frameCommandBuffer, nodeImageViews);
 
 		bufferMemoryBarriers.clear();
 		imageMemoryBarriers.clear();
+		nodeImageViews.clear();
 		++nodeIndex;
 	}
 
@@ -220,4 +287,35 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 								.signalSemaphoreCount = 1,
 								.pSignalSemaphores = &signalSemaphore };
 	vkQueueSubmit(m_gpuContext->graphicsQueue(), 1, &submitInfo, m_gpuContext->frameCompletionFence());
+}
+
+void VFramegraphContext::handleSwapchainResize(uint32_t width, uint32_t height) {
+	uint32_t imageIndex = 0;
+	for (auto& image : m_swapchainImageViews) {
+		for (auto& viewInfo : image) {
+			vkDestroyImageView(m_gpuContext->device(), viewInfo.second, nullptr);
+		}
+	}
+
+	m_swapchainImageViews.resize(m_gpuContext->swapchainImages().size());
+
+	for (size_t i = 0; i < m_swapchainImageViews.size(); ++i) {
+		m_swapchainImageViews[i] = m_swapchainImageViews[0];
+
+		auto& imageViewMap = m_swapchainImageViews[i];
+		for (auto& viewInfo : imageViewMap) {
+			VkImageViewCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+												 .flags = viewInfo.first.flags,
+												 .image = m_gpuContext->swapchainImages()[imageIndex],
+												 .viewType = viewInfo.first.viewType,
+												 .format = m_gpuContext->swapchainImageFormat(),
+												 .components = viewInfo.first.components,
+												 .subresourceRange = viewInfo.first.subresourceRange };
+			vkCreateImageView(m_gpuContext->device(), &createInfo, nullptr, &viewInfo.second);
+		}
+	}
+
+	for (auto& node : m_nodes) {
+		node.node->handleWindowResize(this, width, height);
+	}
 }

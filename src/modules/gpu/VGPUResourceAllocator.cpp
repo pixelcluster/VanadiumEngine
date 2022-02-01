@@ -43,6 +43,8 @@ void VGPUResourceAllocator::create(VGPUContext* gpuContext) {
 	m_memoryTypes = std::vector<VkMemoryType>(memoryProperties.memoryTypeCount);
 	std::memcpy(m_memoryTypes.data(), memoryProperties.memoryTypes,
 				memoryProperties.memoryTypeCount * sizeof(VkMemoryType));
+
+	m_context = gpuContext;
 }
 
 VBufferResourceHandle VGPUResourceAllocator::createBuffer(const VkBufferCreateInfo& bufferCreateInfo,
@@ -83,8 +85,19 @@ void VGPUResourceAllocator::updateExternalImage(VImageResourceHandle handle, VkI
 	auto iterator = m_images.find(handle);
 
 	if (iterator == m_images.end()) {
-		//TODO: log trying to update an external image that wasn't external
+		//TODO: log trying to update an external image that wasn't registered
 	} else {
+		for (auto& view : m_images[handle].views) {
+			vkDestroyImageView(m_context->device(), view.second, nullptr);
+			VkImageViewCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+												 .flags = view.first.flags,
+												 .image = iterator->image,
+												 .viewType = view.first.viewType,
+												 .format = iterator->resourceInfo.format,
+												 .components = view.first.components,
+												 .subresourceRange = view.first.subresourceRange };
+			verifyResult(vkCreateImageView(m_context->device(), &createInfo, nullptr, &view.second));
+		}
 		iterator->image = image;
 	}
 }
@@ -93,6 +106,32 @@ VkImage VGPUResourceAllocator::nativeImageHandle(VImageResourceHandle handle) { 
 
 const VImageResourceInfo& VGPUResourceAllocator::imageResourceInfo(VImageResourceHandle handle) {
 	return m_images[handle].resourceInfo;
+}
+
+VkImageView VGPUResourceAllocator::requestImageView(VImageResourceHandle handle, const VImageResourceViewInfo& info) {
+	auto viewIterator = m_images[handle].views.find(info);
+	if (viewIterator == m_images[handle].views.end()) {
+		VkImageViewCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+											 .flags = info.flags,
+											 .image = m_images[handle].image,
+											 .viewType = info.viewType,
+											 .format = m_images[handle].resourceInfo.format,
+											 .components = info.components,
+											 .subresourceRange = info.subresourceRange };
+		VkImageView view;
+		verifyResult(vkCreateImageView(m_context->device(), &createInfo, nullptr, &view));
+
+		m_images[handle].views.insert(std::pair<VImageResourceViewInfo, VkImageView>(info, view));
+		return view;
+	} else
+		return viewIterator->second;
+}
+
+void VGPUResourceAllocator::destroyExternalImage(VImageResourceHandle handle) {
+	for (auto& view : m_images[handle].views) {
+		vkDestroyImageView(m_context->device(), view.second, nullptr);
+	}
+	m_images.removeElement(handle);
 }
 
 void VGPUResourceAllocator::destroy() { vmaDestroyAllocator(m_allocator); }

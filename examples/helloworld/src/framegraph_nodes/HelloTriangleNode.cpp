@@ -22,6 +22,7 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 
 	VkRenderPassCreateInfo renderPassCreateInfo = { .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 													.attachmentCount = 1,
+													.pAttachments = &description,
 													.subpassCount = 1,
 													.pSubpasses = &subpassDescription };
 	verifyResult(vkCreateRenderPass(context->gpuContext()->device(), &renderPassCreateInfo, nullptr, &m_renderPass));
@@ -88,7 +89,7 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 	};
 
 	size_t shaderSize;
-	uint32_t* shaderData = reinterpret_cast<uint32_t*>(readFile("./shaders/triangle-vertex.spv", &shaderSize));
+	uint32_t* shaderData = reinterpret_cast<uint32_t*>(readFile("./shaders/triangle-vert.spv", &shaderSize));
 
 	VkShaderModuleCreateInfo shaderModuleCreateInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 														.codeSize = shaderSize,
@@ -99,7 +100,7 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 
 	free(shaderData);
 
-	shaderData = reinterpret_cast<uint32_t*>(readFile("./shaders/triangle-fragment.spv", &shaderSize));
+	shaderData = reinterpret_cast<uint32_t*>(readFile("./shaders/triangle-frag.spv", &shaderSize));
 	shaderModuleCreateInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 							   .codeSize = shaderSize,
 							   .pCode = shaderData };
@@ -136,8 +137,64 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 														.basePipelineIndex = -1 };
 	verifyResult(vkCreateGraphicsPipelines(context->gpuContext()->device(), VK_NULL_HANDLE, 1, &pipelineCreateInfo,
 										   nullptr, &m_graphicsPipeline));
+
+	VFramegraphNodeImageUsage usage = {
+		.pipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		.accessTypes = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.startLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.finishLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		.usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		.viewInfo = VImageResourceViewInfo {
+			.viewType = VK_IMAGE_VIEW_TYPE_2D, 
+			.components = {
+				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+			},
+			.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+			}
+		} 
+	};
+	context->declareReferencedImage(this, "Swapchain image", usage);
 }
 
-void HelloTriangleNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer) {}
+void HelloTriangleNode::recordCommands(
+	VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+	const VFramegraphFrameInfo& frameInfo,
+									   const std::unordered_map<std::string, VkImageView> imageViewHandles) {
+	VkRenderPassBeginInfo beginInfo = {
+		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+		.renderPass = m_renderPass,
+		.framebuffer = m
+	}
+}
 
-void HelloTriangleNode::handleWindowResize(VFramegraphContext* context) {}
+void HelloTriangleNode::handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height) {
+	for (auto& framebuffer : m_framebuffers) {
+		vkDestroyFramebuffer(context->gpuContext()->device(), framebuffer, nullptr);
+	}
+	m_framebuffers.resize(context->gpuContext()->swapchainImages().size());
+
+	uint32_t index = 0;
+	for (auto& framebuffer : m_framebuffers) {
+		VkImageView swapchainImageView = context->swapchainImageView(this, index);
+		VkFramebufferCreateInfo framebufferCreateInfo = { .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+														  .renderPass = m_renderPass,
+														  .attachmentCount = 1,
+														  .pAttachments = &swapchainImageView,
+														  .width = width,
+														  .height = height,
+														  .layers = 1 };
+		verifyResult(
+			vkCreateFramebuffer(context->gpuContext()->device(), &framebufferCreateInfo, nullptr, &framebuffer));
+	}
+
+	m_width = width;
+	m_height = height;
+}
