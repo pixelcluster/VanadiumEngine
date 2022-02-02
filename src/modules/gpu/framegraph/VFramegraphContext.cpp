@@ -9,8 +9,9 @@ void VFramegraphContext::create(VGPUContext* context, VGPUResourceAllocator* res
 }
 
 void VFramegraphContext::setupResources() {
-	m_nodeBufferDependencies.resize(m_nodes.size());
-	m_nodeImageDependencies.resize(m_nodes.size());
+	m_nodeBufferMemoryBarriers.resize(m_nodes.size());
+	m_nodeImageMemoryBarriers.resize(m_nodes.size());
+	m_nodeBarrierStages.resize(m_nodes.size());
 	for (auto& node : m_nodes) {
 		node.node->setupResources(this);
 	}
@@ -19,13 +20,13 @@ void VFramegraphContext::setupResources() {
 void VFramegraphContext::declareCreatedBuffer(VFramegraphNode* creator, const std::string_view& name,
 											  VImageResourceHandle handle, const VFramegraphNodeBufferUsage& usage) {
 	m_buffers.insert(std::pair<std::string, VFramegraphBufferResource>(
-		name, VFramegraphBufferResource{ .creator = creator, .bufferResourceHandle = handle, .usage = usage }));
+		name, VFramegraphBufferResource{ .bufferResourceHandle = handle }));
 }
 
 void VFramegraphContext::declareCreatedImage(VFramegraphNode* creator, const std::string_view& name,
 											 VImageResourceHandle handle, const VFramegraphNodeImageUsage& usage) {
 	m_images.insert(std::pair<std::string, VFramegraphImageResource>(
-		name, VFramegraphImageResource{ .creator = creator, .imageResourceHandle = handle, .usage = usage }));
+		name, VFramegraphImageResource{ .imageResourceHandle = handle }));
 	if (usage.viewInfo.has_value()) {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
@@ -55,15 +56,8 @@ void VFramegraphContext::declareReferencedBuffer(VFramegraphNode* user, const st
 
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	m_nodeBufferDependencies[nodeIndex].push_back({ .resourceName = std::string(name),
-													.srcStages = usageIterator->second.usage.pipelineStages,
-													.dstStages = usage.pipelineStages,
-													.srcAccesses = usageIterator->second.usage.accessTypes,
-													.dstAccesses = usage.accessTypes });
-
-	VkBufferUsageFlags previousUsageFlags = usageIterator->second.usage.usageFlags;
-	usageIterator->second.usage = usage;
-	usageIterator->second.usage.usageFlags |= previousUsageFlags;
+	addUsage(nodeIndex, usageIterator->second.modifications, usageIterator->second.reads, usage);
+	usageIterator->second.usageFlags |= usage.usageFlags;
 }
 
 void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std::string_view& name,
@@ -84,19 +78,8 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std
 
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	m_nodeImageDependencies[nodeIndex].push_back({ .resourceName = std::string(name),
-												   .aspectFlags = usage.aspectFlags,
-												   .srcStages = usageIterator->second.usage.pipelineStages,
-												   .dstStages = usage.pipelineStages,
-												   .srcAccesses = usageIterator->second.usage.accessTypes,
-												   .dstAccesses = usage.accessTypes,
-												   .oldLayout = usageIterator->second.usage.finishLayout,
-												   .newLayout = usage.startLayout == VK_IMAGE_LAYOUT_UNDEFINED
-																	? usageIterator->second.usage.finishLayout
-																	: VK_IMAGE_LAYOUT_UNDEFINED });
-	VkImageUsageFlags previousUsageFlags = usageIterator->second.usage.usageFlags;
-	usageIterator->second.usage = usage;
-	usageIterator->second.usage.usageFlags |= previousUsageFlags;
+	addUsage(nodeIndex, usageIterator->second.modifications, usageIterator->second.reads, usage);
+	usageIterator->second.usageFlags |= usage.usageFlags;
 
 	if (usage.viewInfo.has_value()) {
 		if (nodeIterator == m_nodes.end()) {
@@ -119,17 +102,9 @@ void VFramegraphContext::declareReferencedSwapchainImage(VFramegraphNode* user,
 
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	m_nodeSwapchainImageDependencies.insert(std::pair<size_t, VFramegraphImageDependency>(
-		nodeIndex, { .srcStages = m_swapchainImageUsage.pipelineStages,
-					 .dstStages = usage.pipelineStages,
-					 .srcAccesses = m_swapchainImageUsage.accessTypes,
-					 .dstAccesses = usage.accessTypes,
-					 .oldLayout = m_swapchainImageUsage.finishLayout,
-					 .newLayout = usage.startLayout == VK_IMAGE_LAYOUT_UNDEFINED ? m_swapchainImageUsage.finishLayout
-																				 : usage.startLayout }));
-	VkImageUsageFlags previousUsageFlags = m_swapchainImageUsage.usageFlags;
-	m_swapchainImageUsage = usage;
-	m_swapchainImageUsage.usageFlags |= previousUsageFlags;
+	
+	addUsage(nodeIndex, m_swapchainImageModifications, m_swapchainImageReads, usage);
+	m_swapchainImageUsageFlags |= usage.usageFlags;
 
 	if (usage.viewInfo.has_value()) {
 		if (nodeIterator == m_nodes.end()) {
@@ -188,72 +163,18 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 	verifyResult(vkBeginCommandBuffer(frameCommandBuffer, &beginInfo));
 
 	size_t nodeIndex = 0;
-	std::vector<VkBufferMemoryBarrier> bufferMemoryBarriers;
-	std::vector<VkImageMemoryBarrier> imageMemoryBarriers;
 
 	VFramegraphNodeContext nodeContext = { .frameIndex = result.frameIndex,
 										   .imageIndex = result.imageIndex,
 										   .swapchainImage = m_gpuContext->swapchainImages()[result.imageIndex] };
 	for (auto& node : m_nodes) {
-		bufferMemoryBarriers.reserve(m_nodeBufferDependencies[nodeIndex].size());
-		imageMemoryBarriers.reserve(m_nodeImageDependencies[nodeIndex].size());
-
-		VkPipelineStageFlags srcStageFlags = 0;
-		VkPipelineStageFlags dstStageFlags = 0;
-
-		for (auto& dependency : m_nodeBufferDependencies[nodeIndex]) {
-			bufferMemoryBarriers.push_back({ .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-											 .srcAccessMask = dependency.srcAccesses,
-											 .dstAccessMask = dependency.dstAccesses,
-											 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-											 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-											 .buffer = nativeBufferHandle(dependency.resourceName),
-											 .offset = 0U,
-											 .size = VK_WHOLE_SIZE });
-			srcStageFlags |= dependency.srcStages;
-			dstStageFlags |= dependency.dstStages;
-		}
-		for (auto& dependency : m_nodeImageDependencies[nodeIndex]) {
-			imageMemoryBarriers.push_back({ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-											.srcAccessMask = dependency.srcAccesses,
-											.dstAccessMask = dependency.dstAccesses,
-											.oldLayout = dependency.oldLayout,
-											.newLayout = dependency.newLayout,
-											.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-											.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-											.image = nativeImageHandle(dependency.resourceName),
-											.subresourceRange = { .aspectMask = dependency.aspectFlags,
-																  .baseMipLevel = 0,
-																  .levelCount = VK_REMAINING_MIP_LEVELS,
-																  .baseArrayLayer = 0,
-																  .layerCount = VK_REMAINING_ARRAY_LAYERS } });
-			srcStageFlags |= dependency.srcStages;
-			dstStageFlags |= dependency.dstStages;
-		}
-
-		auto swapchainDependencyIterator = m_nodeSwapchainImageDependencies.find(nodeIndex);
-		if (swapchainDependencyIterator != m_nodeSwapchainImageDependencies.end()) {
-			imageMemoryBarriers.push_back({ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-											.srcAccessMask = swapchainDependencyIterator->second.srcAccesses,
-											.dstAccessMask = swapchainDependencyIterator->second.dstAccesses,
-											.oldLayout = swapchainDependencyIterator->second.oldLayout,
-											.newLayout = swapchainDependencyIterator->second.newLayout,
-											.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-											.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-											.image = nodeContext.swapchainImage,
-											.subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-																  .baseMipLevel = 0,
-																  .levelCount = VK_REMAINING_MIP_LEVELS,
-																  .baseArrayLayer = 0,
-																  .layerCount = VK_REMAINING_ARRAY_LAYERS } });
-			srcStageFlags |= swapchainDependencyIterator->second.srcStages;
-			dstStageFlags |= swapchainDependencyIterator->second.dstStages;
-		}
-
-		if (!bufferMemoryBarriers.empty() || !imageMemoryBarriers.empty()) {
-			vkCmdPipelineBarrier(frameCommandBuffer, srcStageFlags, dstStageFlags, 0, 0, nullptr,
-								 static_cast<uint32_t>(bufferMemoryBarriers.size()), bufferMemoryBarriers.data(),
-								 static_cast<uint32_t>(imageMemoryBarriers.size()), imageMemoryBarriers.data());
+		if (!m_nodeBufferMemoryBarriers[nodeIndex].empty() || !m_nodeImageMemoryBarriers[nodeIndex].empty()) {
+			vkCmdPipelineBarrier(frameCommandBuffer, m_nodeBarrierStages[nodeIndex].src,
+								 m_nodeBarrierStages[nodeIndex].dst, 0, 0, nullptr,
+								 static_cast<uint32_t>(m_nodeBufferMemoryBarriers[nodeIndex].size()),
+								 m_nodeBufferMemoryBarriers[nodeIndex].data(),
+								 static_cast<uint32_t>(m_nodeImageMemoryBarriers[nodeIndex].size()),
+								 m_nodeImageMemoryBarriers[nodeIndex].data());
 		}
 
 		for (auto& viewInfo : node.resourceViewInfos) {
@@ -269,17 +190,24 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 
 		node.node->recordCommands(this, frameCommandBuffer, nodeContext);
 
-		bufferMemoryBarriers.clear();
-		imageMemoryBarriers.clear();
 		nodeContext.resourceImageViews.clear();
 		++nodeIndex;
 	}
 
-	if (m_swapchainImageUsage.finishLayout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+	VkImageLayout lastSwapchainImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+	if (!m_swapchainImageReads.empty() && !m_swapchainImageModifications.empty() ||
+		m_swapchainImageReads.back().usingNodeIndex > m_swapchainImageModifications.back().usingNodeIndex) {
+		lastSwapchainImageLayout = m_swapchainImageReads.back().finishLayout;
+	} else if (!m_swapchainImageModifications.empty()) {
+		lastSwapchainImageLayout = m_swapchainImageModifications.back().finishLayout;
+	}
+
+	if (lastSwapchainImageLayout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
 		VkImageMemoryBarrier transitionBarrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 												   .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
 												   .dstAccessMask = 0,
-												   .oldLayout = m_swapchainImageUsage.finishLayout,
+												   .oldLayout = lastSwapchainImageLayout,
 												   .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 												   .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 												   .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -338,4 +266,58 @@ void VFramegraphContext::handleSwapchainResize(uint32_t width, uint32_t height) 
 	for (auto& node : m_nodes) {
 		node.node->handleWindowResize(this, width, height);
 	}
+}
+
+void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
+								  std::vector<VFramegraphNodeBufferAccess>& reads,
+								  const VFramegraphNodeBufferUsage& usage) {
+	const auto accessComparator = [](const VFramegraphNodeBufferAccess& one, const VFramegraphNodeBufferAccess& other) {
+		return one.usingNodeIndex < other.usingNodeIndex;
+	};
+	VFramegraphNodeBufferAccess access = {
+		.usingNodeIndex = nodeIndex,
+		.stageFlags = usage.pipelineStages,
+		.accessFlags = usage.accessTypes,
+		.offset = usage.offset,
+		.size = usage.size,
+	};
+
+	if (usage.writes) {
+		auto insertIterator = std::lower_bound(modifications.begin(), modifications.end(), access, accessComparator);
+		reads.insert(insertIterator, access);
+	} else {
+		auto insertIterator = std::lower_bound(reads.begin(), reads.end(), access, accessComparator);
+		reads.insert(insertIterator, access);
+	}
+
+}
+
+void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeImageAccess>& modifications,
+								  std::vector<VFramegraphNodeImageAccess>& reads,
+								  const VFramegraphNodeImageUsage& usage) {
+	const auto accessComparator = [](const VFramegraphNodeImageAccess& one, const VFramegraphNodeImageAccess& other) {
+		return one.usingNodeIndex < other.usingNodeIndex;
+	};
+	VFramegraphNodeImageAccess access = {
+		.usingNodeIndex = nodeIndex,
+		.stageFlags = usage.pipelineStages,
+		.accessFlags = usage.accessTypes,
+		.startLayout = usage.startLayout,
+		.finishLayout = usage.finishLayout,
+		.subresourceRange = usage.subresourceRange
+	};
+
+	if (usage.writes) {
+		auto insertIterator =
+			std::lower_bound(modifications.begin(), modifications.end(), access, accessComparator);
+		modifications.insert(insertIterator, access);
+	} else {
+		auto insertIterator = std::lower_bound(reads.begin(), reads.end(), access, accessComparator);
+		reads.insert(insertIterator, access);
+	}
+
+}
+
+void VFramegraphContext::updateNodeBarriers() {
+	//TODO: generate good barriers
 }
