@@ -102,7 +102,6 @@ void VFramegraphContext::declareReferencedSwapchainImage(VFramegraphNode* user,
 
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	
 	addUsage(nodeIndex, m_swapchainImageModifications, m_swapchainImageReads, usage);
 	m_swapchainImageUsageFlags |= usage.usageFlags;
 
@@ -271,9 +270,6 @@ void VFramegraphContext::handleSwapchainResize(uint32_t width, uint32_t height) 
 void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
 								  std::vector<VFramegraphNodeBufferAccess>& reads,
 								  const VFramegraphNodeBufferUsage& usage) {
-	const auto accessComparator = [](const VFramegraphNodeBufferAccess& one, const VFramegraphNodeBufferAccess& other) {
-		return one.usingNodeIndex < other.usingNodeIndex;
-	};
 	VFramegraphNodeBufferAccess access = {
 		.usingNodeIndex = nodeIndex,
 		.stageFlags = usage.pipelineStages,
@@ -283,41 +279,49 @@ void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeB
 	};
 
 	if (usage.writes) {
-		auto insertIterator = std::lower_bound(modifications.begin(), modifications.end(), access, accessComparator);
+		auto insertIterator = std::lower_bound(modifications.begin(), modifications.end(), access);
 		reads.insert(insertIterator, access);
 	} else {
-		auto insertIterator = std::lower_bound(reads.begin(), reads.end(), access, accessComparator);
+		auto insertIterator = std::lower_bound(reads.begin(), reads.end(), access);
 		reads.insert(insertIterator, access);
 	}
-
 }
 
 void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeImageAccess>& modifications,
 								  std::vector<VFramegraphNodeImageAccess>& reads,
 								  const VFramegraphNodeImageUsage& usage) {
-	const auto accessComparator = [](const VFramegraphNodeImageAccess& one, const VFramegraphNodeImageAccess& other) {
-		return one.usingNodeIndex < other.usingNodeIndex;
-	};
-	VFramegraphNodeImageAccess access = {
-		.usingNodeIndex = nodeIndex,
-		.stageFlags = usage.pipelineStages,
-		.accessFlags = usage.accessTypes,
-		.startLayout = usage.startLayout,
-		.finishLayout = usage.finishLayout,
-		.subresourceRange = usage.subresourceRange
-	};
+	VFramegraphNodeImageAccess access = { .usingNodeIndex = nodeIndex,
+										  .stageFlags = usage.pipelineStages,
+										  .accessFlags = usage.accessTypes,
+										  .startLayout = usage.startLayout,
+										  .finishLayout = usage.finishLayout,
+										  .subresourceRange = usage.subresourceRange };
 
 	if (usage.writes) {
-		auto insertIterator =
-			std::lower_bound(modifications.begin(), modifications.end(), access, accessComparator);
+		auto insertIterator = std::lower_bound(modifications.begin(), modifications.end(), access);
 		modifications.insert(insertIterator, access);
 	} else {
-		auto insertIterator = std::lower_bound(reads.begin(), reads.end(), access, accessComparator);
+		auto insertIterator = std::lower_bound(reads.begin(), reads.end(), access);
 		reads.insert(insertIterator, access);
 	}
-
 }
 
 void VFramegraphContext::updateNodeBarriers() {
-	//TODO: generate good barriers
+	for (auto& buffer : m_buffers) {
+		for (auto& read : buffer.second.reads) {
+			auto modification = findLastModification(buffer.second.modifications, read);
+		}
+	}
+}
+
+std::optional<VFramegraphNodeBufferAccess> VFramegraphContext::findLastModification(
+	std::vector<VFramegraphNodeBufferAccess>& modifications, const VFramegraphNodeBufferAccess& read) {
+	if (modifications.empty())
+		return std::nullopt;
+	auto nextModificationIterator = std::lower_bound(modifications.begin(), modifications.end(), read);
+
+	if (nextModificationIterator == modifications.begin()) {
+		return std::nullopt;
+	}
+	return *--nextModificationIterator;
 }

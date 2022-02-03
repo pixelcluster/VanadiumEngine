@@ -33,6 +33,9 @@ struct VFramegraphNodeBufferAccess {
 	VkDeviceSize offset;
 	VkDeviceSize size;
 };
+inline bool operator<(const VFramegraphNodeBufferAccess& one, const VFramegraphNodeBufferAccess& other) {
+	return one.usingNodeIndex < other.usingNodeIndex;
+};
 
 struct VFramegraphNodeImageUsage {
 	VkPipelineStageFlags pipelineStages;
@@ -56,6 +59,9 @@ struct VFramegraphNodeImageAccess {
 
 	VkImageAspectFlags aspectFlags;
 	VkImageSubresourceRange subresourceRange;
+};
+inline bool operator<(const VFramegraphNodeImageAccess& one, const VFramegraphNodeImageAccess& other) {
+	return one.usingNodeIndex < other.usingNodeIndex;
 };
 
 struct VFramegraphBufferResource {
@@ -142,6 +148,9 @@ class VFramegraphContext {
 				  std::vector<VFramegraphNodeImageAccess>& reads, const VFramegraphNodeImageUsage& usage);
 
 	void updateNodeBarriers();
+
+	std::optional<VFramegraphNodeBufferAccess> findLastModification(
+		std::vector<VFramegraphNodeBufferAccess>& modifications, const VFramegraphNodeBufferAccess& read);
 
 	VGPUContext* m_gpuContext;
 	VGPUResourceAllocator* m_resourceAllocator;
