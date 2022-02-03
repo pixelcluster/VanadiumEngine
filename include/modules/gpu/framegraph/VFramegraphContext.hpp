@@ -24,6 +24,13 @@ struct VFramegraphNodeBufferUsage {
 	bool writes;
 };
 
+struct VFramegraphBufferBarrier {
+	size_t nodeIndex;
+	VkPipelineStageFlags srcStages;
+	VkPipelineStageFlags dstStages;
+	VkBufferMemoryBarrier barrier;
+};
+
 struct VFramegraphNodeBufferAccess {
 	size_t usingNodeIndex;
 
@@ -32,6 +39,7 @@ struct VFramegraphNodeBufferAccess {
 
 	VkDeviceSize offset;
 	VkDeviceSize size;
+	std::optional<VFramegraphBufferBarrier> barrier;
 };
 inline bool operator<(const VFramegraphNodeBufferAccess& one, const VFramegraphNodeBufferAccess& other) {
 	return one.usingNodeIndex < other.usingNodeIndex;
@@ -49,6 +57,11 @@ struct VFramegraphNodeImageUsage {
 	std::optional<VImageResourceViewInfo> viewInfo;
 };
 
+struct VFramegraphImageBarrier {
+	size_t nodeIndex;
+	VkImageMemoryBarrier barrier;
+};
+
 struct VFramegraphNodeImageAccess {
 	size_t usingNodeIndex;
 
@@ -57,8 +70,9 @@ struct VFramegraphNodeImageAccess {
 	VkImageLayout startLayout;
 	VkImageLayout finishLayout;
 
-	VkImageAspectFlags aspectFlags;
 	VkImageSubresourceRange subresourceRange;
+
+	std::optional<VFramegraphImageBarrier> barrier;
 };
 inline bool operator<(const VFramegraphNodeImageAccess& one, const VFramegraphNodeImageAccess& other) {
 	return one.usingNodeIndex < other.usingNodeIndex;
@@ -90,6 +104,19 @@ struct VFramegraphNodeInfo {
 struct VFramegraphBarrierStages {
 	VkPipelineStageFlags src;
 	VkPipelineStageFlags dst;
+};
+
+struct VFramegraphBufferAccessMatch {
+	size_t matchIndex;
+	bool isPartial;
+	size_t offset;
+	size_t size;
+};
+
+struct VFramegraphImageAccessMatch {
+	size_t matchIndex;
+	bool isPartial;
+	VkImageSubresourceRange range;
 };
 
 class VFramegraphContext {
@@ -149,8 +176,13 @@ class VFramegraphContext {
 
 	void updateNodeBarriers();
 
-	std::optional<VFramegraphNodeBufferAccess> findLastModification(
+	std::optional<VFramegraphBufferAccessMatch> findLastModification(
 		std::vector<VFramegraphNodeBufferAccess>& modifications, const VFramegraphNodeBufferAccess& read);
+	std::optional<VFramegraphImageAccessMatch> findLastModification(
+		std::vector<VFramegraphNodeImageAccess>& modifications, const VFramegraphNodeImageAccess& read);
+
+	void emitBarrier(VkBuffer buffer, VFramegraphNodeBufferAccess& modification, const VFramegraphNodeBufferAccess& read);
+	void emitBarrier(VkImage image, VFramegraphNodeImageAccess& modification, const VFramegraphNodeImageAccess& read);
 
 	VGPUContext* m_gpuContext;
 	VGPUResourceAllocator* m_resourceAllocator;

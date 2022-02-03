@@ -310,18 +310,110 @@ void VFramegraphContext::updateNodeBarriers() {
 	for (auto& buffer : m_buffers) {
 		for (auto& read : buffer.second.reads) {
 			auto modification = findLastModification(buffer.second.modifications, read);
+			if (!modification.has_value()) {
+				continue;
+			}
+			auto& modificationValue = modification.value();
+			if (!modificationValue.barrier.has_value()) {
+				modificationValue.barrier = VFramegraphImageBarrier {
+					.nodeIndex = read.usingNodeIndex, .barrier = {.}
+				}
+			}
 		}
 	}
 }
 
-std::optional<VFramegraphNodeBufferAccess> VFramegraphContext::findLastModification(
+std::optional<VFramegraphBufferAccessMatch> VFramegraphContext::findLastModification(
 	std::vector<VFramegraphNodeBufferAccess>& modifications, const VFramegraphNodeBufferAccess& read) {
 	if (modifications.empty())
 		return std::nullopt;
 	auto nextModificationIterator = std::lower_bound(modifications.begin(), modifications.end(), read);
 
-	if (nextModificationIterator == modifications.begin()) {
+	if (nextModificationIterator == modifications.begin() || nextModificationIterator == modifications.end()) {
 		return std::nullopt;
 	}
-	return *--nextModificationIterator;
+	--nextModificationIterator;
+
+	for (; nextModificationIterator >= modifications.begin(); --nextModificationIterator) {
+		if (nextModificationIterator->offset + nextModificationIterator->size > read.offset &&
+			nextModificationIterator->offset < read.offset + read.size) {
+			// match was found
+			VFramegraphBufferAccessMatch match = { .matchIndex = nextModificationIterator - modifications.begin() };
+			if (nextModificationIterator->offset <= read.offset &&
+				nextModificationIterator->offset + nextModificationIterator->size >= read.offset + read.size) {
+				match.isPartial = false;
+				match.offset = read.offset;
+				match.size = read.size;
+				return match;
+			} else {
+				match.isPartial = true;
+				match.offset = std::max(read.offset, nextModificationIterator->offset);
+				match.size = std::min(read.offset + read.size,
+									  nextModificationIterator->offset + nextModificationIterator->size) -
+							 match.offset;
+				return match;
+			}
+		}
+	}
 }
+
+std::optional<VFramegraphImageAccessMatch> VFramegraphContext::findLastModification(
+	std::vector<VFramegraphNodeImageAccess>& modifications, const VFramegraphNodeImageAccess& read) {
+	if (modifications.empty())
+		return std::nullopt;
+	auto nextModificationIterator = std::lower_bound(modifications.begin(), modifications.end(), read);
+
+	if (nextModificationIterator == modifications.begin() || nextModificationIterator == modifications.end()) {
+		return std::nullopt;
+	}
+	--nextModificationIterator;
+	for (; nextModificationIterator >= modifications.begin(); --nextModificationIterator) {
+		auto& srcRange = nextModificationIterator->subresourceRange;
+		auto& dstRange = read.subresourceRange;
+		bool resourceMatches = srcRange.aspectMask & dstRange.aspectMask;
+		resourceMatches &= srcRange.baseArrayLayer + srcRange.layerCount > dstRange.baseArrayLayer;
+		resourceMatches &= srcRange.baseArrayLayer < dstRange.baseArrayLayer + dstRange.layerCount;
+		resourceMatches &= srcRange.baseMipLevel + srcRange.levelCount > dstRange.baseMipLevel;
+		resourceMatches &= srcRange.baseMipLevel < dstRange.baseMipLevel + dstRange.levelCount;
+		if (resourceMatches) {
+			VFramegraphImageAccessMatch match = { .matchIndex = nextModificationIterator - modifications.begin() };
+			bool matchesFully = srcRange.aspectMask == dstRange.aspectMask;
+			matchesFully &= srcRange.baseArrayLayer <= dstRange.baseArrayLayer;
+			matchesFully &=
+				srcRange.baseArrayLayer + srcRange.layerCount >= dstRange.baseArrayLayer + dstRange.layerCount;
+			matchesFully &= srcRange.baseMipLevel <= dstRange.baseMipLevel;
+			matchesFully &=
+				srcRange.baseMipLevel + srcRange.levelCount >= dstRange.baseMipLevel + dstRange.levelCount;
+			if (matchesFully) {
+				match.isPartial = false;
+				match.range = srcRange;
+				return match;
+			} else {
+				match.isPartial = true;
+
+				return match;
+			}
+		}
+	}
+}
+
+void VFramegraphContext::emitBarrier(VkBuffer buffer, VFramegraphNodeBufferAccess& modification,
+									 const VFramegraphNodeBufferAccess& read) {
+	if (!modification.barrier.has_value()) {
+		modification.barrier = VFramegraphBufferBarrier {
+			.nodeIndex = read.usingNodeIndex, .srcStages = modification.stageFlags, .dstStages = read.stageFlags,
+			.barrier = {
+				.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+				.srcAccessMask = modification.accessFlags,
+				.dstAccessMask = read.accessFlags,
+				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.buffer = buffer,
+				.offset =
+			}
+		}
+	}
+}
+
+void VFramegraphContext::emitBarrier(VkImage image, VFramegraphNodeImageAccess& modification,
+									 const VFramegraphNodeImageAccess& read) {}
