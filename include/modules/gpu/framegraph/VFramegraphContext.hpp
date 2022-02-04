@@ -54,11 +54,14 @@ struct VFramegraphNodeImageUsage {
 	VkImageUsageFlags usageFlags;
 	VkImageSubresourceRange subresourceRange;
 	bool writes;
+	bool useAcrossFrames;
 	std::optional<VImageResourceViewInfo> viewInfo;
 };
 
 struct VFramegraphImageBarrier {
 	size_t nodeIndex;
+	VkPipelineStageFlags srcStages;
+	VkPipelineStageFlags dstStages;
 	VkImageMemoryBarrier barrier;
 };
 
@@ -176,18 +179,30 @@ class VFramegraphContext {
 
 	void updateNodeBarriers();
 
+	void emitBarriersForRead(VkBuffer buffer, std::vector<VFramegraphNodeBufferAccess>& modifications,
+							 const VFramegraphNodeBufferAccess& read);
+	void emitBarriersForRead(VkImage image, std::vector<VFramegraphNodeImageAccess>& modifications,
+							 const VFramegraphNodeImageAccess& read);
+
 	std::optional<VFramegraphBufferAccessMatch> findLastModification(
 		std::vector<VFramegraphNodeBufferAccess>& modifications, const VFramegraphNodeBufferAccess& read);
 	std::optional<VFramegraphImageAccessMatch> findLastModification(
 		std::vector<VFramegraphNodeImageAccess>& modifications, const VFramegraphNodeImageAccess& read);
 
-	void emitBarrier(VkBuffer buffer, VFramegraphNodeBufferAccess& modification, const VFramegraphNodeBufferAccess& read);
-	void emitBarrier(VkImage image, VFramegraphNodeImageAccess& modification, const VFramegraphNodeImageAccess& read);
+	void emitBarrier(VkBuffer buffer, VFramegraphNodeBufferAccess& modification,
+										 const VFramegraphNodeBufferAccess& read,
+										 const VFramegraphBufferAccessMatch& match);
+	void emitBarrier(VkImage image, VFramegraphNodeImageAccess& modification,
+										const VFramegraphNodeImageAccess& read,
+										const VFramegraphImageAccessMatch& match);
 
 	VGPUContext* m_gpuContext;
 	VGPUResourceAllocator* m_resourceAllocator;
 
 	std::vector<VFramegraphNodeInfo> m_nodes;
+	
+	std::vector<VkImageMemoryBarrier> m_initImageMemoryBarriers;
+	std::vector<VkImageMemoryBarrier> m_frameStartImageMemoryBarriers;
 
 	std::vector<std::vector<VkBufferMemoryBarrier>> m_nodeBufferMemoryBarriers;
 	std::vector<std::vector<VkImageMemoryBarrier>> m_nodeImageMemoryBarriers;
@@ -198,7 +213,8 @@ class VFramegraphContext {
 
 	std::vector<VFramegraphNodeImageAccess> m_swapchainImageModifications;
 	std::vector<VFramegraphNodeImageAccess> m_swapchainImageReads;
-	VkImageUsageFlags m_swapchainImageUsageFlags;
+	VkImageUsageFlags m_swapchainImageUsageFlags = 0;
+	size_t m_swapchainFrameStartBarrierIndex = ~0ULL;
 	std::vector<std::unordered_map<VImageResourceViewInfo, VkImageView>> m_swapchainImageViews = { {} };
 };
 

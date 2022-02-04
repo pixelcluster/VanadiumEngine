@@ -157,6 +157,14 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 		.startLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 		.finishLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 		.usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		},
+		.writes = true,
 		.viewInfo = VImageResourceViewInfo {
 			.viewType = VK_IMAGE_VIEW_TYPE_2D, 
 			.components = {

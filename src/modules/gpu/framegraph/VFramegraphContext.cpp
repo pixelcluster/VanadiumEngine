@@ -3,6 +3,36 @@
 #include <modules/gpu/helper/ErrorHelper.hpp>
 #include <volk.h>
 
+// true if [offset1; offset1 + size1] overlaps with [offset2; offset2 + size2]
+template <typename T, T fullRangeValue> bool overlaps(T offset1, T size1, T offset2, T size2) {
+	if (size1 == fullRangeValue) {
+		if (size2 == fullRangeValue) {
+			return true;
+		} else {
+			return offset1 < offset2 + size2;
+		}
+	} else if (size2 == fullRangeValue) {
+		return offset1 + size1 > offset2;
+	} else {
+		return offset1 >= offset2 && offset1 < offset2 + size2;
+	}
+}
+
+// true if [offset2; offset2 + size2] is completely contained within [offset1; offset1 + size1]
+template <typename T, T fullRangeValue> bool isCompletelyContained(T offset1, T size1, T offset2, T size2) {
+	if (size1 == fullRangeValue) {
+		if (size2 == fullRangeValue) {
+			return true;
+		} else {
+			return offset1 <= offset2;
+		}
+	} else if (size2 == fullRangeValue) {
+		return false;
+	} else {
+		return offset1 <= offset2 && offset1 + size1 >= offset2 + size2;
+	}
+}
+
 void VFramegraphContext::create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator) {
 	m_gpuContext = context;
 	m_resourceAllocator = resourceAllocator;
@@ -15,6 +45,34 @@ void VFramegraphContext::setupResources() {
 	for (auto& node : m_nodes) {
 		node.node->setupResources(this);
 	}
+
+	std::optional<VFramegraphNodeImageAccess> firstSwapchainAccess;
+	if (!m_swapchainImageReads.empty() && !m_swapchainImageModifications.empty()) {
+		if (m_swapchainImageReads[0].usingNodeIndex < m_swapchainImageModifications[0].usingNodeIndex) {
+			firstSwapchainAccess = m_swapchainImageReads[0];
+		} else {
+			firstSwapchainAccess = m_swapchainImageModifications[0];
+		}
+	} 
+	else if (m_swapchainImageModifications.empty()) {
+		firstSwapchainAccess = m_swapchainImageReads[0];
+	}
+	else if (m_swapchainImageReads.empty()) {
+		firstSwapchainAccess = m_swapchainImageModifications[0];
+	}
+
+	if (firstSwapchainAccess.has_value() && firstSwapchainAccess.value().startLayout != VK_IMAGE_LAYOUT_UNDEFINED) {
+		m_swapchainFrameStartBarrierIndex = m_frameStartImageMemoryBarriers.size();
+		m_frameStartImageMemoryBarriers.push_back(VkImageMemoryBarrier{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+			.srcAccessMask = 0,
+																		.dstAccessMask = firstSwapchainAccess.value().accessFlags,
+																		.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+								  .newLayout = firstSwapchainAccess.value().startLayout
+			})
+	}
+
+	updateNodeBarriers();
 }
 
 void VFramegraphContext::declareCreatedBuffer(VFramegraphNode* creator, const std::string_view& name,
@@ -166,6 +224,14 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 	VFramegraphNodeContext nodeContext = { .frameIndex = result.frameIndex,
 										   .imageIndex = result.imageIndex,
 										   .swapchainImage = m_gpuContext->swapchainImages()[result.imageIndex] };
+
+	for (auto& modification : m_swapchainImageModifications) {
+		if (modification.barrier.has_value()) {
+			auto& barrier = modification.barrier.value();
+			m_nodeImageMemoryBarriers[barrier.nodeIndex].back().image = nodeContext.swapchainImage;
+		}
+	}
+
 	for (auto& node : m_nodes) {
 		if (!m_nodeBufferMemoryBarriers[nodeIndex].empty() || !m_nodeImageMemoryBarriers[nodeIndex].empty()) {
 			vkCmdPipelineBarrier(frameCommandBuffer, m_nodeBarrierStages[nodeIndex].src,
@@ -195,8 +261,14 @@ void VFramegraphContext::executeFrame(const AcquireResult& result, VkSemaphore s
 
 	VkImageLayout lastSwapchainImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-	if (!m_swapchainImageReads.empty() && !m_swapchainImageModifications.empty() ||
-		m_swapchainImageReads.back().usingNodeIndex > m_swapchainImageModifications.back().usingNodeIndex) {
+	bool isLastAccessRead = false;
+	if (!m_swapchainImageReads.empty() && !m_swapchainImageModifications.empty()) {
+		isLastAccessRead =
+			m_swapchainImageReads.back().usingNodeIndex > m_swapchainImageModifications.back().usingNodeIndex;
+	} else {
+		isLastAccessRead = m_swapchainImageModifications.empty();
+	}
+	if (isLastAccessRead) {
 		lastSwapchainImageLayout = m_swapchainImageReads.back().finishLayout;
 	} else if (!m_swapchainImageModifications.empty()) {
 		lastSwapchainImageLayout = m_swapchainImageModifications.back().finishLayout;
@@ -302,25 +374,177 @@ void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeI
 		modifications.insert(insertIterator, access);
 	} else {
 		auto insertIterator = std::lower_bound(reads.begin(), reads.end(), access);
-		reads.insert(insertIterator, access);
+		if (insertIterator != reads.end() && insertIterator->finishLayout != usage.startLayout) {
+			insertIterator = std::lower_bound(modifications.begin(), modifications.end(), access);
+			modifications.insert(insertIterator, access);
+		} else {
+			reads.insert(insertIterator, access);
+		}
 	}
 }
 
 void VFramegraphContext::updateNodeBarriers() {
+	m_nodeBufferMemoryBarriers.resize(m_nodes.size());
+	m_nodeImageMemoryBarriers.resize(m_nodes.size());
+	m_nodeBarrierStages.resize(m_nodes.size());
+
 	for (auto& buffer : m_buffers) {
+		for (auto& readWrite : buffer.second.modifications) {
+			emitBarriersForRead(m_resourceAllocator->nativeBufferHandle(buffer.second.bufferResourceHandle),
+								buffer.second.modifications, readWrite);
+		}
 		for (auto& read : buffer.second.reads) {
-			auto modification = findLastModification(buffer.second.modifications, read);
-			if (!modification.has_value()) {
-				continue;
-			}
-			auto& modificationValue = modification.value();
-			if (!modificationValue.barrier.has_value()) {
-				modificationValue.barrier = VFramegraphImageBarrier {
-					.nodeIndex = read.usingNodeIndex, .barrier = {.}
-				}
-			}
+			emitBarriersForRead(m_resourceAllocator->nativeBufferHandle(buffer.second.bufferResourceHandle),
+								buffer.second.modifications, read);
 		}
 	}
+	for (auto& image : m_images) {
+		for (auto& readWrite : image.second.modifications) {
+			emitBarriersForRead(m_resourceAllocator->nativeImageHandle(image.second.imageResourceHandle),
+								image.second.modifications, readWrite);
+		}
+		for (auto& read : image.second.reads) {
+			emitBarriersForRead(m_resourceAllocator->nativeImageHandle(image.second.imageResourceHandle),
+								image.second.modifications, read);
+		}
+	}
+
+	for (auto& readWrite : m_swapchainImageModifications) {
+		emitBarriersForRead(VK_NULL_HANDLE, m_swapchainImageModifications, readWrite);
+	}
+	for (auto& read : m_swapchainImageReads) {
+		emitBarriersForRead(VK_NULL_HANDLE, m_swapchainImageModifications, read);
+	}
+
+	for (auto& barrierVector : m_nodeBufferMemoryBarriers) {
+		barrierVector.clear();
+	}
+	for (auto& barrierVector : m_nodeImageMemoryBarriers) {
+		barrierVector.clear();
+	}
+	for (auto& stages : m_nodeBarrierStages) {
+		stages = {};
+	}
+
+	for (auto& buffer : m_buffers) {
+		for (auto& modification : buffer.second.modifications) {
+			if (!modification.barrier.has_value())
+				continue;
+			auto& barrier = modification.barrier.value();
+			m_nodeBufferMemoryBarriers[barrier.nodeIndex].push_back(barrier.barrier);
+			m_nodeBarrierStages[barrier.nodeIndex].src |= barrier.srcStages;
+			m_nodeBarrierStages[barrier.nodeIndex].dst |= barrier.dstStages;
+		}
+	}
+
+	for (auto& image : m_images) {
+		for (auto& modification : image.second.modifications) {
+			if (!modification.barrier.has_value())
+				continue;
+			auto& barrier = modification.barrier.value();
+			m_nodeImageMemoryBarriers[barrier.nodeIndex].push_back(barrier.barrier);
+			m_nodeBarrierStages[barrier.nodeIndex].src |= barrier.srcStages;
+			m_nodeBarrierStages[barrier.nodeIndex].dst |= barrier.dstStages;
+		}
+	}
+
+	for (auto& modification : m_swapchainImageModifications) {
+		if (!modification.barrier.has_value())
+			continue;
+		auto& barrier = modification.barrier.value();
+		m_nodeImageMemoryBarriers[barrier.nodeIndex].push_back(barrier.barrier);
+		m_nodeBarrierStages[barrier.nodeIndex].src |= barrier.srcStages;
+		m_nodeBarrierStages[barrier.nodeIndex].dst |= barrier.dstStages;
+	}
+}
+
+void VFramegraphContext::emitBarriersForRead(VkBuffer buffer, std::vector<VFramegraphNodeBufferAccess>& modifications,
+											 const VFramegraphNodeBufferAccess& read) {
+	auto matchOptional = findLastModification(modifications, read);
+	if (!matchOptional.has_value())
+		return;
+	auto match = matchOptional.value();
+
+	if (match.isPartial) {
+		if (match.offset > read.offset) {
+			VFramegraphNodeBufferAccess partialRead = read;
+			partialRead.offset = read.offset;
+			partialRead.size = match.offset - read.offset;
+			emitBarriersForRead(buffer, modifications, partialRead);
+		}
+		if (read.size == VK_WHOLE_SIZE && match.size != VK_WHOLE_SIZE) {
+			VFramegraphNodeBufferAccess partialRead = read;
+			partialRead.offset = match.offset + match.size;
+			emitBarriersForRead(buffer, modifications, partialRead);
+		} else if (match.size != VK_WHOLE_SIZE && match.offset + match.size < read.offset + read.size) {
+			VFramegraphNodeBufferAccess partialRead = read;
+			partialRead.offset = match.offset + match.size;
+			partialRead.size = (read.offset + read.size) - (partialRead.offset);
+			emitBarriersForRead(buffer, modifications, partialRead);
+		}
+	}
+
+	emitBarrier(buffer, modifications[match.matchIndex], read, match);
+}
+
+void VFramegraphContext::emitBarriersForRead(VkImage image, std::vector<VFramegraphNodeImageAccess>& modifications,
+											 const VFramegraphNodeImageAccess& read) {
+	auto matchOptional = findLastModification(modifications, read);
+	if (!matchOptional.has_value())
+		return;
+	auto match = matchOptional.value();
+
+	if (match.isPartial) {
+		if (match.range.aspectMask != read.subresourceRange.aspectMask) {
+			VFramegraphNodeImageAccess partialRead = read;
+			partialRead.accessFlags = read.subresourceRange.aspectMask & ~match.range.aspectMask;
+			emitBarriersForRead(image, modifications, partialRead);
+		}
+
+		if (match.range.baseArrayLayer > read.subresourceRange.baseArrayLayer) {
+			VFramegraphNodeImageAccess partialRead = read;
+			partialRead.subresourceRange.baseArrayLayer = read.subresourceRange.baseArrayLayer;
+			partialRead.subresourceRange.layerCount = match.range.baseArrayLayer - read.subresourceRange.baseArrayLayer;
+			emitBarriersForRead(image, modifications, partialRead);
+		} else if (read.subresourceRange.layerCount == VK_REMAINING_ARRAY_LAYERS &&
+				   match.range.layerCount != VK_REMAINING_ARRAY_LAYERS) {
+			VFramegraphNodeImageAccess partialRead = read;
+			partialRead.subresourceRange.baseArrayLayer = match.range.baseArrayLayer + match.range.layerCount;
+			emitBarriersForRead(image, modifications, partialRead);
+		} else if (match.range.layerCount != VK_REMAINING_ARRAY_LAYERS &&
+				   match.range.baseArrayLayer + match.range.layerCount <
+					   read.subresourceRange.baseArrayLayer + read.subresourceRange.layerCount) {
+			VFramegraphNodeImageAccess partialRead = read;
+			partialRead.subresourceRange.baseArrayLayer = match.range.baseArrayLayer + match.range.layerCount;
+			partialRead.subresourceRange.layerCount =
+				(read.subresourceRange.baseArrayLayer + read.subresourceRange.layerCount) -
+				(partialRead.subresourceRange.baseArrayLayer);
+			emitBarriersForRead(image, modifications, partialRead);
+		}
+
+		if (match.range.baseMipLevel > read.subresourceRange.baseMipLevel) {
+			VFramegraphNodeImageAccess partialRead = read;
+			partialRead.subresourceRange.baseMipLevel = read.subresourceRange.baseMipLevel;
+			partialRead.subresourceRange.levelCount = match.range.baseMipLevel - read.subresourceRange.baseMipLevel;
+			emitBarriersForRead(image, modifications, partialRead);
+		} else if (read.subresourceRange.levelCount == VK_REMAINING_MIP_LEVELS &&
+				   match.range.levelCount != VK_REMAINING_MIP_LEVELS) {
+			VFramegraphNodeImageAccess partialRead = read;
+			partialRead.subresourceRange.baseMipLevel = match.range.baseMipLevel + match.range.levelCount;
+			emitBarriersForRead(image, modifications, partialRead);
+		} else if (match.range.levelCount != VK_REMAINING_MIP_LEVELS &&
+				   match.range.baseMipLevel + match.range.levelCount <
+					   read.subresourceRange.baseMipLevel + read.subresourceRange.levelCount) {
+			VFramegraphNodeImageAccess partialRead = read;
+			partialRead.subresourceRange.baseMipLevel = match.range.baseMipLevel + match.range.levelCount;
+			partialRead.subresourceRange.levelCount =
+				(read.subresourceRange.baseMipLevel + read.subresourceRange.levelCount) -
+				(partialRead.subresourceRange.baseMipLevel);
+			emitBarriersForRead(image, modifications, partialRead);
+		}
+	}
+
+	emitBarrier(image, modifications[match.matchIndex], read, match);
 }
 
 std::optional<VFramegraphBufferAccessMatch> VFramegraphContext::findLastModification(
@@ -334,13 +558,14 @@ std::optional<VFramegraphBufferAccessMatch> VFramegraphContext::findLastModifica
 	}
 	--nextModificationIterator;
 
-	for (; nextModificationIterator >= modifications.begin(); --nextModificationIterator) {
-		if (nextModificationIterator->offset + nextModificationIterator->size > read.offset &&
-			nextModificationIterator->offset < read.offset + read.size) {
+	while (true) {
+		if (overlaps<VkDeviceSize, VK_WHOLE_SIZE>(nextModificationIterator->offset, nextModificationIterator->size,
+												  read.offset, read.size)) {
 			// match was found
-			VFramegraphBufferAccessMatch match = { .matchIndex = nextModificationIterator - modifications.begin() };
-			if (nextModificationIterator->offset <= read.offset &&
-				nextModificationIterator->offset + nextModificationIterator->size >= read.offset + read.size) {
+			VFramegraphBufferAccessMatch match = { .matchIndex = static_cast<size_t>(nextModificationIterator -
+																					 modifications.begin()) };
+			if (isCompletelyContained<VkDeviceSize, VK_WHOLE_SIZE>(
+					nextModificationIterator->offset, nextModificationIterator->size, read.offset, read.size)) {
 				match.isPartial = false;
 				match.offset = read.offset;
 				match.size = read.size;
@@ -348,12 +573,26 @@ std::optional<VFramegraphBufferAccessMatch> VFramegraphContext::findLastModifica
 			} else {
 				match.isPartial = true;
 				match.offset = std::max(read.offset, nextModificationIterator->offset);
-				match.size = std::min(read.offset + read.size,
-									  nextModificationIterator->offset + nextModificationIterator->size) -
-							 match.offset;
+				if (read.size == VK_WHOLE_SIZE) {
+					if (nextModificationIterator->size == VK_WHOLE_SIZE) {
+						match.size = VK_WHOLE_SIZE;
+					} else {
+						match.size = nextModificationIterator->offset + nextModificationIterator->size - match.offset;
+					}
+				} else if (nextModificationIterator->size == VK_WHOLE_SIZE) {
+					match.size = read.offset + read.size - match.offset;
+				} else {
+					match.size = std::min(read.offset + read.size,
+										  nextModificationIterator->offset + nextModificationIterator->size) -
+								 match.offset;
+				}
 				return match;
 			}
 		}
+		if (nextModificationIterator == modifications.begin()) {
+			break;
+		}
+		--nextModificationIterator;
 	}
 }
 
@@ -367,53 +606,145 @@ std::optional<VFramegraphImageAccessMatch> VFramegraphContext::findLastModificat
 		return std::nullopt;
 	}
 	--nextModificationIterator;
-	for (; nextModificationIterator >= modifications.begin(); --nextModificationIterator) {
+	while (true) {
 		auto& srcRange = nextModificationIterator->subresourceRange;
 		auto& dstRange = read.subresourceRange;
 		bool resourceMatches = srcRange.aspectMask & dstRange.aspectMask;
-		resourceMatches &= srcRange.baseArrayLayer + srcRange.layerCount > dstRange.baseArrayLayer;
-		resourceMatches &= srcRange.baseArrayLayer < dstRange.baseArrayLayer + dstRange.layerCount;
-		resourceMatches &= srcRange.baseMipLevel + srcRange.levelCount > dstRange.baseMipLevel;
-		resourceMatches &= srcRange.baseMipLevel < dstRange.baseMipLevel + dstRange.levelCount;
+		resourceMatches &= overlaps<uint32_t, VK_REMAINING_ARRAY_LAYERS>(srcRange.baseArrayLayer, srcRange.layerCount,
+																		 dstRange.baseArrayLayer, dstRange.layerCount);
+		resourceMatches &= overlaps<uint32_t, VK_REMAINING_MIP_LEVELS>(srcRange.baseMipLevel, srcRange.levelCount,
+																	   dstRange.baseMipLevel, dstRange.levelCount);
 		if (resourceMatches) {
-			VFramegraphImageAccessMatch match = { .matchIndex = nextModificationIterator - modifications.begin() };
+			VFramegraphImageAccessMatch match = { .matchIndex = static_cast<size_t>(nextModificationIterator -
+																					modifications.begin()) };
 			bool matchesFully = srcRange.aspectMask == dstRange.aspectMask;
-			matchesFully &= srcRange.baseArrayLayer <= dstRange.baseArrayLayer;
-			matchesFully &=
-				srcRange.baseArrayLayer + srcRange.layerCount >= dstRange.baseArrayLayer + dstRange.layerCount;
-			matchesFully &= srcRange.baseMipLevel <= dstRange.baseMipLevel;
-			matchesFully &=
-				srcRange.baseMipLevel + srcRange.levelCount >= dstRange.baseMipLevel + dstRange.levelCount;
+			matchesFully &= isCompletelyContained<uint32_t, VK_REMAINING_ARRAY_LAYERS>(
+				srcRange.baseArrayLayer, srcRange.layerCount, dstRange.baseArrayLayer, dstRange.layerCount);
+			matchesFully &= isCompletelyContained<uint32_t, VK_REMAINING_MIP_LEVELS>(
+				srcRange.baseMipLevel, srcRange.levelCount, dstRange.baseMipLevel, dstRange.levelCount);
 			if (matchesFully) {
 				match.isPartial = false;
 				match.range = srcRange;
 				return match;
 			} else {
 				match.isPartial = true;
+				match.range.aspectMask = srcRange.aspectMask & dstRange.aspectMask;
+				match.range.baseArrayLayer = std::max(srcRange.baseArrayLayer, dstRange.baseArrayLayer);
 
+				if (srcRange.layerCount == VK_REMAINING_ARRAY_LAYERS) {
+					if (dstRange.layerCount == VK_REMAINING_ARRAY_LAYERS) {
+						match.range.layerCount = VK_REMAINING_ARRAY_LAYERS;
+					} else {
+						match.range.layerCount =
+							srcRange.baseArrayLayer + srcRange.layerCount - match.range.baseArrayLayer;
+					}
+				} else if (dstRange.layerCount == VK_REMAINING_ARRAY_LAYERS) {
+					match.range.layerCount = srcRange.baseArrayLayer + srcRange.layerCount - match.range.baseArrayLayer;
+				} else {
+					match.range.layerCount = std::min(srcRange.baseArrayLayer + srcRange.layerCount,
+													  dstRange.baseArrayLayer + dstRange.layerCount) -
+											 match.range.baseArrayLayer;
+				}
+
+				match.range.baseMipLevel = std::max(srcRange.baseMipLevel, dstRange.baseMipLevel);
+
+				if (srcRange.levelCount == VK_REMAINING_MIP_LEVELS) {
+					if (dstRange.levelCount == VK_REMAINING_MIP_LEVELS) {
+						match.range.levelCount = VK_REMAINING_MIP_LEVELS;
+					} else {
+						match.range.levelCount = srcRange.baseMipLevel + srcRange.levelCount - match.range.baseMipLevel;
+					}
+				} else if (dstRange.levelCount == VK_REMAINING_MIP_LEVELS) {
+					match.range.levelCount = srcRange.baseMipLevel + srcRange.levelCount - match.range.baseMipLevel;
+				} else {
+					match.range.levelCount = std::min(srcRange.baseMipLevel + srcRange.levelCount,
+													  dstRange.baseMipLevel + dstRange.levelCount) -
+											 match.range.baseMipLevel;
+				}
 				return match;
 			}
 		}
+		if (nextModificationIterator == modifications.begin()) {
+			break;
+		}
+		--nextModificationIterator;
 	}
+	return std::nullopt;
 }
 
 void VFramegraphContext::emitBarrier(VkBuffer buffer, VFramegraphNodeBufferAccess& modification,
-									 const VFramegraphNodeBufferAccess& read) {
+									 const VFramegraphNodeBufferAccess& read,
+									 const VFramegraphBufferAccessMatch& match) {
 	if (!modification.barrier.has_value()) {
-		modification.barrier = VFramegraphBufferBarrier {
-			.nodeIndex = read.usingNodeIndex, .srcStages = modification.stageFlags, .dstStages = read.stageFlags,
-			.barrier = {
-				.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-				.srcAccessMask = modification.accessFlags,
-				.dstAccessMask = read.accessFlags,
-				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.buffer = buffer,
-				.offset =
-			}
+		modification.barrier = VFramegraphBufferBarrier{ .nodeIndex = read.usingNodeIndex,
+														 .srcStages = modification.stageFlags,
+														 .dstStages = read.stageFlags,
+														 .barrier = { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+																	  .srcAccessMask = modification.accessFlags,
+																	  .dstAccessMask = read.accessFlags,
+																	  .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+																	  .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+																	  .buffer = buffer,
+																	  .offset = match.offset,
+																	  .size = match.size } };
+	} else {
+		auto& barrier = modification.barrier.value();
+		barrier.nodeIndex = std::min(barrier.nodeIndex, read.usingNodeIndex);
+		barrier.dstStages |= read.stageFlags;
+		barrier.barrier.dstAccessMask |= read.accessFlags;
+		if (barrier.barrier.offset > match.offset) {
+			barrier.barrier.offset = match.offset;
+			if (barrier.barrier.size != VK_WHOLE_SIZE)
+				barrier.barrier.size += barrier.barrier.offset - match.offset;
 		}
+		barrier.barrier.size =
+			std::max(barrier.barrier.offset + barrier.barrier.size, match.offset + match.size) - barrier.barrier.offset;
 	}
 }
 
 void VFramegraphContext::emitBarrier(VkImage image, VFramegraphNodeImageAccess& modification,
-									 const VFramegraphNodeImageAccess& read) {}
+									 const VFramegraphNodeImageAccess& read, const VFramegraphImageAccessMatch& match) {
+	if (!modification.barrier.has_value()) {
+		VkImageLayout newLayout = read.startLayout;
+		if (newLayout == VK_IMAGE_LAYOUT_UNDEFINED) {
+			newLayout = modification.finishLayout;
+		}
+		modification.barrier = VFramegraphImageBarrier{ .nodeIndex = read.usingNodeIndex,
+														.srcStages = modification.stageFlags,
+														.dstStages = read.stageFlags,
+														.barrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+																	 .srcAccessMask = modification.accessFlags,
+																	 .dstAccessMask = read.accessFlags,
+																	 .oldLayout = modification.finishLayout,
+																	 .newLayout = newLayout,
+																	 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+																	 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+																	 .image = image,
+																	 .subresourceRange = match.range } };
+	} else {
+		auto& barrier = modification.barrier.value();
+		barrier.nodeIndex = std::min(barrier.nodeIndex, read.usingNodeIndex);
+		barrier.dstStages |= read.stageFlags;
+		barrier.barrier.dstAccessMask |= read.accessFlags;
+
+		auto& dstRange = barrier.barrier.subresourceRange;
+		dstRange.aspectMask |= match.range.aspectMask;
+
+		if (dstRange.baseArrayLayer > match.range.baseArrayLayer) {
+			dstRange.baseArrayLayer = match.range.baseArrayLayer;
+			if (dstRange.layerCount != VK_REMAINING_ARRAY_LAYERS)
+				dstRange.layerCount += dstRange.baseArrayLayer - match.range.baseArrayLayer;
+		}
+		dstRange.layerCount = std::max(dstRange.baseArrayLayer + dstRange.layerCount,
+									   match.range.baseArrayLayer + match.range.layerCount) -
+							  dstRange.baseArrayLayer;
+		if (dstRange.baseMipLevel > match.range.baseMipLevel) {
+			dstRange.baseMipLevel = match.range.baseMipLevel;
+			if (dstRange.levelCount != VK_REMAINING_MIP_LEVELS)
+				dstRange.levelCount += dstRange.baseMipLevel - match.range.baseMipLevel;
+		}
+		dstRange.levelCount =
+			std::max(dstRange.baseMipLevel + dstRange.levelCount, match.range.baseMipLevel + match.range.levelCount) -
+			dstRange.baseMipLevel;
+	}
+}
