@@ -289,12 +289,12 @@ template <typename T> inline void VSlotmap<T>::removeElement(VSlotmapHandle hand
 	elements[eraseElementIndex] = std::move(elements[elements.size() - 1]);
 	eraseMap[eraseElementIndex] = eraseMap[elements.size() - 1];
 
+	// Update key index of what was the last element
+	keys[eraseMap[eraseElementIndex]] = eraseElementIndex;
+
 	// Update erase table/element std::vector sizes
 	elements.erase(elements.begin() + (elements.size() - 1));
 	eraseMap.erase(eraseMap.begin() + (eraseMap.size() - 1));
-
-	// Update key index of what was the last element
-	keys[eraseMap[eraseElementIndex]] = eraseElementIndex;
 
 	// Update free list nodes
 	keys[freeKeyTail] = handle;

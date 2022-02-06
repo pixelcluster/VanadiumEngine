@@ -4,10 +4,14 @@
 
 #include <helper/WholeFileReader.hpp>
 
+HelloTriangleNode::HelloTriangleNode(VBufferResourceHandle vertexDataHandle) : m_vertexData(vertexDataHandle) {
+	m_name = "Triangle drawing";
+}
+
 void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 	VkAttachmentDescription description = { .format = VK_FORMAT_B8G8R8A8_SRGB,
 											.samples = VK_SAMPLE_COUNT_1_BIT,
-											.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+											.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 											.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 											.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 											.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -58,7 +62,7 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 		.polygonMode = VK_POLYGON_MODE_FILL,
 		.cullMode = VK_CULL_MODE_BACK_BIT,
-		.frontFace = VK_FRONT_FACE_CLOCKWISE,
+		.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
 		.lineWidth = 1.0f
 	};
 
@@ -183,15 +187,43 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 		} 
 	};
 	context->declareReferencedSwapchainImage(this, usage);
+	context->declareImportedBuffer(this, "Triangle vertex data", m_vertexData,
+								   VFramegraphNodeBufferUsage{ .pipelineStages = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+															   .accessTypes = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+															   .offset = 0,
+															   .size = VK_WHOLE_SIZE,
+															   .writes = false });
+
+	vkDestroyShaderModule(context->gpuContext()->device(), vertexShaderModule, nullptr);
+	vkDestroyShaderModule(context->gpuContext()->device(), fragmentShaderModule, nullptr);
 }
 
 void HelloTriangleNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 									   const VFramegraphNodeContext& nodeContext) {
+	VkClearValue value = { .color = { .float32 = { 0.2f, 0.2f, 0.2f } } };
+
 	VkRenderPassBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 										.renderPass = m_renderPass,
 										.framebuffer = m_framebuffers[nodeContext.imageIndex],
-										.renderArea = { .extent = { m_width, m_height } } };
+										.renderArea = { .extent = { m_width, m_height } },
+										.clearValueCount = 1,
+										.pClearValues = &value };
 	vkCmdBeginRenderPass(targetCommandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+	VkViewport viewport = { .width = static_cast<float>(m_width), .height = static_cast<float>(m_height), .maxDepth = 1.0f };
+	VkRect2D scissor = { .extent = { .width = m_width, .height = m_height } };
+
+	vkCmdBindPipeline(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+	vkCmdSetViewport(targetCommandBuffer, 0, 1, &viewport);
+	vkCmdSetScissor(targetCommandBuffer, 0, 1, &scissor);
+
+	VkDeviceSize offset = 0;
+	VkBuffer nativeBuffer = context->nativeBufferHandle("Triangle vertex data");
+	vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &nativeBuffer, &offset);
+
+	vkCmdDraw(targetCommandBuffer, 3, 1, 0, 0);
+
 	vkCmdEndRenderPass(targetCommandBuffer);
 }
 
@@ -213,8 +245,19 @@ void HelloTriangleNode::handleWindowResize(VFramegraphContext* context, uint32_t
 														  .layers = 1 };
 		verifyResult(
 			vkCreateFramebuffer(context->gpuContext()->device(), &framebufferCreateInfo, nullptr, &framebuffer));
+		++index;
 	}
 
 	m_width = width;
 	m_height = height;
+}
+
+void HelloTriangleNode::destroyResources(VFramegraphContext* context) {
+	for (auto& framebuffer : m_framebuffers) {
+		vkDestroyFramebuffer(context->gpuContext()->device(), framebuffer, nullptr);
+	}
+
+	vkDestroyPipeline(context->gpuContext()->device(), m_graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(context->gpuContext()->device(), m_pipelineLayout, nullptr);
+	vkDestroyRenderPass(context->gpuContext()->device(), m_renderPass, nullptr);
 }

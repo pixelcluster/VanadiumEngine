@@ -1,8 +1,6 @@
 #include <framegraph_nodes/SwapchainClearNode.hpp>
 #include <volk.h>
 
-SwapchainClearNode::SwapchainClearNode() {}
-
 void SwapchainClearNode::setupResources(VFramegraphContext* context) {
 	context->declareReferencedSwapchainImage(this, { .pipelineStages = VK_PIPELINE_STAGE_TRANSFER_BIT,
 													 .accessTypes = VK_ACCESS_TRANSFER_WRITE_BIT,

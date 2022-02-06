@@ -7,6 +7,7 @@ VGPUModule::VGPUModule(const std::string_view& appName, uint32_t appVersion, VWi
 	m_windowModule = windowModule;
 
 	m_resourceAllocator.create(&m_context);
+	m_transferManager.create(&m_context, &m_resourceAllocator);
 	m_framegraphContext.create(&m_context, &m_resourceAllocator);
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -16,7 +17,7 @@ VGPUModule::VGPUModule(const std::string_view& appName, uint32_t appVersion, VWi
 	}
 }
 
-void VGPUModule::onCreate(VEngine& engine) {}
+void VGPUModule::onCreate(VEngine& engine) {  }
 
 void VGPUModule::onActivate(VEngine& engine) {
 	m_framegraphContext.setupResources();
@@ -24,6 +25,12 @@ void VGPUModule::onActivate(VEngine& engine) {
 }
 
 void VGPUModule::onExecute(VEngine& engine) {
+	m_memoryBudgetTimer += m_windowModule->deltaTime();
+	if (m_memoryBudgetTimer > 1.0) {
+		m_memoryBudgetTimer -= 1.0;
+		m_resourceAllocator.updateMemoryBudget();
+	}
+
 	if (m_wasSwapchainInvalid || m_windowModule->wasResized()) {
 		if (!m_context.recreateSwapchain(m_windowModule, m_framegraphContext.swapchainImageUsageFlags())) {
 			m_windowModule->waitForEvents();
@@ -46,7 +53,24 @@ void VGPUModule::onExecute(VEngine& engine) {
 		return;
 	}
 
-	m_framegraphContext.executeFrame(result, m_signalSemaphores[result.frameIndex]);
+	m_resourceAllocator.setFrameIndex(result.frameIndex);
+
+	VkCommandBuffer transferCommandBuffer = m_transferManager.recordTransfers(result.frameIndex);
+	VkCommandBuffer framegraphCommandBuffer = m_framegraphContext.recordFrame(result);
+
+	VkCommandBuffer commandBuffers[] = { transferCommandBuffer, framegraphCommandBuffer };
+
+	VkPipelineStageFlags semaphoreWaitStages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+	VkSubmitInfo submitInfo = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+								.waitSemaphoreCount = 1,
+								.pWaitSemaphores = &result.imageSemaphore,
+								.pWaitDstStageMask = &semaphoreWaitStages,
+								.commandBufferCount = 2,
+								.pCommandBuffers = commandBuffers,
+								.signalSemaphoreCount = 1,
+								.pSignalSemaphores = &m_signalSemaphores[result.frameIndex] };
+	vkQueueSubmit(m_context.graphicsQueue(), 1, &submitInfo, m_context.frameCompletionFence());
 
 	SwapchainState state = m_context.presentImage(result.imageIndex, m_signalSemaphores[result.frameIndex]);
 	if (state == SwapchainState::Invalid) {
@@ -65,7 +89,9 @@ void VGPUModule::onDestroy(VEngine& engine) {
 	for (auto& semaphore : m_signalSemaphores) {
 		vkDestroySemaphore(m_context.device(), semaphore, nullptr);
 	}
-
+	m_framegraphContext.destroy();
+	m_transferManager.destroy();
+	m_resourceAllocator.destroy();
 	m_context.destroy();
 }
 

@@ -40,6 +40,12 @@ void VGLFWWindowModule::onExecute(VEngine& engine) {
 		m_wasResized = true;
 		m_height = static_cast<uint32_t>(newHeight);
 	}
+
+	m_lastTime = m_time;
+	m_time = glfwGetTime();
+
+	if (m_lastTime == 0.0f)
+		m_lastTime = m_time;
 }
 
 void VGLFWWindowModule::onDeactivate(VEngine& engine) {}

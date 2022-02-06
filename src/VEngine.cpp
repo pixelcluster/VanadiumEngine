@@ -23,23 +23,28 @@ VEngine::~VEngine() {
 }
 
 void VEngine::activateModule(VModule* moduleToActivate) {
-	auto lock = std::lock_guard<std::mutex>(m_moduleAccessMutex);
+	auto lock = std::unique_lock<std::mutex>(m_moduleAccessMutex);
 	if (std::find(m_activatedModules.begin(), m_activatedModules.end(), moduleToActivate) != m_activatedModules.end()) {
 		// TODO: log activating a module twice
+		lock.unlock();
 	} else {
-		moduleToActivate->onActivate(*this);
 		m_activatedModules.push_back(moduleToActivate);
+		lock.unlock();
+		moduleToActivate->onActivate(*this);
 	}
 }
 
 void VEngine::deactivateModule(VModule* moduleToDeactivate) {
-	auto lock = std::lock_guard<std::mutex>(m_moduleAccessMutex);
+	auto lock = std::unique_lock<std::mutex>(m_moduleAccessMutex);
 	auto activatedModuleIterator = std::find(m_activatedModules.begin(), m_activatedModules.end(), moduleToDeactivate);
 	if (activatedModuleIterator != m_activatedModules.end()) {
-		removeModuleDependencies(moduleToDeactivate);
-		moduleToDeactivate->onDeactivate(*this);
 		m_activatedModules.erase(activatedModuleIterator);
 		m_scoreboardDirty = true;
+		lock.unlock();
+		removeModuleDependencies(moduleToDeactivate);
+		moduleToDeactivate->onDeactivate(*this);
+	} else {
+		lock.unlock();
 	}
 }
 
@@ -61,7 +66,7 @@ void VEngine::addModuleDependency(VModule* from, VModule* to) {
 	auto lock = std::lock_guard<std::mutex>(m_moduleAccessMutex);
 	if (std::find(m_activatedModules.begin(), m_activatedModules.end(), from) == m_activatedModules.end() ||
 		std::find(m_activatedModules.begin(), m_activatedModules.end(), to) == m_activatedModules.end()) {
-		// TODO: log adding a dependency from/to a deactivated model
+		// TODO: log adding a dependency from/to a deactivated module
 	} else {
 		m_moduleDependencies.push_back({ from, to });
 		m_scoreboardDirty = true;
@@ -135,13 +140,20 @@ void VEngine::recreateModuleThreads() {
 }
 
 void VEngine::removeModuleDependencies(VModule* removeModule) {
+	auto lock = std::unique_lock<std::mutex>(m_moduleAccessMutex);
+	std::vector<VModule*> callbackModules;
+
 	for (size_t i = 0; i < m_moduleDependencies.size(); ++i) {
 		if (m_moduleDependencies[i].from == removeModule) {
-			m_moduleDependencies[i].to->onDependentModuleDeactivate(*this, removeModule);
+			callbackModules.push_back(m_moduleDependencies[i].to);
 		}
 		if (m_moduleDependencies[i].from == removeModule || m_moduleDependencies[i].to == removeModule) {
 			m_moduleDependencies.erase(m_moduleDependencies.begin() + i);
 			--i;
 		}
+	}
+	lock.unlock();
+	for (auto& callbackModule : callbackModules) {
+		callbackModule->onDependentModuleDeactivate(*this, removeModule);
 	}
 }

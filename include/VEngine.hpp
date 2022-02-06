@@ -67,8 +67,10 @@ class VEngine {
 
 template <DerivesFrom<VModule> T, typename... Args>
 requires(ConstructibleWith<T, Args...>) inline T* VEngine::createModule(Args... args) {
-	auto lock = std::lock_guard<std::mutex>(m_moduleAccessMutex);
+	auto lock = std::unique_lock<std::mutex>(m_moduleAccessMutex);
 	m_modules.push_back(new T(args...));
+	T* result = reinterpret_cast<T*>(m_modules.back());
+	lock.unlock();
 	m_modules.back()->onCreate(*this);
-	return reinterpret_cast<T*>(m_modules.back());
+	return result;
 }

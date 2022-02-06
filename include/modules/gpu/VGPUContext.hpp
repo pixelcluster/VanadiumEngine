@@ -42,8 +42,8 @@ class VGPUContext {
 	VkDevice device() { return m_device; }
 
 	VkQueue graphicsQueue() { return m_graphicsQueue; }
+	uint32_t graphicsQueueFamilyIndex() { return m_graphicsQueueFamilyIndex; }
 
-	VkCommandBuffer frameCommandBuffer() { return m_frameCommandBuffers[m_frameIndex]; }
 	VkFence frameCompletionFence() { return m_frameCompletionFences[m_frameIndex]; }
 
 	AcquireResult acquireImage();
@@ -65,15 +65,13 @@ class VGPUContext {
 	VkDevice m_device = VK_NULL_HANDLE;
 
 	VkQueue m_graphicsQueue = VK_NULL_HANDLE;
+	uint32_t m_graphicsQueueFamilyIndex = 0;
 
 	VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
 
 	VkSemaphore m_swapchainImageSemaphores[frameInFlightCount];
 	uint32_t m_frameIndex;
-
-	VkCommandPool m_frameCommandPools[frameInFlightCount];
-	VkCommandBuffer m_frameCommandBuffers[frameInFlightCount];
 
 	VkFence m_frameCompletionFences[frameInFlightCount];
 

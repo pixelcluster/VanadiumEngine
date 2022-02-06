@@ -17,7 +17,6 @@ struct VFramegraphNodeContext {
 struct VFramegraphNodeBufferUsage {
 	VkPipelineStageFlags pipelineStages;
 	VkAccessFlags accessTypes;
-	VkBufferUsageFlags usageFlags;
 
 	VkDeviceSize offset;
 	VkDeviceSize size;
@@ -54,7 +53,6 @@ struct VFramegraphNodeImageUsage {
 	VkImageUsageFlags usageFlags;
 	VkImageSubresourceRange subresourceRange;
 	bool writes;
-	bool useAcrossFrames;
 	std::optional<VImageResourceViewInfo> viewInfo;
 };
 
@@ -133,9 +131,9 @@ class VFramegraphContext {
 
 	void setupResources();
 
-	void declareCreatedBuffer(VFramegraphNode* creator, const std::string_view& name, VBufferResourceHandle handle,
+	void declareImportedBuffer(VFramegraphNode* creator, const std::string_view& name, VBufferResourceHandle handle,
 							  const VFramegraphNodeBufferUsage& usage);
-	void declareCreatedImage(VFramegraphNode* creator, const std::string_view& name, VImageResourceHandle handle,
+	void declareImportedImage(VFramegraphNode* creator, const std::string_view& name, VImageResourceHandle handle,
 							 const VFramegraphNodeImageUsage& usage);
 
 	// These functions depend on the fact that all references are inserted in execution order!
@@ -168,16 +166,19 @@ class VFramegraphContext {
 
 	VkImageUsageFlags swapchainImageUsageFlags() const { return m_swapchainImageUsageFlags; }
 
-	void executeFrame(const AcquireResult& result, VkSemaphore signalSemaphore);
+	VkCommandBuffer recordFrame(const AcquireResult& result);
 
 	void handleSwapchainResize(uint32_t width, uint32_t height);
+
+	void destroy();
   private:
 	void addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
 				  std::vector<VFramegraphNodeBufferAccess>& reads, const VFramegraphNodeBufferUsage& usage);
 	void addUsage(size_t nodeIndex, std::vector<VFramegraphNodeImageAccess>& modifications,
 				  std::vector<VFramegraphNodeImageAccess>& reads, const VFramegraphNodeImageUsage& usage);
 
-	void updateNodeBarriers();
+	void updateDependencyInfo();
+	void updateBarriers(uint32_t imageIndex);
 
 	void emitBarriersForRead(VkBuffer buffer, std::vector<VFramegraphNodeBufferAccess>& modifications,
 							 const VFramegraphNodeBufferAccess& read);
@@ -199,22 +200,30 @@ class VFramegraphContext {
 	VGPUContext* m_gpuContext;
 	VGPUResourceAllocator* m_resourceAllocator;
 
+	VkCommandPool m_frameCommandPools[frameInFlightCount];
+	VkCommandBuffer m_frameCommandBuffers[frameInFlightCount];
+
 	std::vector<VFramegraphNodeInfo> m_nodes;
+
+	std::unordered_map<std::string, VFramegraphBufferResource> m_buffers;
+	std::unordered_map<std::string, VFramegraphImageResource> m_images;
+
+	bool m_firstFrameFlag = true;
 	
 	std::vector<VkImageMemoryBarrier> m_initImageMemoryBarriers;
+	VFramegraphBarrierStages m_initBarrierStages = {};
+
 	std::vector<VkImageMemoryBarrier> m_frameStartImageMemoryBarriers;
+	std::vector<VkBufferMemoryBarrier> m_frameStartBufferMemoryBarriers;
+	VFramegraphBarrierStages m_frameStartBarrierStages = {};
 
 	std::vector<std::vector<VkBufferMemoryBarrier>> m_nodeBufferMemoryBarriers;
 	std::vector<std::vector<VkImageMemoryBarrier>> m_nodeImageMemoryBarriers;
 	std::vector<VFramegraphBarrierStages> m_nodeBarrierStages;
 
-	std::unordered_map<std::string, VFramegraphBufferResource> m_buffers;
-	std::unordered_map<std::string, VFramegraphImageResource> m_images;
-
 	std::vector<VFramegraphNodeImageAccess> m_swapchainImageModifications;
 	std::vector<VFramegraphNodeImageAccess> m_swapchainImageReads;
 	VkImageUsageFlags m_swapchainImageUsageFlags = 0;
-	size_t m_swapchainFrameStartBarrierIndex = ~0ULL;
 	std::vector<std::unordered_map<VImageResourceViewInfo, VkImageView>> m_swapchainImageViews = { {} };
 };
 

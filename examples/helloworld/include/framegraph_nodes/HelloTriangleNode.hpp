@@ -1,9 +1,12 @@
 #pragma once
 
 #include <modules/gpu/framegraph/VFramegraphNode.hpp>
+#include <modules/gpu/transfer/VGPUTransferManager.hpp>
 
 class HelloTriangleNode : public VFramegraphNode {
   public:
+	HelloTriangleNode(VBufferResourceHandle vertexDataHandle);
+
 	void setupResources(VFramegraphContext* context) override;
 
 	void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
@@ -11,7 +14,10 @@ class HelloTriangleNode : public VFramegraphNode {
 
 	void handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height) override;
 
+	void destroyResources(VFramegraphContext* context) override;
+
   private:
+	VBufferResourceHandle m_vertexData;
 	VkPipeline m_graphicsPipeline;
 	VkPipelineLayout m_pipelineLayout;
 	VkRenderPass m_renderPass;

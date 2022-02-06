@@ -159,8 +159,7 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 
 	vkGetDeviceQueue(m_device, chosenQueueFamilyIndex, 0, &m_graphicsQueue);
 
-	VkCommandPoolCreateInfo poolCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-											   .queueFamilyIndex = chosenQueueFamilyIndex };
+	m_graphicsQueueFamilyIndex = chosenQueueFamilyIndex;
 
 	VkFenceCreateInfo fenceCreateInfo = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 										  .flags = VK_FENCE_CREATE_SIGNALED_BIT };
@@ -168,14 +167,6 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
 	for (size_t i = 0; i < frameInFlightCount; ++i) {
-		verifyResult(vkCreateCommandPool(m_device, &poolCreateInfo, nullptr, &m_frameCommandPools[i]));
-
-		VkCommandBufferAllocateInfo allocateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-													 .commandPool = m_frameCommandPools[i],
-													 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-													 .commandBufferCount = 1 };
-		verifyResult(vkAllocateCommandBuffers(m_device, &allocateInfo, &m_frameCommandBuffers[i]));
-
 		verifyResult(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameCompletionFences[i]));
 		verifyResult(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_swapchainImageSemaphores[i]));
 	}
@@ -192,10 +183,6 @@ void VGPUContext::destroy() {
 		vkDestroyFence(m_device, fence, nullptr);
 	}
 
-	for (auto& pool : m_frameCommandPools) {
-		vkDestroyCommandPool(m_device, pool, nullptr);
-	}
-
 	vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 	vkDestroyDevice(m_device, nullptr);
 
@@ -210,8 +197,6 @@ void VGPUContext::destroy() {
 AcquireResult VGPUContext::acquireImage() {
 	verifyResult(vkWaitForFences(m_device, 1, &m_frameCompletionFences[m_frameIndex], VK_TRUE, UINT64_MAX));
 	verifyResult(vkResetFences(m_device, 1, &m_frameCompletionFences[m_frameIndex]));
-
-	verifyResult(vkResetCommandPool(m_device, m_frameCommandPools[m_frameIndex], 0));
 
 	AcquireResult acquireResult;
 	VkResult result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_swapchainImageSemaphores[m_frameIndex],

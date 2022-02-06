@@ -4,6 +4,7 @@
 #include <modules/gpu/VGPUContext.hpp>
 #include <modules/gpu/framegraph/VFramegraphContext.hpp>
 #include <modules/gpu/VGPUResourceAllocator.hpp>
+#include <modules/gpu/transfer/VGPUTransferManager.hpp>
 
 class VGPUModule : public VModule {
   public:
@@ -20,6 +21,8 @@ class VGPUModule : public VModule {
 	//No more nodes can be added after the module is activated once
 	VFramegraphContext& framegraphContext() { return m_framegraphContext; }
 
+	VGPUTransferManager& transferManager() { return m_transferManager; }
+
   private:
 	VGPUContext m_context;
 
@@ -32,4 +35,8 @@ class VGPUModule : public VModule {
 	AcquireResult m_invalidAcquiredResult = {.imageIndex = -1U};
 
 	VkSemaphore m_signalSemaphores[frameInFlightCount];
+
+	VGPUTransferManager m_transferManager;
+
+	double m_memoryBudgetTimer = 0.0f;
 };
