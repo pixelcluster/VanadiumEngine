@@ -3,6 +3,9 @@
 #include <volk.h>
 
 void VGPUResourceAllocator::create(VGPUContext* gpuContext) {
+	m_bufferFreeList.resize(frameInFlightCount);
+	m_imageFreeList.resize(frameInFlightCount);
+
 	if (gpuContext->gpuCapabilities().memoryBudget) {
 		VkPhysicalDeviceMemoryProperties2KHR memoryProperties2 = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2_KHR
@@ -199,18 +202,12 @@ void* VGPUResourceAllocator::mappedBufferData(VBufferResourceHandle handle) {
 
 void VGPUResourceAllocator::destroyBuffer(VBufferResourceHandle handle) {
 	auto& allocation = m_buffers[handle];
-	if (allocation.isMultipleBuffered) {
-		for (auto& buffer : allocation.buffers) {
-			vkDestroyBuffer(m_context->device(), buffer, nullptr);
-		}
-	} else {
-		vkDestroyBuffer(m_context->device(), allocation.buffers[0], nullptr);
-	}
-
-	freeInBlock(allocation.typeIndex, allocation.blockIndex,
-				allocation.allocationRange.offset - allocation.alignmentMargin,
-				allocation.allocationRange.size + allocation.alignmentMargin);
+	m_bufferFreeList[m_currentFrameIndex].push_back(allocation);
 	m_buffers.removeElement(handle);
+}
+
+VImageResourceHandle VGPUResourceAllocator::createImage(const VkImageCreateInfo& imageCreateInfo) {
+	return VImageResourceHandle();
 }
 
 VkImage VGPUResourceAllocator::nativeImageHandle(VImageResourceHandle handle) { return m_images[handle].image; }
@@ -238,10 +235,17 @@ VkImageView VGPUResourceAllocator::requestImageView(VImageResourceHandle handle,
 		return viewIterator->second;
 }
 
+void VGPUResourceAllocator::destroyImage(VImageResourceHandle handle) {}
+
 void VGPUResourceAllocator::destroy() {
 	// work around iterator invalidation
 	while (m_buffers.size()) {
 		destroyBuffer(m_buffers.handle(m_buffers.begin()));
+	}
+
+	for (uint32_t i = 0; i < frameInFlightCount; ++i) {
+		m_currentFrameIndex = i;
+		flushFreeList();
 	}
 
 	for (auto& type : m_memoryTypes) {
@@ -249,6 +253,11 @@ void VGPUResourceAllocator::destroy() {
 			vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
 		}
 	}
+}
+
+void VGPUResourceAllocator::setFrameIndex(uint32_t frameIndex) {
+	m_currentFrameIndex = frameIndex;
+	flushFreeList();
 }
 
 void VGPUResourceAllocator::updateMemoryBudget() {
@@ -266,6 +275,32 @@ void VGPUResourceAllocator::updateMemoryBudget() {
 			m_heapBudgets[i] = memoryBudgetProperties.heapBudget[i];
 		}
 	}
+}
+
+void VGPUResourceAllocator::flushFreeList() {
+	for (auto& allocation : m_bufferFreeList[m_currentFrameIndex]) {
+		if (allocation.isMultipleBuffered) {
+			for (auto& buffer : allocation.buffers) {
+				vkDestroyBuffer(m_context->device(), buffer, nullptr);
+			}
+		} else {
+			vkDestroyBuffer(m_context->device(), allocation.buffers[0], nullptr);
+		}
+
+		freeInBlock(allocation.typeIndex, allocation.blockIndex,
+					allocation.allocationRange.offset - allocation.alignmentMargin,
+					allocation.allocationRange.size + allocation.alignmentMargin);
+	}
+	m_bufferFreeList[m_currentFrameIndex].clear();
+
+	for (auto& allocation : m_imageFreeList[m_currentFrameIndex]) {
+		vkDestroyImage(m_context->device(), allocation.image, nullptr);
+
+		freeInBlock(allocation.typeIndex, allocation.blockIndex,
+					allocation.allocationRange.offset - allocation.alignmentMargin,
+					allocation.allocationRange.size + allocation.alignmentMargin);
+	}
+	m_imageFreeList[m_currentFrameIndex].clear();
 }
 
 uint32_t VGPUResourceAllocator::bestTypeIndex(VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,

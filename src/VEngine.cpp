@@ -153,6 +153,7 @@ void VEngine::removeModuleDependencies(VModule* removeModule) {
 		}
 	}
 	lock.unlock();
+
 	for (auto& callbackModule : callbackModules) {
 		callbackModule->onDependentModuleDeactivate(*this, removeModule);
 	}

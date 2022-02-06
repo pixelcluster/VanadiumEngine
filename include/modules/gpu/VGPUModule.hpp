@@ -32,7 +32,6 @@ class VGPUModule : public VModule {
 	VWindowModule* m_windowModule;
 
 	bool m_wasSwapchainInvalid = true;
-	AcquireResult m_invalidAcquiredResult = {.imageIndex = -1U};
 
 	VkSemaphore m_signalSemaphores[frameInFlightCount];
 

@@ -21,5 +21,7 @@ class VertexBufferUpdateModule : public VModule {
 	VGPUModule* m_gpuModule;
 	VWindowModule* m_windowModule;
 
+	double m_timeCounter = 0.0f;
+
 	VGPUTransferHandle m_vertexDataTransfer;
 };

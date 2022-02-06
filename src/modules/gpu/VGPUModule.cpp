@@ -40,16 +40,10 @@ void VGPUModule::onExecute(VEngine& engine) {
 	}
 
 	AcquireResult result;
-	if (m_wasSwapchainInvalid && m_invalidAcquiredResult.imageIndex != -1U) {
-		result = m_invalidAcquiredResult;
-		result.swapchainState = SwapchainState::OK; // don't fail right away
-	} else {
-		result = m_context.acquireImage();
-	}
+	result = m_context.acquireImage();
 
 	if (result.swapchainState == SwapchainState::Invalid) {
 		m_wasSwapchainInvalid = true;
-		m_invalidAcquiredResult.imageIndex = -1U;
 		return;
 	}
 
@@ -69,13 +63,12 @@ void VGPUModule::onExecute(VEngine& engine) {
 								.commandBufferCount = 2,
 								.pCommandBuffers = commandBuffers,
 								.signalSemaphoreCount = 1,
-								.pSignalSemaphores = &m_signalSemaphores[result.frameIndex] };
+								.pSignalSemaphores = &m_signalSemaphores[result.imageIndex] };
 	vkQueueSubmit(m_context.graphicsQueue(), 1, &submitInfo, m_context.frameCompletionFence());
 
-	SwapchainState state = m_context.presentImage(result.imageIndex, m_signalSemaphores[result.frameIndex]);
+	SwapchainState state = m_context.presentImage(result.imageIndex, m_signalSemaphores[result.imageIndex]);
 	if (state == SwapchainState::Invalid) {
 		m_wasSwapchainInvalid = true;
-		m_invalidAcquiredResult = result;
 		return;
 	}
 

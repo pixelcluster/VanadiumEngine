@@ -46,6 +46,8 @@ class VGPUContext {
 
 	VkFence frameCompletionFence() { return m_frameCompletionFences[m_frameIndex]; }
 
+	void initFrameForAcquiredImage();
+
 	AcquireResult acquireImage();
 	SwapchainState presentImage(uint32_t imageIndex, VkSemaphore waitSemaphore);
 	bool recreateSwapchain(VWindowModule* windowModule, VkImageUsageFlags imageUsageFlags);

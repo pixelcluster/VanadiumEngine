@@ -194,6 +194,11 @@ void VGPUContext::destroy() {
 	vkDestroyInstance(m_instance, nullptr);
 }
 
+void VGPUContext::initFrameForAcquiredImage() {
+	verifyResult(vkWaitForFences(m_device, 1, &m_frameCompletionFences[m_frameIndex], VK_TRUE, UINT64_MAX));
+	verifyResult(vkResetFences(m_device, 1, &m_frameCompletionFences[m_frameIndex]));
+}
+
 AcquireResult VGPUContext::acquireImage() {
 	verifyResult(vkWaitForFences(m_device, 1, &m_frameCompletionFences[m_frameIndex], VK_TRUE, UINT64_MAX));
 	verifyResult(vkResetFences(m_device, 1, &m_frameCompletionFences[m_frameIndex]));

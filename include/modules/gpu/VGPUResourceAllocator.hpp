@@ -99,8 +99,9 @@ struct VImageAllocation {
 	VImageResourceInfo resourceInfo;
 	std::unordered_map<VImageResourceViewInfo, VkImageView> views;
 
-	uint32_t heapIndex;
+	uint32_t typeIndex;
 	size_t blockIndex;
+	VkDeviceSize alignmentMargin;
 	VMemoryRange allocationRange;
 	VkImage image;
 };
@@ -129,18 +130,21 @@ class VGPUResourceAllocator {
 	void* mappedBufferData(VBufferResourceHandle handle);
 	void destroyBuffer(VBufferResourceHandle handle);
 
+	VImageResourceHandle createImage(const VkImageCreateInfo& imageCreateInfo);
 	VkImage nativeImageHandle(VImageResourceHandle handle);
 	const VImageResourceInfo& imageResourceInfo(VImageResourceHandle handle);
 	VkImageView requestImageView(VImageResourceHandle handle, const VImageResourceViewInfo& info);
+	void destroyImage(VImageResourceHandle handle);
 
 	void destroy();
 
-	void setFrameIndex(uint32_t frameIndex) { m_currentFrameIndex = frameIndex; }
+	void setFrameIndex(uint32_t frameIndex);
 	void updateMemoryBudget();
 
   private:
 	static constexpr VkDeviceSize m_blockSize = 32_MiB;
 
+	void flushFreeList();
 
 	uint32_t bestTypeIndex(VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
 						 VkMemoryRequirements requirements, bool createMapped);
@@ -165,4 +169,7 @@ class VGPUResourceAllocator {
 
 	VSlotmap<VBufferAllocation> m_buffers;
 	VSlotmap<VImageAllocation> m_images;
+
+	std::vector<std::vector<VBufferAllocation>> m_bufferFreeList;
+	std::vector<std::vector<VImageAllocation>> m_imageFreeList;
 };

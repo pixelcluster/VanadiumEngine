@@ -46,6 +46,7 @@ class VEngine {
 	const std::vector<VModule*> modules() const { return m_modules; }
 
   private:
+
 	void recreateModuleThreads();
 
 	void removeModuleDependencies(VModule* removeModule);

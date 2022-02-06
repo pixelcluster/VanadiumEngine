@@ -193,7 +193,7 @@ void VFramegraphContext::invalidateImage(const std::string& name, VImageResource
 	m_images[name].imageResourceHandle = newHandle;
 }
 
-const VFramegraphBufferResource VFramegraphContext::bufferResource(const std::string& name) const {
+VFramegraphBufferResource VFramegraphContext::bufferResource(const std::string& name) const {
 	auto iterator = m_buffers.find(name);
 	if (iterator == m_buffers.end())
 		return {};
@@ -201,13 +201,19 @@ const VFramegraphBufferResource VFramegraphContext::bufferResource(const std::st
 		return iterator->second;
 }
 
-const VFramegraphImageResource VFramegraphContext::imageResource(const std::string& name) const {
+VFramegraphImageResource VFramegraphContext::imageResource(const std::string& name) const {
 	auto iterator = m_images.find(name);
 	if (iterator == m_images.end())
 		return {};
 	else
 		return iterator->second;
 }
+
+void VFramegraphContext::recreateBufferResource(const std::string& name,
+												const VFramegraphBufferCreationParameters& parameters) {}
+
+void VFramegraphContext::recreateImageResource(const std::string& name,
+											   const VFramegraphImageCreationParameters& parameters) {}
 
 VkImageView VFramegraphContext::swapchainImageView(VFramegraphNode* node, uint32_t index) {
 	auto nodeIterator =
@@ -562,6 +568,8 @@ void VFramegraphContext::updateDependencyInfo() {
 }
 
 void VFramegraphContext::updateBarriers(uint32_t imageIndex) {
+	m_frameStartImageMemoryBarriers.clear();
+	m_frameStartBufferMemoryBarriers.clear();
 	for (auto& barrierVector : m_nodeBufferMemoryBarriers) {
 		barrierVector.clear();
 	}

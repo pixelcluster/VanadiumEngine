@@ -5,6 +5,22 @@
 
 class VFramegraphNode;
 
+struct VFramegraphBufferCreationParameters {
+	VkDeviceSize size;
+	VkBufferCreateFlags flags;
+};
+
+struct VFramegraphImageCreationParameters {
+	VkImageCreateFlags flags;
+	VkImageType imageType;
+	VkFormat format;
+	VkExtent3D extent;
+	uint32_t mipLevels;
+	uint32_t arrayLayers;
+	VkSampleCountFlagBits samples;
+	VkImageTiling tiling;
+};
+
 struct VFramegraphNodeContext {
 	uint32_t frameIndex;
 	uint32_t imageIndex;
@@ -150,8 +166,11 @@ class VFramegraphContext {
 	VGPUContext* gpuContext() { return m_gpuContext; }
 	VGPUResourceAllocator* resourceAllocator() { return m_resourceAllocator; }
 
-	const VFramegraphBufferResource bufferResource(const std::string& name) const;
-	const VFramegraphImageResource imageResource(const std::string& name) const;
+	VFramegraphBufferResource bufferResource(const std::string& name) const;
+	VFramegraphImageResource imageResource(const std::string& name) const;
+
+	void recreateBufferResource(const std::string& name, const VFramegraphBufferCreationParameters& parameters);
+	void recreateImageResource(const std::string& name, const VFramegraphImageCreationParameters& parameters);
 
 	VkBuffer nativeBufferHandle(const std::string& name) {
 		return m_resourceAllocator->nativeBufferHandle(m_buffers[name].bufferResourceHandle);
@@ -172,6 +191,9 @@ class VFramegraphContext {
 
 	void destroy();
   private:
+	void createBuffer(const std::string& name);
+	void createImage(const std::string& name);
+
 	void addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
 				  std::vector<VFramegraphNodeBufferAccess>& reads, const VFramegraphNodeBufferUsage& usage);
 	void addUsage(size_t nodeIndex, std::vector<VFramegraphNodeImageAccess>& modifications,
@@ -207,6 +229,9 @@ class VFramegraphContext {
 
 	std::unordered_map<std::string, VFramegraphBufferResource> m_buffers;
 	std::unordered_map<std::string, VFramegraphImageResource> m_images;
+
+	std::unordered_map<std::string, VFramegraphBufferCreationParameters> m_createdBufferParameters;
+	std::unordered_map<std::string, VFramegraphImageCreationParameters> m_createdImageParameters;
 
 	bool m_firstFrameFlag = true;
 	
