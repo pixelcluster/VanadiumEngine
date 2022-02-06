@@ -147,10 +147,16 @@ class VFramegraphContext {
 
 	void setupResources();
 
-	void declareImportedBuffer(VFramegraphNode* creator, const std::string_view& name, VBufferResourceHandle handle,
+	void declareCreatedBuffer(VFramegraphNode* creator, const std::string_view& name,
+							  const VFramegraphBufferCreationParameters& parameters,
 							  const VFramegraphNodeBufferUsage& usage);
-	void declareImportedImage(VFramegraphNode* creator, const std::string_view& name, VImageResourceHandle handle,
+	void declareCreatedImage(VFramegraphNode* creator, const std::string_view& name,
+							 const VFramegraphImageCreationParameters& parameters,
 							 const VFramegraphNodeImageUsage& usage);
+	void declareImportedBuffer(VFramegraphNode* creator, const std::string_view& name, VBufferResourceHandle handle,
+							   const VFramegraphNodeBufferUsage& usage);
+	void declareImportedImage(VFramegraphNode* creator, const std::string_view& name, VImageResourceHandle handle,
+							  const VFramegraphNodeImageUsage& usage);
 
 	// These functions depend on the fact that all references are inserted in execution order!
 	void declareReferencedBuffer(VFramegraphNode* user, const std::string_view& name,
@@ -190,6 +196,7 @@ class VFramegraphContext {
 	void handleSwapchainResize(uint32_t width, uint32_t height);
 
 	void destroy();
+
   private:
 	void createBuffer(const std::string& name);
 	void createImage(const std::string& name);
@@ -213,11 +220,9 @@ class VFramegraphContext {
 		std::vector<VFramegraphNodeImageAccess>& modifications, const VFramegraphNodeImageAccess& read);
 
 	void emitBarrier(VkBuffer buffer, VFramegraphNodeBufferAccess& modification,
-										 const VFramegraphNodeBufferAccess& read,
-										 const VFramegraphBufferAccessMatch& match);
-	void emitBarrier(VkImage image, VFramegraphNodeImageAccess& modification,
-										const VFramegraphNodeImageAccess& read,
-										const VFramegraphImageAccessMatch& match);
+					 const VFramegraphNodeBufferAccess& read, const VFramegraphBufferAccessMatch& match);
+	void emitBarrier(VkImage image, VFramegraphNodeImageAccess& modification, const VFramegraphNodeImageAccess& read,
+					 const VFramegraphImageAccessMatch& match);
 
 	VGPUContext* m_gpuContext;
 	VGPUResourceAllocator* m_resourceAllocator;
@@ -234,7 +239,7 @@ class VFramegraphContext {
 	std::unordered_map<std::string, VFramegraphImageCreationParameters> m_createdImageParameters;
 
 	bool m_firstFrameFlag = true;
-	
+
 	std::vector<VkImageMemoryBarrier> m_initImageMemoryBarriers;
 	VFramegraphBarrierStages m_initBarrierStages = {};
 
