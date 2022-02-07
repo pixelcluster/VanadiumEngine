@@ -9,7 +9,7 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule) {
 	m_pointBuffer[0] = Vector3(0.0f, 1.0f, 0.0f); // singularity point on top of sphere
 
 	float theta = std::numbers::pi_v<float> * 0.5f;
-	float dTheta = std::numbers::pi_v<float> / static_cast<float>(pointsPerLatitudeSegment);
+	float dTheta = 2.0f * std::numbers::pi_v<float> / static_cast<float>(pointsPerLatitudeSegment);
 	float phi = 0.0f;
 	float dPhi = 2.0f * std::numbers::pi_v<float> / static_cast<float>(pointsPerLongitudeSegment);
 
@@ -28,6 +28,8 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule) {
 		}
 		theta -= dTheta;
 	}
+
+	m_pointBuffer[totalPointCount - 1] = Vector3(0.0f, -1.0f, 0.0f);
 
 	VkBufferCreateInfo bufferCreateInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 											.size = sizeof(Vector3) * totalPointCount,

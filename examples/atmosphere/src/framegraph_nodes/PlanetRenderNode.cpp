@@ -51,19 +51,17 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 
 	VkVertexInputAttributeDescription attributeDescriptions[] = {
 		// positions
-		{ .location = 0, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = 0 },
-		// colors
-		{ .location = 1, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 2 * sizeof(float) }
+		{ .location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0 },
 	};
 	VkVertexInputBindingDescription bindingDescription = { .binding = 0,
-														   .stride = 5 * sizeof(float),
+														   .stride = 3 * sizeof(float),
 														   .inputRate = VK_VERTEX_INPUT_RATE_VERTEX };
 
 	VkPipelineVertexInputStateCreateInfo inputStateCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		.vertexBindingDescriptionCount = 1,
 		.pVertexBindingDescriptions = &bindingDescription,
-		.vertexAttributeDescriptionCount = 2,
+		.vertexAttributeDescriptionCount = 1,
 		.pVertexAttributeDescriptions = attributeDescriptions
 	};
 
