@@ -37,7 +37,9 @@ struct VDescriptorSetAllocation {
 
 class VGPUDescriptorSetAllocator {
   public:
-	VGPUDescriptorSetAllocator(VGPUContext* context);
+	VGPUDescriptorSetAllocator();
+
+	void create(VGPUContext* context);
 
 	std::vector<VDescriptorSetAllocation> allocateDescriptorSets(const std::vector<VDescriptorSetAllocationInfo>& infos);
 	void freeDescriptorSet(const VDescriptorSetAllocation& allocation, const VDescriptorSetAllocationInfo& info);

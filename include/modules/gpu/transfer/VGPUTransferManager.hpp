@@ -14,6 +14,17 @@ struct VGPUTransfer {
 	VkAccessFlags dstUsageAccessFlags;
 };
 
+struct VGPUImageTransfer {
+	VBufferResourceHandle stagingBuffer;
+	VImageResourceHandle dstImage;
+	VkDeviceSize stagingBufferSize;
+
+	VkBufferImageCopy copy;
+	VkPipelineStageFlags dstUsageStageFlags;
+	VkAccessFlags dstUsageAccessFlags;
+	VkImageLayout dstUsageLayout;
+};
+
 using VGPUTransferHandle = VSlotmapHandle;
 
 class VGPUTransferManager {
@@ -24,6 +35,13 @@ class VGPUTransferManager {
 
 	VGPUTransferHandle createTransfer(VkDeviceSize transferBufferSize, VkBufferUsageFlags usageFlags,
 									  VkPipelineStageFlags usageStageFlags, VkAccessFlags usageAccessFlags);
+
+	void submitOneTimeTransfer(VkDeviceSize transferBufferSize, VBufferResourceHandle handle, const void* data,
+											 VkPipelineStageFlags usageStageFlags, VkAccessFlags usageAccessFlags);
+
+	void submitImageTransfer(VImageResourceHandle dstImage, const VkBufferImageCopy& copy, const void* data,
+							 VkDeviceSize size, VkPipelineStageFlags usageStageFlags, VkAccessFlags usageAccessFlags,
+							 VkImageLayout dstUsageLayout);
 
 	VBufferResourceHandle dstBufferHandle(VGPUTransferHandle handle) { return m_continuousTransfers[handle].dstBuffer; }
 
@@ -41,4 +59,6 @@ class VGPUTransferManager {
 	VkCommandPool m_transferCommandPools[frameInFlightCount];
 
 	VSlotmap<VGPUTransfer> m_continuousTransfers;
+	std::vector<VGPUTransfer> m_oneTimeTransfers;
+	std::vector<VGPUImageTransfer> m_imageTransfers;
 };

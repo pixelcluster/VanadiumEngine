@@ -36,9 +36,13 @@ template <typename T, T fullRangeValue> bool isCompletelyContained(T offset1, T 
 	}
 }
 
-void VFramegraphContext::create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator) {
+void VFramegraphContext::create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator,
+								VGPUDescriptorSetAllocator* descriptorSetAllocator,
+								VGPUTransferManager* transferManager) {
 	m_gpuContext = context;
 	m_resourceAllocator = resourceAllocator;
+	m_descriptorSetAllocator = descriptorSetAllocator;
+	m_transferManager = transferManager;
 
 	VkCommandPoolCreateInfo poolCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 											   .queueFamilyIndex = m_gpuContext->graphicsQueueFamilyIndex() };
@@ -72,6 +76,8 @@ void VFramegraphContext::setupResources() {
 		node.node->setupResources(this);
 	}
 
+	m_stringAllocator.clear();
+
 	for (auto& parameterPair : m_createdBufferParameters) {
 		createBuffer(parameterPair.first);
 	}
@@ -79,14 +85,16 @@ void VFramegraphContext::setupResources() {
 		createImage(parameterPair.first);
 	}
 
+	m_stringAllocator.clear();
+
 	updateDependencyInfo();
 }
 
 void VFramegraphContext::declareCreatedBuffer(VFramegraphNode* creator, const std::string_view& name,
 											  const VFramegraphBufferCreationParameters& parameters,
 											  const VFramegraphNodeBufferUsage& usage) {
-	m_buffers.insert(std::pair<std::string, VFramegraphBufferResource>(name, VFramegraphBufferResource{}));
-	m_createdBufferParameters.insert(std::pair<std::string, VFramegraphBufferCreationParameters>(name, parameters));
+	m_buffers.insert(std::pair<VFramegraphString, VFramegraphBufferResource>(name, VFramegraphBufferResource{}));
+	m_createdBufferParameters.insert(std::pair<VFramegraphString, VFramegraphBufferCreationParameters>(name, parameters));
 
 	auto nodeIterator =
 		std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
@@ -95,7 +103,7 @@ void VFramegraphContext::declareCreatedBuffer(VFramegraphNode* creator, const st
 		return;
 	}
 
-	auto usageIterator = m_buffers.find(std::string(name));
+	auto usageIterator = m_buffers.find(VFramegraphString(name, m_stringAllocator));
 	if (usageIterator == m_buffers.end()) {
 		printf("invalid resource for dependency!\n");
 		return;
@@ -109,9 +117,9 @@ void VFramegraphContext::declareCreatedBuffer(VFramegraphNode* creator, const st
 void VFramegraphContext::declareCreatedImage(VFramegraphNode* creator, const std::string_view& name,
 											 const VFramegraphImageCreationParameters& parameters,
 											 const VFramegraphNodeImageUsage& usage) {
-	m_images.insert(std::pair<std::string, VFramegraphImageResource>(
+	m_images.insert(std::pair<VFramegraphString, VFramegraphImageResource>(
 		name, VFramegraphImageResource{}));
-	m_createdImageParameters.insert(std::pair<std::string, VFramegraphImageCreationParameters>(name, parameters));
+	m_createdImageParameters.insert(std::pair<VFramegraphString, VFramegraphImageCreationParameters>(name, parameters));
 
 	auto nodeIterator =
 		std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
@@ -121,19 +129,19 @@ void VFramegraphContext::declareCreatedImage(VFramegraphNode* creator, const std
 	}
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	auto usageIterator = m_images.find(std::string(name));
+	auto usageIterator = m_images.find(VFramegraphString(name, m_stringAllocator));
 	addUsage(nodeIndex, usageIterator->second.modifications, usageIterator->second.reads, usage);
 
 	if (usage.viewInfo.has_value()) {
 		nodeIterator->resourceViewInfos.insert(
-			std::pair<std::string, VImageResourceViewInfo>(name, usage.viewInfo.value()));
+			std::pair<VFramegraphString, VImageResourceViewInfo>(name, usage.viewInfo.value()));
 	}
 }
 
 void VFramegraphContext::declareImportedBuffer(VFramegraphNode* creator, const std::string_view& name,
 											   VBufferResourceHandle handle, const VFramegraphNodeBufferUsage& usage) {
 
-	m_buffers.insert(std::pair<std::string, VFramegraphBufferResource>(
+	m_buffers.insert(std::pair<VFramegraphString, VFramegraphBufferResource>(
 		name, VFramegraphBufferResource{ .bufferResourceHandle = handle }));
 
 	auto nodeIterator =
@@ -143,7 +151,7 @@ void VFramegraphContext::declareImportedBuffer(VFramegraphNode* creator, const s
 		return;
 	}
 
-	auto usageIterator = m_buffers.find(std::string(name));
+	auto usageIterator = m_buffers.find(VFramegraphString(name, m_stringAllocator));
 	if (usageIterator == m_buffers.end()) {
 		printf("invalid resource for dependency!\n");
 		return;
@@ -156,7 +164,7 @@ void VFramegraphContext::declareImportedBuffer(VFramegraphNode* creator, const s
 
 void VFramegraphContext::declareImportedImage(VFramegraphNode* creator, const std::string_view& name,
 											  VImageResourceHandle handle, const VFramegraphNodeImageUsage& usage) {
-	m_images.insert(std::pair<std::string, VFramegraphImageResource>(
+	m_images.insert(std::pair<VFramegraphString, VFramegraphImageResource>(
 		name, VFramegraphImageResource{ .imageResourceHandle = handle }));
 
 	auto nodeIterator =
@@ -167,12 +175,12 @@ void VFramegraphContext::declareImportedImage(VFramegraphNode* creator, const st
 	}
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	auto usageIterator = m_images.find(std::string(name));
+	auto usageIterator = m_images.find(VFramegraphString(name, m_stringAllocator));
 	addUsage(nodeIndex, usageIterator->second.modifications, usageIterator->second.reads, usage);
 
 	if (usage.viewInfo.has_value()) {
 		nodeIterator->resourceViewInfos.insert(
-			std::pair<std::string, VImageResourceViewInfo>(name, usage.viewInfo.value()));
+			std::pair<VFramegraphString, VImageResourceViewInfo>(name, usage.viewInfo.value()));
 	}
 }
 
@@ -185,7 +193,7 @@ void VFramegraphContext::declareReferencedBuffer(VFramegraphNode* user, const st
 		return;
 	}
 
-	auto usageIterator = m_buffers.find(std::string(name));
+	auto usageIterator = m_buffers.find(VFramegraphString(name, m_stringAllocator));
 	if (usageIterator == m_buffers.end()) {
 		printf("invalid resource for dependency!\n");
 		return;
@@ -206,7 +214,7 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std
 		return;
 	}
 
-	auto usageIterator = m_images.find(std::string(name));
+	auto usageIterator = m_images.find(VFramegraphString(name, m_stringAllocator));
 	if (usageIterator == m_images.end()) {
 		printf("invalid resource for dependency!\n");
 		return;
@@ -222,7 +230,7 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, const std
 			return;
 		}
 		nodeIterator->resourceViewInfos.insert(
-			std::pair<std::string, VImageResourceViewInfo>(name, usage.viewInfo.value()));
+			std::pair<VFramegraphString, VImageResourceViewInfo>(name, usage.viewInfo.value()));
 	}
 }
 
@@ -251,50 +259,76 @@ void VFramegraphContext::declareReferencedSwapchainImage(VFramegraphNode* user,
 	}
 }
 
-void VFramegraphContext::invalidateBuffer(const std::string& name, VBufferResourceHandle newHandle) {
-	m_buffers[name].bufferResourceHandle = newHandle;
+void VFramegraphContext::invalidateBuffer(const std::string_view& name, VBufferResourceHandle newHandle) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	m_buffers[nameString].bufferResourceHandle = newHandle;
 }
 
-void VFramegraphContext::invalidateImage(const std::string& name, VImageResourceHandle newHandle) {
-	m_images[name].imageResourceHandle = newHandle;
+void VFramegraphContext::invalidateImage(const std::string_view& name, VImageResourceHandle newHandle) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	m_images[nameString].imageResourceHandle = newHandle;
 }
 
-VFramegraphBufferResource VFramegraphContext::bufferResource(const std::string& name) const {
-	auto iterator = m_buffers.find(name);
+VFramegraphBufferResource VFramegraphContext::bufferResource(const std::string_view& name) const {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	auto iterator = m_buffers.find(nameString);
 	if (iterator == m_buffers.end())
 		return {};
 	else
 		return iterator->second;
 }
 
-VFramegraphImageResource VFramegraphContext::imageResource(const std::string& name) const {
-	auto iterator = m_images.find(name);
+VFramegraphImageResource VFramegraphContext::imageResource(const std::string_view& name) const {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	auto iterator = m_images.find(nameString);
 	if (iterator == m_images.end())
 		return {};
 	else
 		return iterator->second;
 }
 
-void VFramegraphContext::recreateBufferResource(const std::string& name,
+void VFramegraphContext::recreateBufferResource(const std::string_view& name,
 												const VFramegraphBufferCreationParameters& parameters) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
 	if constexpr (vanadiumDebug) {
-		if (m_createdBufferParameters.find(name) == m_createdBufferParameters.end()) {
-			printf("Trying to recreate non-created buffer %s!", name.c_str());
+		if (m_createdBufferParameters.find(nameString) == m_createdBufferParameters.end()) {
+			printf("Trying to recreate non-created buffer %s!", name.data());
 		}
 	}
-	m_createdBufferParameters[name] = parameters;
+	m_createdBufferParameters[nameString] = parameters;
 	createBuffer(name);
 }
 
-void VFramegraphContext::recreateImageResource(const std::string& name,
+void VFramegraphContext::recreateImageResource(const std::string_view& name,
 											   const VFramegraphImageCreationParameters& parameters) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
 	if constexpr (vanadiumDebug) {
-		if (m_createdImageParameters.find(name) == m_createdImageParameters.end()) {
-			printf("Trying to recreate non-created buffer %s!", name.c_str());
+		if (m_createdImageParameters.find(nameString) == m_createdImageParameters.end()) {
+			printf("Trying to recreate non-created buffer %s!", name.data());
 		}
 	}
-	m_createdImageParameters[name] = parameters;
+	m_createdImageParameters[nameString] = parameters;
 	createImage(name);
+}
+
+VkBuffer VFramegraphContext::nativeBufferHandle(const std::string_view& name) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	if constexpr (vanadiumDebug) {
+		if (m_buffers.find(nameString) == m_buffers.end()) {
+			printf("Trying to get handle of non-created buffer %s!", name.data());
+		}
+	}
+	return m_resourceAllocator->nativeBufferHandle(m_buffers[nameString].bufferResourceHandle);
+}
+
+VkImage VFramegraphContext::nativeImageHandle(const std::string_view& name) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	if constexpr (vanadiumDebug) {
+		if (m_images.find(nameString) == m_images.end()) {
+			printf("Trying to get handle of non-created image %s!", name.data());
+		}
+	}
+	return m_resourceAllocator->nativeImageHandle(m_images[nameString].imageResourceHandle);
 }
 
 VkImageView VFramegraphContext::swapchainImageView(VFramegraphNode* node, uint32_t index) {
@@ -310,6 +344,16 @@ VkImageView VFramegraphContext::swapchainImageView(VFramegraphNode* node, uint32
 		return VK_NULL_HANDLE;
 	} else
 		return m_swapchainImageViews[index][nodeIterator->swapchainResourceViewInfo.value()];
+}
+
+VkBufferUsageFlags VFramegraphContext::bufferUsageFlags(const std::string_view& name) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	return m_buffers[nameString].usageFlags;
+}
+
+VkImageUsageFlags VFramegraphContext::imageUsageFlags(const std::string_view& name) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	return m_images[nameString].usageFlags;
 }
 
 VkCommandBuffer VFramegraphContext::recordFrame(const AcquireResult& result) {
@@ -344,6 +388,8 @@ VkCommandBuffer VFramegraphContext::recordFrame(const AcquireResult& result) {
 	}
 
 	for (auto& node : m_nodes) {
+		m_stringAllocator.clear();
+
 		if constexpr (vanadiumGPUDebug) {
 			VkDebugUtilsLabelEXT label = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
 										   .pLabelName = node.node->name().c_str() };
@@ -362,7 +408,7 @@ VkCommandBuffer VFramegraphContext::recordFrame(const AcquireResult& result) {
 		for (auto& viewInfo : node.resourceViewInfos) {
 			VkImageView view =
 				m_resourceAllocator->requestImageView(m_images[viewInfo.first].imageResourceHandle, viewInfo.second);
-			nodeContext.resourceImageViews.insert(std::pair<std::string, VkImageView>(viewInfo.first, view));
+			nodeContext.resourceImageViews.insert(std::pair<VFramegraphString, VkImageView>(viewInfo.first, view));
 		}
 
 		if (node.swapchainResourceViewInfo.has_value()) {
@@ -477,22 +523,24 @@ void VFramegraphContext::destroy() {
 	}
 }
 
-void VFramegraphContext::createBuffer(const std::string& name) {
-	auto& createParameters = m_createdBufferParameters[name];
-	auto usage = m_buffers[name].usageFlags;
+void VFramegraphContext::createBuffer(const std::string_view& name) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	auto& createParameters = m_createdBufferParameters[nameString];
+	auto usage = m_buffers[nameString].usageFlags;
 
 	VkBufferCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 									  .flags = createParameters.flags,
 									  .size = createParameters.size,
 									  .usage = usage,
 									  .sharingMode = VK_SHARING_MODE_EXCLUSIVE };
-	m_buffers[name].bufferResourceHandle =
+	m_buffers[nameString].bufferResourceHandle =
 		m_resourceAllocator->createBuffer(createInfo, {}, { .deviceLocal = true }, false);
 }
 
-void VFramegraphContext::createImage(const std::string& name) {
-	auto& createParameters = m_createdImageParameters[name];
-	auto usage = m_images[name].usageFlags;
+void VFramegraphContext::createImage(const std::string_view& name) {
+	auto nameString = VFramegraphString(name, m_stringAllocator);
+	auto& createParameters = m_createdImageParameters[nameString];
+	auto usage = m_images[nameString].usageFlags;
 
 	VkImageCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 									 .flags = createParameters.flags,
@@ -505,7 +553,7 @@ void VFramegraphContext::createImage(const std::string& name) {
 									 .tiling = createParameters.tiling,
 									 .usage = usage,
 									 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
-	m_images[name].imageResourceHandle = m_resourceAllocator->createImage(createInfo);
+	m_images[nameString].imageResourceHandle = m_resourceAllocator->createImage(createInfo);
 }
 
 void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,

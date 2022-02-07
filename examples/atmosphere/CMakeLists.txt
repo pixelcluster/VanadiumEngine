@@ -13,6 +13,8 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
 file(GLOB SHADERS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/shaders")
 
+file(DOWNLOAD "https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74218/world.200412.3x5400x2700.jpg" "${CMAKE_CURRENT_BINARY_DIR}/resources/earth_tex.jpg" SHOW_PROGRESS)
+
 foreach(SHADER IN LISTS SHADERS)
 	get_filename_component(FILENAME ${SHADER} NAME_WLE)
 	get_filename_component(EXTENSION ${SHADER} LAST_EXT)
@@ -26,11 +28,11 @@ foreach(SHADER IN LISTS SHADERS)
 					   DEPENDS ${SOURCEPATH})
 endforeach()
 
-add_executable(ExampleHelloWorld ${CPP_SOURCES} ${HEADERS})
+add_executable(ExampleAtmosphere ${CPP_SOURCES} ${HEADERS})
 
-target_include_directories(ExampleHelloWorld PUBLIC "include")
-target_link_libraries(ExampleHelloWorld VanadiumEngine)
+target_include_directories(ExampleAtmosphere PUBLIC "include" "${CMAKE_SOURCE_DIR}/examples/dependencies/stb")
+target_link_libraries(ExampleAtmosphere VanadiumEngine glm)
 
-add_custom_target(helloworld_shaders DEPENDS ${SHADER_DEPENDS})
+add_custom_target(atmosphere_shaders DEPENDS ${SHADER_DEPENDS})
 
-add_dependencies(ExampleHelloWorld helloworld_shaders)
+add_dependencies(ExampleAtmosphere atmosphere_shaders)

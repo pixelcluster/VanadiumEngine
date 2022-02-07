@@ -6,3 +6,4 @@ build/*
 .vscode/*
 include/VDebug.hpp
 /CMakeSettings.json
+/examples/atmosphere/resources

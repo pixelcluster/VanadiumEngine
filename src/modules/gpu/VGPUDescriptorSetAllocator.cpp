@@ -9,7 +9,9 @@ struct VDescriptorAllocationBatch {
 	std::vector<size_t> allocationIndices;
 };
 
-VGPUDescriptorSetAllocator::VGPUDescriptorSetAllocator(VGPUContext* context) : m_context(context) {}
+VGPUDescriptorSetAllocator::VGPUDescriptorSetAllocator() {}
+
+void VGPUDescriptorSetAllocator::create(VGPUContext* context) { m_context = context; }
 
 std::vector<VDescriptorSetAllocation> VGPUDescriptorSetAllocator::allocateDescriptorSets(
 	const std::vector<VDescriptorSetAllocationInfo>& infos) {
@@ -188,7 +190,7 @@ void VGPUDescriptorSetAllocator::addSizeClass(const VDescriptorSetAllocationInfo
 	sizeClass.descriptorsPerSet.reserve(info.typeInfos.size());
 
 	for (auto& info : info.typeInfos) {
-		sizeClass.descriptorsPerSet.insert({ info.type, info.count });
+		sizeClass.descriptorsPerSet.insert({ info.type, static_cast<uint32_t>(info.count) });
 	}
 	addPool(sizeClass);
 

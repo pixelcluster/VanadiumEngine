@@ -8,7 +8,8 @@ VGPUModule::VGPUModule(const std::string_view& appName, uint32_t appVersion, VWi
 
 	m_resourceAllocator.create(&m_context);
 	m_transferManager.create(&m_context, &m_resourceAllocator);
-	m_framegraphContext.create(&m_context, &m_resourceAllocator);
+	m_descriptorSetAllocator.create(&m_context);
+	m_framegraphContext.create(&m_context, &m_resourceAllocator, &m_descriptorSetAllocator, &m_transferManager);
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
@@ -49,8 +50,8 @@ void VGPUModule::onExecute(VEngine& engine) {
 
 	m_resourceAllocator.setFrameIndex(result.frameIndex);
 
-	VkCommandBuffer transferCommandBuffer = m_transferManager.recordTransfers(result.frameIndex);
 	VkCommandBuffer framegraphCommandBuffer = m_framegraphContext.recordFrame(result);
+	VkCommandBuffer transferCommandBuffer = m_transferManager.recordTransfers(result.frameIndex);
 
 	VkCommandBuffer commandBuffers[] = { transferCommandBuffer, framegraphCommandBuffer };
 

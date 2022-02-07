@@ -2,6 +2,11 @@
 
 #include <modules/gpu/VGPUResourceAllocator.hpp>
 #include <string_view>
+#include <helper/VFramegraphStringAllocator.hpp>
+#include <modules/gpu/VGPUDescriptorSetAllocator.hpp>
+#include <modules/gpu/transfer/VGPUTransferManager.hpp>
+
+using VFramegraphString = std::basic_string<char, std::char_traits<char>, VFramegraphStringAllocator<char>>;
 
 class VFramegraphNode;
 
@@ -114,7 +119,7 @@ struct VFramegraphImageResource {
 struct VFramegraphNodeInfo {
 	VFramegraphNode* node;
 
-	std::unordered_map<std::string, VImageResourceViewInfo> resourceViewInfos;
+	std::unordered_map<VFramegraphString, VImageResourceViewInfo> resourceViewInfos;
 	std::optional<VImageResourceViewInfo> swapchainResourceViewInfo;
 };
 
@@ -140,7 +145,7 @@ class VFramegraphContext {
   public:
 	VFramegraphContext() {}
 
-	void create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator);
+	void create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator, VGPUDescriptorSetAllocator* descriptorSetAllocator, VGPUTransferManager* transferManager);
 
 	template <DerivesFrom<VFramegraphNode> T, typename... Args>
 	requires(ConstructibleWith<T, Args...>) VFramegraphNode* appendNode(Args... constructorArgs);
@@ -166,28 +171,27 @@ class VFramegraphContext {
 
 	void declareReferencedSwapchainImage(VFramegraphNode* user, const VFramegraphNodeImageUsage& usage);
 
-	void invalidateBuffer(const std::string& name, VBufferResourceHandle newHandle);
-	void invalidateImage(const std::string& name, VImageResourceHandle newHandle);
+	void invalidateBuffer(const std::string_view& name, VBufferResourceHandle newHandle);
+	void invalidateImage(const std::string_view& name, VImageResourceHandle newHandle);
 
 	VGPUContext* gpuContext() { return m_gpuContext; }
 	VGPUResourceAllocator* resourceAllocator() { return m_resourceAllocator; }
+	VGPUDescriptorSetAllocator* descriptorSetAllocator() { return m_descriptorSetAllocator; }
+	VGPUTransferManager* transferManager() { return m_transferManager; }
 
-	VFramegraphBufferResource bufferResource(const std::string& name) const;
-	VFramegraphImageResource imageResource(const std::string& name) const;
+	VFramegraphBufferResource bufferResource(const std::string_view& name) const;
+	VFramegraphImageResource imageResource(const std::string_view& name) const;
 
-	void recreateBufferResource(const std::string& name, const VFramegraphBufferCreationParameters& parameters);
-	void recreateImageResource(const std::string& name, const VFramegraphImageCreationParameters& parameters);
+	void recreateBufferResource(const std::string_view& name, const VFramegraphBufferCreationParameters& parameters);
+	void recreateImageResource(const std::string_view& name, const VFramegraphImageCreationParameters& parameters);
 
-	VkBuffer nativeBufferHandle(const std::string& name) {
-		return m_resourceAllocator->nativeBufferHandle(m_buffers[name].bufferResourceHandle);
-	}
-	VkImage nativeImageHandle(const std::string& name) {
-		return m_resourceAllocator->nativeImageHandle(m_images[name].imageResourceHandle);
-	}
+	VkBuffer nativeBufferHandle(const std::string_view& name);
+	VkImage nativeImageHandle(const std::string_view& name);
+
 	VkImageView swapchainImageView(VFramegraphNode* node, uint32_t index);
 
-	VkBufferUsageFlags bufferUsageFlags(const std::string& name) { return m_buffers[name].usageFlags; }
-	VkImageUsageFlags imageUsageFlags(const std::string& name) { return m_images[name].usageFlags; }
+	VkBufferUsageFlags bufferUsageFlags(const std::string_view& name);
+	VkImageUsageFlags imageUsageFlags(const std::string_view& name);
 
 	VkImageUsageFlags swapchainImageUsageFlags() const { return m_swapchainImageUsageFlags; }
 
@@ -198,8 +202,8 @@ class VFramegraphContext {
 	void destroy();
 
   private:
-	void createBuffer(const std::string& name);
-	void createImage(const std::string& name);
+	void createBuffer(const std::string_view& name);
+	void createImage(const std::string_view& name);
 
 	void addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
 				  std::vector<VFramegraphNodeBufferAccess>& reads, const VFramegraphNodeBufferUsage& usage);
@@ -226,17 +230,21 @@ class VFramegraphContext {
 
 	VGPUContext* m_gpuContext;
 	VGPUResourceAllocator* m_resourceAllocator;
+	VGPUDescriptorSetAllocator* m_descriptorSetAllocator;
+	VGPUTransferManager* m_transferManager;
+
+	VFramegraphStringAllocator<char> m_stringAllocator = VFramegraphStringAllocator<char>(16384);
 
 	VkCommandPool m_frameCommandPools[frameInFlightCount];
 	VkCommandBuffer m_frameCommandBuffers[frameInFlightCount];
 
 	std::vector<VFramegraphNodeInfo> m_nodes;
 
-	std::unordered_map<std::string, VFramegraphBufferResource> m_buffers;
-	std::unordered_map<std::string, VFramegraphImageResource> m_images;
+	std::unordered_map<VFramegraphString, VFramegraphBufferResource> m_buffers;
+	std::unordered_map<VFramegraphString, VFramegraphImageResource> m_images;
 
-	std::unordered_map<std::string, VFramegraphBufferCreationParameters> m_createdBufferParameters;
-	std::unordered_map<std::string, VFramegraphImageCreationParameters> m_createdImageParameters;
+	std::unordered_map<VFramegraphString, VFramegraphBufferCreationParameters> m_createdBufferParameters;
+	std::unordered_map<VFramegraphString, VFramegraphImageCreationParameters> m_createdImageParameters;
 
 	bool m_firstFrameFlag = true;
 

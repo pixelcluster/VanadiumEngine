@@ -8,6 +8,8 @@ class SwapchainClearNode : public VFramegraphNode {
 
 	void setupResources(VFramegraphContext* context) override;
 
+	void initResources(VFramegraphContext* context) override {}
+
 	void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 						const VFramegraphNodeContext& nodeContext) override;
 

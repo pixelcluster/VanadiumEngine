@@ -5,6 +5,7 @@
 #include <modules/gpu/framegraph/VFramegraphContext.hpp>
 #include <modules/gpu/VGPUResourceAllocator.hpp>
 #include <modules/gpu/transfer/VGPUTransferManager.hpp>
+#include <modules/gpu/VGPUDescriptorSetAllocator.hpp>
 
 class VGPUModule : public VModule {
   public:
@@ -23,11 +24,15 @@ class VGPUModule : public VModule {
 
 	VGPUTransferManager& transferManager() { return m_transferManager; }
 
+	VGPUResourceAllocator& resourceAllocator() { return m_resourceAllocator; }
+
   private:
 	VGPUContext m_context;
 
 	VFramegraphContext m_framegraphContext;
 	VGPUResourceAllocator m_resourceAllocator;
+
+	VGPUDescriptorSetAllocator m_descriptorSetAllocator;
 
 	VWindowModule* m_windowModule;
 
