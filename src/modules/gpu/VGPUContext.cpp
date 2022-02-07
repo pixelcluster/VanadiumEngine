@@ -55,8 +55,8 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 
 	VkDebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-		.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
-						   VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT,
+		.messageSeverity =
+			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT,
 		.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
 					   VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
 		.pfnUserCallback = debugLog
@@ -284,6 +284,7 @@ bool VGPUContext::recreateSwapchain(VWindowModule* windowModule, VkImageUsageFla
 													 .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
 													 .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
 													 .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+													 .presentMode = VK_PRESENT_MODE_FIFO_KHR,
 													 .clipped = VK_TRUE,
 													 .oldSwapchain = m_swapchain };
 	verifyResult(vkCreateSwapchainKHR(m_device, &swapchainCreateInfo, nullptr, &m_swapchain));
