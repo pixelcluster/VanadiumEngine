@@ -52,7 +52,7 @@ void VGPUTransferManager::submitOneTimeTransfer(VkDeviceSize transferBufferSize,
 							  .dstUsageStageFlags = usageStageFlags,
 							  .dstUsageAccessFlags = usageAccessFlags };
 
-	if (!m_resourceAllocator->bufferMemoryCapabilities(handle).deviceLocal) {
+	if (!m_resourceAllocator->bufferMemoryCapabilities(handle).hostVisible) {
 		transfer.needsStagingBuffer = true;
 
 		VkBufferCreateInfo transferBufferCreateInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -175,15 +175,16 @@ VkCommandBuffer VGPUTransferManager::recordTransfers(uint32_t frameIndex) {
 							 static_cast<uint32_t>(imageBarriers.size()), imageBarriers.data());
 	}
 
-	VkBufferCopy copy = { .size = VK_WHOLE_SIZE };
 	for (auto& transfer : m_continuousTransfers) {
 		if (transfer.needsStagingBuffer) {
+			VkBufferCopy copy = { .size = transfer.bufferSize };
 			vkCmdCopyBuffer(commandBuffer, m_resourceAllocator->nativeBufferHandle(transfer.stagingBuffer),
 							m_resourceAllocator->nativeBufferHandle(transfer.dstBuffer), 1, &copy);
 		}
 	}
 	for (auto& transfer : m_oneTimeTransfers) {
 		if (transfer.needsStagingBuffer) {
+			VkBufferCopy copy = { .size = transfer.bufferSize };
 			vkCmdCopyBuffer(commandBuffer, m_resourceAllocator->nativeBufferHandle(transfer.stagingBuffer),
 							m_resourceAllocator->nativeBufferHandle(transfer.dstBuffer), 1, &copy);
 		}
@@ -227,6 +228,7 @@ VkCommandBuffer VGPUTransferManager::recordTransfers(uint32_t frameIndex) {
 										  .offset = 0,
 										  .size = VK_WHOLE_SIZE };
 		if (transfer.needsStagingBuffer) {
+			m_resourceAllocator->destroyBuffer(transfer.stagingBuffer);
 			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 			srcStageFlags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
 		} else {
@@ -252,6 +254,7 @@ VkCommandBuffer VGPUTransferManager::recordTransfers(uint32_t frameIndex) {
 											 .layerCount = transfer.copy.imageSubresource.layerCount } };
 		srcStageFlags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
 		dstStageFlags |= transfer.dstUsageStageFlags;
+		m_resourceAllocator->destroyBuffer(transfer.stagingBuffer);
 		imageBarriers.push_back(barrier);
 	}
 	vkCmdPipelineBarrier(commandBuffer, srcStageFlags, dstStageFlags, 0, 0, nullptr,

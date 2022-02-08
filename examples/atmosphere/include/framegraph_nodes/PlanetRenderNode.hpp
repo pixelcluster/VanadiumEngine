@@ -6,7 +6,7 @@
 class PlanetRenderNode : public VFramegraphNode {
   public:
 	PlanetRenderNode(VBufferResourceHandle vertexDataBuffer, VBufferResourceHandle indexDataBuffer,
-					 VBufferResourceHandle sceneDataBuffer, uint32_t indexCount);
+					 VBufferResourceHandle sceneDataBuffer, VImageResourceHandle texHandle, uint32_t indexCount);
 
 	void setupResources(VFramegraphContext* context);
 
@@ -22,13 +22,19 @@ class PlanetRenderNode : public VFramegraphNode {
 	VBufferResourceHandle m_vertexData;
 	VBufferResourceHandle m_indexData;
 	VBufferResourceHandle m_uboHandle;
+	VImageResourceHandle m_texHandle;
 
 	uint32_t m_indexCount;
 
-	VkPipeline m_graphicsPipeline;
-	VkPipelineLayout m_pipelineLayout;
+	VkSampler m_texSampler;
+
 	VkDescriptorSetLayout m_setLayout;
 	VkDescriptorSet m_uboSet;
+	VkDescriptorSetLayout m_texSetLayout;
+	VkDescriptorSet m_texSet;
+
+	VkPipeline m_graphicsPipeline;
+	VkPipelineLayout m_pipelineLayout;
 	VkRenderPass m_renderPass;
 
 	uint32_t m_width, m_height;

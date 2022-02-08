@@ -86,6 +86,7 @@ void VGPUModule::onDestroy(VEngine& engine) {
 	m_framegraphContext.destroy();
 	m_transferManager.destroy();
 	m_resourceAllocator.destroy();
+	m_descriptorSetAllocator.destroy();
 	m_context.destroy();
 }
 

@@ -14,7 +14,8 @@ int main() {
 	gpuModule->framegraphContext().appendNode<PlanetRenderNode>(
 		bufferModule->vertexBufferHandle(),
 		bufferModule->indexBufferHandle(),
-		gpuModule->transferManager().dstBufferHandle(bufferModule->uboTransferHandle()), totalIndexCount);
+		gpuModule->transferManager().dstBufferHandle(bufferModule->uboTransferHandle()), bufferModule->textureHandle(),
+		totalIndexCount);
 
 	engine.activateModule(windowModule);
 	engine.activateModule(gpuModule);

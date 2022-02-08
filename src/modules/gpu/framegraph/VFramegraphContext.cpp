@@ -521,6 +521,8 @@ void VFramegraphContext::destroy() {
 			vkDestroyImageView(m_gpuContext->device(), view.second, nullptr);
 		}
 	}
+
+	m_stringAllocator.destroy();
 }
 
 void VFramegraphContext::createBuffer(const std::string_view& name) {
@@ -553,7 +555,8 @@ void VFramegraphContext::createImage(const std::string_view& name) {
 									 .tiling = createParameters.tiling,
 									 .usage = usage,
 									 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
-	m_images[nameString].imageResourceHandle = m_resourceAllocator->createImage(createInfo);
+	m_images[nameString].imageResourceHandle =
+		m_resourceAllocator->createImage(createInfo, {}, { .deviceLocal = true });
 }
 
 void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,

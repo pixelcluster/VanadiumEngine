@@ -6,13 +6,22 @@
 #include <volk.h>
 
 PlanetRenderNode::PlanetRenderNode(VBufferResourceHandle vertexDataBuffer, VBufferResourceHandle indexDataBuffer,
-								   VBufferResourceHandle sceneDataBuffer, uint32_t indexCount)
+								   VBufferResourceHandle sceneDataBuffer, VImageResourceHandle texHandle,
+								   uint32_t indexCount)
 	: m_vertexData(vertexDataBuffer), m_indexData(indexDataBuffer), m_uboHandle(sceneDataBuffer),
+	  m_texHandle(texHandle),
 	  m_indexCount(indexCount) {
 	m_name = "Planet rendering";
 }
 
 void PlanetRenderNode::setupResources(VFramegraphContext* context) {
+	VkSamplerCreateInfo samplerCreateInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+											  .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+											  .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+											  .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+											  .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT };
+	verifyResult(vkCreateSampler(context->gpuContext()->device(), &samplerCreateInfo, nullptr, &m_texSampler));
+
 	VkAttachmentDescription description = { .format = VK_FORMAT_B8G8R8A8_SRGB,
 											.samples = VK_SAMPLE_COUNT_1_BIT,
 											.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -45,25 +54,40 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 	verifyResult(
 		vkCreateDescriptorSetLayout(context->gpuContext()->device(), &setLayoutCreateInfo, nullptr, &m_setLayout));
 
+	VkDescriptorSetLayoutBinding texBinding = { .binding = 0,
+												.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+												.descriptorCount = 1,
+												.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+												.pImmutableSamplers = &m_texSampler };
+	VkDescriptorSetLayoutCreateInfo texSetLayoutCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 1, .pBindings = &texBinding
+	};
+	verifyResult(
+		vkCreateDescriptorSetLayout(context->gpuContext()->device(), &texSetLayoutCreateInfo, nullptr, &m_texSetLayout));
+
+	VkDescriptorSetLayout layouts[2] = { m_setLayout, m_texSetLayout };
+
 	VkPipelineLayoutCreateInfo layoutCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-													.setLayoutCount = 1,
-													.pSetLayouts = &m_setLayout };
+													.setLayoutCount = 2,
+													.pSetLayouts = layouts };
 	verifyResult(
 		vkCreatePipelineLayout(context->gpuContext()->device(), &layoutCreateInfo, nullptr, &m_pipelineLayout));
 
 	VkVertexInputAttributeDescription attributeDescriptions[] = {
 		// positions
 		{ .location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0 },
+		// texcoords
+		{ .location = 1, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = 3 * sizeof(float) },
 	};
 	VkVertexInputBindingDescription bindingDescription = { .binding = 0,
-														   .stride = 3 * sizeof(float),
+														   .stride = 5 * sizeof(float),
 														   .inputRate = VK_VERTEX_INPUT_RATE_VERTEX };
 
 	VkPipelineVertexInputStateCreateInfo inputStateCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		.vertexBindingDescriptionCount = 1,
 		.pVertexBindingDescriptions = &bindingDescription,
-		.vertexAttributeDescriptionCount = 1,
+		.vertexAttributeDescriptionCount = 2,
 		.pVertexAttributeDescriptions = attributeDescriptions
 	};
 
@@ -214,27 +238,46 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 									 .size = VK_WHOLE_SIZE,
 									 .writes = false });
 
+	VkImageView view = context->resourceAllocator()->requestImageView(
+		m_texHandle, VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+											 .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+																   .baseMipLevel = 0,
+																   .levelCount = VK_REMAINING_MIP_LEVELS,
+																   .baseArrayLayer = 0,
+																   .layerCount = 1 } });
+
 	vkDestroyShaderModule(context->gpuContext()->device(), vertexShaderModule, nullptr);
 	vkDestroyShaderModule(context->gpuContext()->device(), fragmentShaderModule, nullptr);
 
-	m_uboSet =
-		context->descriptorSetAllocator()
-			->allocateDescriptorSets({ { .typeInfos = { { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .count = 1 } },
-										 .layout = m_setLayout } })[0]
-			.set;
+	auto allocations = context->descriptorSetAllocator()->allocateDescriptorSets(
+		{ { .typeInfos = { { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .count = 1 } }, .layout = m_setLayout },
+		  { .typeInfos = { { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .count = 1 } },
+			.layout = m_texSetLayout } });
+
+	m_uboSet = allocations[0].set;
+	m_texSet = allocations[1].set;
 
 	VkDescriptorBufferInfo info = { .buffer = context->resourceAllocator()->nativeBufferHandle(m_uboHandle),
 									.offset = 0,
 									.range = VK_WHOLE_SIZE };
 
-	VkWriteDescriptorSet setWrite = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-									  .dstSet = m_uboSet,
-									  .dstBinding = 0,
-									  .dstArrayElement = 0,
-									  .descriptorCount = 1,
-									  .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-									  .pBufferInfo = &info };
-	vkUpdateDescriptorSets(context->gpuContext()->device(), 1, &setWrite, 0, nullptr);
+	VkDescriptorImageInfo imageInfo = { .imageView = view, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+
+	VkWriteDescriptorSet setWrites[2] = { { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+											.dstSet = m_uboSet,
+											.dstBinding = 0,
+											.dstArrayElement = 0,
+											.descriptorCount = 1,
+											.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+											.pBufferInfo = &info },
+										  { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+											.dstSet = m_texSet,
+											.dstBinding = 0,
+											.dstArrayElement = 0,
+											.descriptorCount = 1,
+											.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+											.pImageInfo = &imageInfo } };
+	vkUpdateDescriptorSets(context->gpuContext()->device(), 2, setWrites, 0, nullptr);
 }
 
 void PlanetRenderNode::initResources(VFramegraphContext* context) {}
@@ -268,7 +311,9 @@ void PlanetRenderNode::recordCommands(VFramegraphContext* context, VkCommandBuff
 	vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &vertexBuffer, &offset);
 	vkCmdBindIndexBuffer(targetCommandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-	vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_uboSet, 0,
+	VkDescriptorSet sets[2] = { m_uboSet, m_texSet };
+
+	vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 2, sets, 0,
 							nullptr);
 
 	vkCmdDrawIndexed(targetCommandBuffer, m_indexCount, 1, 0, 0, 0);
@@ -306,8 +351,11 @@ void PlanetRenderNode::destroyResources(VFramegraphContext* context) {
 		vkDestroyFramebuffer(context->gpuContext()->device(), framebuffer, nullptr);
 	}
 
+	vkDestroySampler(context->gpuContext()->device(), m_texSampler, nullptr);
+
 	vkDestroyPipeline(context->gpuContext()->device(), m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(context->gpuContext()->device(), m_pipelineLayout, nullptr);
 	vkDestroyDescriptorSetLayout(context->gpuContext()->device(), m_setLayout, nullptr);
+	vkDestroyDescriptorSetLayout(context->gpuContext()->device(), m_texSetLayout, nullptr);
 	vkDestroyRenderPass(context->gpuContext()->device(), m_renderPass, nullptr);
 }

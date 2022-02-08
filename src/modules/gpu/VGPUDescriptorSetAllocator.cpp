@@ -11,7 +11,10 @@ struct VDescriptorAllocationBatch {
 
 VGPUDescriptorSetAllocator::VGPUDescriptorSetAllocator() {}
 
-void VGPUDescriptorSetAllocator::create(VGPUContext* context) { m_context = context; }
+void VGPUDescriptorSetAllocator::create(VGPUContext* context) {
+	m_context = context;
+	m_poolFreeLists.resize(frameInFlightCount);
+}
 
 std::vector<VDescriptorSetAllocation> VGPUDescriptorSetAllocator::allocateDescriptorSets(
 	const std::vector<VDescriptorSetAllocationInfo>& infos) {
@@ -131,7 +134,7 @@ void VGPUDescriptorSetAllocator::destroy() {
 	m_sizeClasses.clear();
 
 	for (uint32_t i = 0; i < frameInFlightCount; ++i) {
-		//flush all free lists
+		// flush all free lists
 		setCurrentFrameIndex(i);
 	}
 }
@@ -219,4 +222,9 @@ void VGPUDescriptorSetAllocator::addPool(VDescriptorSetSizeClass& sizeClass) {
 	sizeClass.pools.addElement(std::move(info));
 }
 
-void VGPUDescriptorSetAllocator::flushFreeList() {}
+void VGPUDescriptorSetAllocator::flushFreeList() {
+	for (auto& pool : m_poolFreeLists[m_currentFrameIndex]) {
+		vkDestroyDescriptorPool(m_context->device(), pool, nullptr);
+	}
+	m_poolFreeLists[m_currentFrameIndex].clear();
+}

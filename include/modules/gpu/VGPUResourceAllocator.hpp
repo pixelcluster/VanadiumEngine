@@ -130,7 +130,8 @@ class VGPUResourceAllocator {
 	void* mappedBufferData(VBufferResourceHandle handle);
 	void destroyBuffer(VBufferResourceHandle handle);
 
-	VImageResourceHandle createImage(const VkImageCreateInfo& imageCreateInfo);
+	VImageResourceHandle createImage(const VkImageCreateInfo& imageCreateInfo, VMemoryCapabilities required,
+									 VMemoryCapabilities preferred);
 	VkImage nativeImageHandle(VImageResourceHandle handle);
 	const VImageResourceInfo& imageResourceInfo(VImageResourceHandle handle);
 	VkImageView requestImageView(VImageResourceHandle handle, const VImageResourceViewInfo& info);
