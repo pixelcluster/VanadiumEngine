@@ -4,9 +4,19 @@
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
+enum class VKeyState {
+	Released, Pressed, Held
+};
+
 class VWindowModule : public VModule {
   public:
 	virtual VkSurfaceKHR createWindowSurface(VkInstance instance) = 0;
+
+	virtual VKeyState keyCharState(char key) const = 0;
+	virtual VKeyState mouseKeyState(unsigned int key) const = 0;
+
+	float mouseX() const { return m_mouseX; }
+	float mouseY() const { return m_mouseY; }
 
 	uint32_t width() const { return m_width; }
 	uint32_t height() const { return m_height; }
@@ -20,6 +30,8 @@ class VWindowModule : public VModule {
 
   protected:
 	uint32_t m_width, m_height;
+	double m_mouseX, m_mouseY;
+
 	bool m_isFocused = false, m_wasResized = false;
 	bool m_waitFlag = false;
 

@@ -1,17 +1,20 @@
 #include <VEngine.hpp>
-#include <modules/window/VGLFWWindowModule.hpp>
 #include <modules/gpu/VGPUModule.hpp>
+#include <modules/window/VGLFWWindowModule.hpp>
 
-#include <framegraph_nodes/PlanetRenderNode.hpp>
 #include <DataGeneratorModule.hpp>
+#include <framegraph_nodes/PlanetRenderNode.hpp>
 
 int main() {
 	VEngine engine;
-	VWindowModule* windowModule = engine.createModule<VGLFWWindowModule>(1280, 720, "Vanadium Hello World");
-	VGPUModule* gpuModule = engine.createModule<VGPUModule>("Vanadium Hello World", 0, windowModule);
-	DataGeneratorModule* bufferModule = engine.createModule<DataGeneratorModule>(gpuModule);
+	VWindowModule* windowModule = engine.createModule<VGLFWWindowModule>(1280, 720, "Planet renderer");
+	VGPUModule* gpuModule = engine.createModule<VGPUModule>("Planet renderer", 0, windowModule);
+	DataGeneratorModule* bufferModule = engine.createModule<DataGeneratorModule>(gpuModule, windowModule);
 
-	gpuModule->framegraphContext().appendNode<PlanetRenderNode>(bufferModule->vertexBufferHandle(), totalPointCount);
+	gpuModule->framegraphContext().appendNode<PlanetRenderNode>(
+		bufferModule->vertexBufferHandle(),
+		bufferModule->indexBufferHandle(),
+		gpuModule->transferManager().dstBufferHandle(bufferModule->uboTransferHandle()), totalIndexCount);
 
 	engine.activateModule(windowModule);
 	engine.activateModule(gpuModule);

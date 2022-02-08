@@ -3,13 +3,10 @@
 #include <modules/gpu/framegraph/VFramegraphNode.hpp>
 #include <glm/glm.hpp>
 
-struct CameraSceneData {
-	glm::mat4 viewProjection;
-};
-
 class PlanetRenderNode : public VFramegraphNode {
   public:
-	PlanetRenderNode(VBufferResourceHandle vertexDataBuffer, uint32_t indexCount);
+	PlanetRenderNode(VBufferResourceHandle vertexDataBuffer, VBufferResourceHandle indexDataBuffer,
+					 VBufferResourceHandle sceneDataBuffer, uint32_t indexCount);
 
 	void setupResources(VFramegraphContext* context);
 
@@ -23,11 +20,10 @@ class PlanetRenderNode : public VFramegraphNode {
 	void destroyResources(VFramegraphContext* context);
   private:
 	VBufferResourceHandle m_vertexData;
-	VGPUTransferHandle m_sceneDataTransfer;
+	VBufferResourceHandle m_indexData;
+	VBufferResourceHandle m_uboHandle;
 
 	uint32_t m_indexCount;
-
-	CameraSceneData sceneData;
 
 	VkPipeline m_graphicsPipeline;
 	VkPipelineLayout m_pipelineLayout;

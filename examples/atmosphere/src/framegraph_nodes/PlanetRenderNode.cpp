@@ -5,8 +5,10 @@
 #include <modules/gpu/helper/ErrorHelper.hpp>
 #include <volk.h>
 
-PlanetRenderNode::PlanetRenderNode(VBufferResourceHandle vertexDataBuffer, uint32_t indexCount)
-	: m_vertexData(vertexDataBuffer), m_indexCount(indexCount) {
+PlanetRenderNode::PlanetRenderNode(VBufferResourceHandle vertexDataBuffer, VBufferResourceHandle indexDataBuffer,
+								   VBufferResourceHandle sceneDataBuffer, uint32_t indexCount)
+	: m_vertexData(vertexDataBuffer), m_indexData(indexDataBuffer), m_uboHandle(sceneDataBuffer),
+	  m_indexCount(indexCount) {
 	m_name = "Planet rendering";
 }
 
@@ -67,12 +69,12 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-		.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+		.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
 	};
 
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-		.polygonMode = VK_POLYGON_MODE_POINT,
+		.polygonMode = VK_POLYGON_MODE_FILL,
 		.cullMode = VK_CULL_MODE_BACK_BIT,
 		.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
 		.lineWidth = 1.0f
@@ -205,13 +207,15 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 									 .offset = 0,
 									 .size = VK_WHOLE_SIZE,
 									 .writes = false });
+	context->declareImportedBuffer(this, "Planet index data", m_indexData,
+								   { .pipelineStages = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+									 .accessTypes = VK_ACCESS_INDEX_READ_BIT,
+									 .offset = 0,
+									 .size = VK_WHOLE_SIZE,
+									 .writes = false });
 
 	vkDestroyShaderModule(context->gpuContext()->device(), vertexShaderModule, nullptr);
 	vkDestroyShaderModule(context->gpuContext()->device(), fragmentShaderModule, nullptr);
-
-	m_sceneDataTransfer =
-		context->transferManager()->createTransfer(sizeof(CameraSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-												   VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
 
 	m_uboSet =
 		context->descriptorSetAllocator()
@@ -219,10 +223,9 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 										 .layout = m_setLayout } })[0]
 			.set;
 
-	VkDescriptorBufferInfo info = { .buffer = context->resourceAllocator()->nativeBufferHandle(
-										context->transferManager()->dstBufferHandle(m_sceneDataTransfer)),
+	VkDescriptorBufferInfo info = { .buffer = context->resourceAllocator()->nativeBufferHandle(m_uboHandle),
 									.offset = 0,
-									.range = sizeof(CameraSceneData) };
+									.range = VK_WHOLE_SIZE };
 
 	VkWriteDescriptorSet setWrite = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 									  .dstSet = m_uboSet,
@@ -238,13 +241,6 @@ void PlanetRenderNode::initResources(VFramegraphContext* context) {}
 
 void PlanetRenderNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 									  const VFramegraphNodeContext& nodeContext) {
-	CameraSceneData sceneData = {
-		.viewProjection =
-			glm::perspective(45.0f, static_cast<float>(m_width) / static_cast<float>(m_height), 0.0f, 200.0f) *
-			glm::lookAt(glm::vec3(0.0f, 0.0f, -5.0f), glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 0.0f))
-	};
-	context->transferManager()->updateTransferData(m_sceneDataTransfer, &sceneData);
-
 	VkClearValue value = { .color = { .float32 = { 0.0f, 0.0f, 0.0f } } };
 
 	VkRenderPassBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -266,13 +262,16 @@ void PlanetRenderNode::recordCommands(VFramegraphContext* context, VkCommandBuff
 	vkCmdSetScissor(targetCommandBuffer, 0, 1, &scissor);
 
 	VkDeviceSize offset = 0;
-	VkBuffer nativeBuffer = context->nativeBufferHandle("Planet vertex data");
-	vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &nativeBuffer, &offset);
+	VkBuffer vertexBuffer = context->nativeBufferHandle("Planet vertex data");
+	VkBuffer indexBuffer = context->nativeBufferHandle("Planet index data");
+
+	vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &vertexBuffer, &offset);
+	vkCmdBindIndexBuffer(targetCommandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 	vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_uboSet, 0,
 							nullptr);
 
-	vkCmdDraw(targetCommandBuffer, m_indexCount, 1, 0, 0);
+	vkCmdDrawIndexed(targetCommandBuffer, m_indexCount, 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(targetCommandBuffer);
 }
@@ -309,5 +308,6 @@ void PlanetRenderNode::destroyResources(VFramegraphContext* context) {
 
 	vkDestroyPipeline(context->gpuContext()->device(), m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(context->gpuContext()->device(), m_pipelineLayout, nullptr);
+	vkDestroyDescriptorSetLayout(context->gpuContext()->device(), m_setLayout, nullptr);
 	vkDestroyRenderPass(context->gpuContext()->device(), m_renderPass, nullptr);
 }

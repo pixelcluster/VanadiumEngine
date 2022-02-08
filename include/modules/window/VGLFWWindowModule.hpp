@@ -15,9 +15,17 @@ class VGLFWWindowModule : public VWindowModule {
 	virtual void onDeactivate(VEngine& engine) override;
 	virtual void onDestroy(VEngine& engine) override;
 	virtual VkSurfaceKHR createWindowSurface(VkInstance instance) override;
+	virtual VKeyState keyCharState(char key) const override;
+	virtual VKeyState mouseKeyState(unsigned int key) const override;
+
+	void setKeyState(char key, VKeyState state) { m_keyStates[key] = state; }
+	void setMouseKeyState(unsigned int keyIndex, VKeyState state) { m_mouseKeys[keyIndex] = state; }
 
   private:
 	GLFWwindow* m_window;
+
+	VKeyState m_keyStates[INT8_MAX];
+	VKeyState m_mouseKeys[GLFW_MOUSE_BUTTON_LAST + 1];
 
 	inline static bool m_glfwInitialized = false;
 };

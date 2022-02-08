@@ -94,6 +94,7 @@ VBufferResourceHandle VGPUResourceAllocator::createBuffer(const VkBufferCreateIn
 	VBufferAllocation allocation = { .isMultipleBuffered = false,
 									 .typeIndex = typeIndex,
 									 .blockIndex = result.value().blockIndex,
+									 .alignmentMargin = result.value().alignmentMargin,
 									 .allocationRange = result.value().range };
 	vkBindBufferMemory(m_context->device(), buffer,
 					   m_memoryTypes[typeIndex].blocks[result.value().blockIndex].memoryHandle,
@@ -392,7 +393,8 @@ std::optional<VAllocationResult> VGPUResourceAllocator::allocateInBlock(uint32_t
 		alignmentMargin(block.freeBlocksSizeSorted[allocationIndex].offset, alignment);
 
 	VAllocationResult result = { .alignmentMargin = allocationAlignmentMargin,
-								 .range = { .offset = block.freeBlocksSizeSorted[allocationIndex].offset,
+								 .range = { .offset = block.freeBlocksSizeSorted[allocationIndex].offset +
+													  allocationAlignmentMargin,
 											.size = size },
 								 .blockIndex = blockIndex };
 

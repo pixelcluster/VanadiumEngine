@@ -131,7 +131,6 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 			m_capabilities.memoryPriority = true;
 		}
 	}
-	deviceExtensionNames.push_back(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
 
 	float priority = 1.0f;
 	VkDeviceQueueCreateInfo queueCreateInfo = { .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
