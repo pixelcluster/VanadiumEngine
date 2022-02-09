@@ -10,5 +10,5 @@ layout(location = 1) in vec3 sphereNormal;
 layout(set = 1, binding = 0) uniform sampler2D tex;
 
 void main() {
-	outColor = vec4(texture(tex, inTexCoord).rgb * max(dot(sphereNormal, vec3(0.0f, 1.0f, 0.0)), 0.01), 1.0f);
+	outColor = vec4(texture(tex, inTexCoord).rgb * max(dot(sphereNormal, vec3(0.0f, 1.0f, 0.0)), 0.1), 1.0f);
 }

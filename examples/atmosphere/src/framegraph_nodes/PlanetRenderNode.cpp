@@ -9,13 +9,14 @@ PlanetRenderNode::PlanetRenderNode(VBufferResourceHandle vertexDataBuffer, VBuff
 								   VBufferResourceHandle sceneDataBuffer, VImageResourceHandle texHandle,
 								   uint32_t indexCount)
 	: m_vertexData(vertexDataBuffer), m_indexData(indexDataBuffer), m_uboHandle(sceneDataBuffer),
-	  m_texHandle(texHandle),
-	  m_indexCount(indexCount) {
+	  m_texHandle(texHandle), m_indexCount(indexCount) {
 	m_name = "Planet rendering";
 }
 
 void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 	VkSamplerCreateInfo samplerCreateInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+											  .magFilter = VK_FILTER_LINEAR,
+											  .minFilter = VK_FILTER_LINEAR,
 											  .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
 											  .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
 											  .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
@@ -62,8 +63,8 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 	VkDescriptorSetLayoutCreateInfo texSetLayoutCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 1, .pBindings = &texBinding
 	};
-	verifyResult(
-		vkCreateDescriptorSetLayout(context->gpuContext()->device(), &texSetLayoutCreateInfo, nullptr, &m_texSetLayout));
+	verifyResult(vkCreateDescriptorSetLayout(context->gpuContext()->device(), &texSetLayoutCreateInfo, nullptr,
+											 &m_texSetLayout));
 
 	VkDescriptorSetLayout layouts[2] = { m_setLayout, m_texSetLayout };
 

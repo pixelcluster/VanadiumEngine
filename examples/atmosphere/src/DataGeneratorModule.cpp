@@ -18,10 +18,6 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, VWindowModule* w
 	float phi = 0.0f;
 	float dPhi = 2.0f * std::numbers::pi_v<float> / static_cast<float>(pointsPerLongitudeSegment);
 
-	float millerYMax = 5.0f / 4.0f * asinhf(tanf(4.0f / 5.0f * 0.5 * std::numbers::pi_v<float>));
-
-
-
 	// first circle around degenerate point
 	for (size_t i = 0; i < pointsPerLatitudeSegment; ++i) {
 		phi = 0.0f;
@@ -38,13 +34,10 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, VWindowModule* w
 			float cosPhi = cosf(phi);
 
 			m_pointBuffer[index].pos = glm::vec3(cosPhi * sinTheta, cosTheta, -sinPhi * sinTheta);
-			// miller cylindrical projection
-			float millerCoordY = std::min(5.0f / 4.0f * asinhf(tanf(4.0f / 5.0f * latitude)), millerYMax);
+		
 
 			m_pointBuffer[index].texCoord.x = 1.0f - phi / (2.0f * std::numbers::pi_v<float>);
-			m_pointBuffer[index].texCoord.y =
-				millerCoordY / (millerYMax) * 0.5 + 0.5;
-			m_pointBuffer[index].texCoord.y = 1.0f - m_pointBuffer[index].texCoord.y;
+			m_pointBuffer[index].texCoord.y = -theta / std::numbers::pi_v<float>;
 			phi += dPhi;
 		}
 	}
