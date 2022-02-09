@@ -42,6 +42,10 @@ void VGPUResourceAllocator::create(VGPUContext* gpuContext) {
 		}
 	}
 
+	VkPhysicalDeviceProperties properties;
+	vkGetPhysicalDeviceProperties(gpuContext->physicalDevice(), &properties);
+	m_bufferImageGranularity = properties.limits.bufferImageGranularity;
+
 	m_context = gpuContext;
 }
 
@@ -94,17 +98,17 @@ VBufferResourceHandle VGPUResourceAllocator::createBuffer(const VkBufferCreateIn
 	VBufferAllocation allocation = { .isMultipleBuffered = false,
 									 .typeIndex = typeIndex,
 									 .blockIndex = result.value().blockIndex,
-									 .alignmentMargin = result.value().alignmentMargin,
-									 .allocationRange = result.value().range };
+									 .bufferContentRange = result.value().usableRange,
+									 .allocationRange = result.value().allocationRange };
 	vkBindBufferMemory(m_context->device(), buffer,
 					   m_memoryTypes[typeIndex].blocks[result.value().blockIndex].memoryHandle,
-					   result.value().range.offset);
+					   result.value().usableRange.offset);
 	for (size_t i = 0; i < frameInFlightCount; ++i) {
 		allocation.buffers[i] = buffer;
 		if (createMapped) {
 			auto bufferStartPointer =
 				reinterpret_cast<uintptr_t>(m_memoryTypes[typeIndex].blocks[result.value().blockIndex].mappedPointer) +
-				result.value().range.offset;
+				result.value().usableRange.offset;
 			allocation.mappedData[i] = reinterpret_cast<void*>(bufferStartPointer);
 		}
 	}
@@ -162,10 +166,11 @@ VBufferResourceHandle VGPUResourceAllocator::createPerFrameBuffer(const VkBuffer
 		}
 	}
 
-	VBufferAllocation allocation = { .isMultipleBuffered = false,
+	VBufferAllocation allocation = { .isMultipleBuffered = true,
 									 .typeIndex = typeIndex,
 									 .blockIndex = result.value().blockIndex,
-									 .allocationRange = result.value().range };
+									 .bufferContentRange = result.value().usableRange,
+									 .allocationRange = result.value().allocationRange };
 	allocation.buffers[0] = buffer;
 	for (size_t i = 1; i < frameInFlightCount; ++i) {
 		verifyResult(vkCreateBuffer(m_context->device(), &bufferCreateInfo, nullptr, &allocation.buffers[i]));
@@ -173,11 +178,11 @@ VBufferResourceHandle VGPUResourceAllocator::createPerFrameBuffer(const VkBuffer
 	for (size_t i = 0; i < frameInFlightCount; ++i) {
 		vkBindBufferMemory(m_context->device(), allocation.buffers[i],
 						   m_memoryTypes[typeIndex].blocks[result.value().blockIndex].memoryHandle,
-						   result.value().range.offset + i * alignedSize);
+						   result.value().usableRange.offset + i * alignedSize);
 		if (createMapped) {
 			auto bufferStartPointer =
 				reinterpret_cast<uintptr_t>(m_memoryTypes[typeIndex].blocks[result.value().blockIndex].mappedPointer) +
-				result.value().range.offset + i * alignedSize;
+				result.value().usableRange.offset + i * alignedSize;
 			allocation.mappedData[i] = reinterpret_cast<void*>(bufferStartPointer);
 		}
 	}
@@ -194,7 +199,7 @@ VkDeviceMemory VGPUResourceAllocator::nativeMemoryHandle(VBufferResourceHandle h
 }
 
 VMemoryRange VGPUResourceAllocator::allocationRange(VBufferResourceHandle handle) {
-	return m_buffers[handle].allocationRange;
+	return m_buffers[handle].bufferContentRange;
 }
 
 void* VGPUResourceAllocator::mappedBufferData(VBufferResourceHandle handle) {
@@ -224,11 +229,6 @@ VImageResourceHandle VGPUResourceAllocator::createImage(const VkImageCreateInfo&
 	VkMemoryRequirements requirements;
 	vkGetImageMemoryRequirements(m_context->device(), image, &requirements);
 
-	VkDeviceSize alignedSize = roundUpAligned(requirements.size, requirements.alignment);
-	VkDeviceSize totalSize = (frameInFlightCount - 1) * alignedSize + requirements.size;
-
-	requirements.size = totalSize;
-
 	uint32_t typeIndex = bestTypeIndex(requiredFlags, preferredFlags, requirements, false);
 
 	if (typeIndex == ~0U) {
@@ -236,7 +236,7 @@ VImageResourceHandle VGPUResourceAllocator::createImage(const VkImageCreateInfo&
 		return ~0U;
 	}
 
-	auto result = allocate(typeIndex, requirements.alignment, totalSize, false);
+	auto result = allocateImage(typeIndex, requirements.alignment, requirements.size);
 	if (!result.has_value()) {
 		typeIndex = 0;
 		for (auto& type : m_memoryTypes) {
@@ -244,7 +244,7 @@ VImageResourceHandle VGPUResourceAllocator::createImage(const VkImageCreateInfo&
 				++typeIndex;
 				continue;
 			}
-			result = allocate(typeIndex, requirements.alignment, totalSize, false);
+			result = allocateImage(typeIndex, requirements.alignment, requirements.size);
 			if (result.has_value())
 				break;
 			++typeIndex;
@@ -263,12 +263,12 @@ VImageResourceHandle VGPUResourceAllocator::createImage(const VkImageCreateInfo&
 						  .arrayLayerCount = imageCreateInfo.arrayLayers },
 		.typeIndex = typeIndex,
 		.blockIndex = result.value().blockIndex,
-		.allocationRange = result.value().range,
+		.allocationRange = result.value().allocationRange,
 	};
 	allocation.image = image;
 	vkBindImageMemory(m_context->device(), image,
-					   m_memoryTypes[typeIndex].blocks[result.value().blockIndex].memoryHandle,
-					  result.value().range.offset);
+					  m_memoryTypes[typeIndex].imageBlocks[result.value().blockIndex].memoryHandle,
+					  result.value().usableRange.offset);
 	return m_images.addElement(allocation);
 }
 
@@ -321,6 +321,9 @@ void VGPUResourceAllocator::destroy() {
 		for (auto& block : type.blocks) {
 			vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
 		}
+		for (auto& block : type.imageBlocks) {
+			vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
+		}
 	}
 }
 
@@ -356,9 +359,20 @@ void VGPUResourceAllocator::flushFreeList() {
 			vkDestroyBuffer(m_context->device(), allocation.buffers[0], nullptr);
 		}
 
-		freeInBlock(allocation.typeIndex, allocation.blockIndex,
-					allocation.allocationRange.offset - allocation.alignmentMargin,
-					allocation.allocationRange.size + allocation.alignmentMargin);
+		// freeInBlock returns true if the whole block is free - consider destroying it
+		if (freeInBlock(m_memoryTypes[allocation.typeIndex].blocks[allocation.blockIndex],
+						allocation.allocationRange.offset, allocation.allocationRange.size)) {
+			VkDeviceSize totalAllocatableSize = 0;
+			for (auto& block : m_memoryTypes[allocation.typeIndex].blocks) {
+				totalAllocatableSize += block.maxAllocatableSize;
+			}
+			if (totalAllocatableSize > m_bufferBlockFreeThreshold) {
+				vkFreeMemory(m_context->device(),
+							 m_memoryTypes[allocation.typeIndex].blocks[allocation.blockIndex].memoryHandle, nullptr);
+				m_memoryTypes[allocation.typeIndex].blocks.erase(m_memoryTypes[allocation.typeIndex].blocks.begin() +
+																 allocation.blockIndex);
+			}
+		}
 	}
 	m_bufferFreeList[m_currentFrameIndex].clear();
 
@@ -368,9 +382,21 @@ void VGPUResourceAllocator::flushFreeList() {
 		}
 		vkDestroyImage(m_context->device(), allocation.image, nullptr);
 
-		freeInBlock(allocation.typeIndex, allocation.blockIndex,
-					allocation.allocationRange.offset - allocation.alignmentMargin,
-					allocation.allocationRange.size + allocation.alignmentMargin);
+		if (freeInBlock(m_memoryTypes[allocation.typeIndex].imageBlocks[allocation.blockIndex],
+						allocation.allocationRange.offset - allocation.alignmentMargin,
+						allocation.allocationRange.size + allocation.alignmentMargin)) {
+			VkDeviceSize totalAllocatableSize = 0;
+			for (auto& block : m_memoryTypes[allocation.typeIndex].imageBlocks) {
+				totalAllocatableSize += block.maxAllocatableSize;
+			}
+			if (totalAllocatableSize > m_bufferBlockFreeThreshold) {
+				vkFreeMemory(m_context->device(),
+							 m_memoryTypes[allocation.typeIndex].imageBlocks[allocation.blockIndex].memoryHandle,
+							 nullptr);
+				m_memoryTypes[allocation.typeIndex].imageBlocks.erase(
+					m_memoryTypes[allocation.typeIndex].imageBlocks.begin() + allocation.blockIndex);
+			}
+		}
 	}
 	m_imageFreeList[m_currentFrameIndex].clear();
 }
@@ -423,32 +449,54 @@ std::optional<VAllocationResult> VGPUResourceAllocator::allocate(uint32_t typeIn
 	size_t blockIndex = 0;
 	for (auto& block : m_memoryTypes[typeIndex].blocks) {
 		if (block.maxAllocatableSize >= size && (!createMapped || block.mappedPointer != nullptr)) {
-			auto result = allocateInBlock(typeIndex, blockIndex, alignment, size, createMapped);
+			auto result = allocateInBlock(typeIndex, blockIndex, m_memoryTypes[typeIndex].blocks[blockIndex], alignment,
+										  size, createMapped);
 			if (result.has_value())
 				return result;
 		}
 		++blockIndex;
 	}
 	if (m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] > size) {
-		if (!allocateBlock(typeIndex, size, createMapped)) {
+		if (!allocateBlock(typeIndex, size, createMapped, false)) {
 			return std::nullopt;
 		}
-		return allocateInBlock(typeIndex, m_memoryTypes[typeIndex].blocks.size() - 1, alignment, size, createMapped);
+		return allocateInBlock(typeIndex, m_memoryTypes[typeIndex].blocks.size() - 1,
+							   m_memoryTypes[typeIndex].blocks.back(), alignment, size, createMapped);
+	}
+	return std::nullopt;
+}
+
+std::optional<VAllocationResult> VGPUResourceAllocator::allocateImage(uint32_t typeIndex, VkDeviceSize alignment,
+																	  VkDeviceSize size) {
+	size_t blockIndex = 0;
+	for (auto& block : m_memoryTypes[typeIndex].imageBlocks) {
+		if (block.maxAllocatableSize >= size) {
+			auto result = allocateInBlock(typeIndex, blockIndex, m_memoryTypes[typeIndex].blocks[blockIndex], alignment,
+										  size, false);
+			if (result.has_value())
+				return result;
+		}
+		++blockIndex;
+	}
+	if (m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] > size) {
+		if (!allocateBlock(typeIndex, size, false, true)) {
+			return std::nullopt;
+		}
+		return allocateInBlock(typeIndex, m_memoryTypes[typeIndex].imageBlocks.size() - 1,
+							   m_memoryTypes[typeIndex].imageBlocks.back(), alignment, size, false);
 	}
 	return std::nullopt;
 }
 
 std::optional<VAllocationResult> VGPUResourceAllocator::allocateInBlock(uint32_t typeIndex, size_t blockIndex,
-																		VkDeviceSize alignment, VkDeviceSize size,
-																		bool createMapped) {
+																		VMemoryBlock& block, VkDeviceSize alignment,
+																		VkDeviceSize size, bool createMapped) {
 	auto offsetComparator = [](const VMemoryRange& one, const VMemoryRange& other) {
 		return one.offset < other.offset;
 	};
 	auto sizeComparator = [](const VMemoryRange& one, const VMemoryRange& other) { return one.size < other.size; };
 
-	auto& block = m_memoryTypes[typeIndex].blocks[blockIndex];
-
-	VkDeviceSize allocationOffset = ~0ULL;
+	// seek for smallest available block
 	size_t allocationIndex = block.freeBlocksSizeSorted.size() - 1;
 	while (allocationIndex < block.freeBlocksSizeSorted.size() &&
 		   block.freeBlocksSizeSorted[allocationIndex].size >=
@@ -460,13 +508,11 @@ std::optional<VAllocationResult> VGPUResourceAllocator::allocateInBlock(uint32_t
 		return std::nullopt;
 	}
 
-	VkDeviceSize allocationAlignmentMargin =
-		alignmentMargin(block.freeBlocksSizeSorted[allocationIndex].offset, alignment);
+	VkDeviceSize margin = alignmentMargin(block.freeBlocksSizeSorted[allocationIndex].offset, alignment);
+	auto& usedRange = block.freeBlocksSizeSorted[allocationIndex];
 
-	VAllocationResult result = { .alignmentMargin = allocationAlignmentMargin,
-								 .range = { .offset = block.freeBlocksSizeSorted[allocationIndex].offset +
-													  allocationAlignmentMargin,
-											.size = size },
+	VAllocationResult result = { .allocationRange = { .offset = usedRange.offset, .size = size + margin },
+								 .usableRange = { .offset = usedRange.offset + margin, .size = size },
 								 .blockIndex = blockIndex };
 
 	auto range = block.freeBlocksSizeSorted[allocationIndex];
@@ -476,9 +522,10 @@ std::optional<VAllocationResult> VGPUResourceAllocator::allocateInBlock(uint32_t
 	block.freeBlocksSizeSorted.erase(block.freeBlocksSizeSorted.begin() + allocationIndex);
 	block.freeBlocksOffsetSorted.erase(offsetIterator);
 
-	if (size + allocationAlignmentMargin != range.size) {
-		range.offset += size + allocationAlignmentMargin;
-		range.size -= size + allocationAlignmentMargin;
+	if (result.allocationRange.size != range.size) {
+		// make unused part of block another free range
+		range.offset += result.allocationRange.size;
+		range.size -= result.allocationRange.size;
 
 		auto offsetReinsertIterator = std::lower_bound(block.freeBlocksOffsetSorted.begin(),
 													   block.freeBlocksOffsetSorted.end(), range, offsetComparator);
@@ -496,90 +543,83 @@ std::optional<VAllocationResult> VGPUResourceAllocator::allocateInBlock(uint32_t
 	}
 	if (block.freeBlocksSizeSorted.empty())
 		block.maxAllocatableSize = 0U;
-	else
+	else {
 		block.maxAllocatableSize = block.freeBlocksSizeSorted.back().size;
+	}
 
 	return result;
 }
 
-void VGPUResourceAllocator::freeInBlock(uint32_t typeIndex, size_t blockIndex, VkDeviceSize offset, VkDeviceSize size) {
-	auto& block = m_memoryTypes[typeIndex].blocks[blockIndex];
-	if (block.freeBlocksOffsetSorted.empty()) {
-		VMemoryRange range = { .offset = offset, .size = size };
-		block.freeBlocksOffsetSorted.push_back(range);
-		block.freeBlocksSizeSorted.push_back(range);
-		return;
-	}
-
-	auto offsetInsertIterator = std::lower_bound(
-		block.freeBlocksOffsetSorted.begin(), block.freeBlocksOffsetSorted.end(), VMemoryRange{ .offset = offset },
-		[](const VMemoryRange& one, const VMemoryRange& other) { return one.offset < other.offset; });
-	auto adjacentOffsetIterator = offsetInsertIterator;
+bool VGPUResourceAllocator::freeInBlock(VMemoryBlock& block, VkDeviceSize offset, VkDeviceSize size) {
 
 	auto offsetComparator = [](const VMemoryRange& one, const VMemoryRange& other) {
 		return one.offset < other.offset;
 	};
 	auto sizeComparator = [](const VMemoryRange& one, const VMemoryRange& other) { return one.size < other.size; };
 
-	bool isOffsetIteratorAdjacent =
-		offsetInsertIterator != block.freeBlocksOffsetSorted.end() && offset + size == offsetInsertIterator->offset;
-	if (offsetInsertIterator != block.freeBlocksOffsetSorted.begin()) {
-		auto nextLowestOffsetIterator = offsetInsertIterator - 1;
-		if (nextLowestOffsetIterator->offset + nextLowestOffsetIterator->size == offset) {
-			adjacentOffsetIterator = nextLowestOffsetIterator;
-			isOffsetIteratorAdjacent = true;
-		}
-	}
-
-	if (isOffsetIteratorAdjacent) {
-		auto sizeSortedIterator = std::lower_bound(block.freeBlocksSizeSorted.begin(), block.freeBlocksSizeSorted.end(),
-												   *adjacentOffsetIterator, sizeComparator);
-
-		adjacentOffsetIterator->size += size;
-		auto range = *adjacentOffsetIterator;
-
-		if (offset + size == adjacentOffsetIterator->offset) {
-			adjacentOffsetIterator->offset -= size;
-			range.offset -= size;
-
-			block.freeBlocksOffsetSorted.erase(adjacentOffsetIterator);
-			auto offsetReinsertIterator = std::lower_bound(block.freeBlocksOffsetSorted.begin(),
-														   block.freeBlocksOffsetSorted.end(), range, offsetComparator);
-
-			if (offsetReinsertIterator == block.freeBlocksOffsetSorted.end())
-				block.freeBlocksOffsetSorted.push_back(range);
-			else
-				block.freeBlocksOffsetSorted.insert(offsetReinsertIterator, range);
-		}
-
-		block.freeBlocksSizeSorted.erase(sizeSortedIterator);
-
-		auto sizeReinsertIterator = std::lower_bound(block.freeBlocksSizeSorted.begin(),
-													 block.freeBlocksSizeSorted.end(), range, sizeComparator);
-		if (sizeReinsertIterator == block.freeBlocksSizeSorted.end())
-			block.freeBlocksSizeSorted.push_back(range);
-		else
-			block.freeBlocksSizeSorted.insert(sizeReinsertIterator, range);
-	} else {
-		auto sizeSortedIterator = std::lower_bound(block.freeBlocksSizeSorted.begin(), block.freeBlocksSizeSorted.end(),
-												   *offsetInsertIterator, sizeComparator);
-
+	if (block.freeBlocksOffsetSorted.empty()) {
 		VMemoryRange range = { .offset = offset, .size = size };
-		if (offsetInsertIterator == block.freeBlocksOffsetSorted.end())
-			block.freeBlocksOffsetSorted.push_back(range);
-		else
-			block.freeBlocksOffsetSorted.insert(offsetInsertIterator, range);
-
-		if (sizeSortedIterator == block.freeBlocksSizeSorted.end())
-			block.freeBlocksSizeSorted.push_back(range);
-		else
-			block.freeBlocksSizeSorted.insert(sizeSortedIterator, range);
+		block.freeBlocksOffsetSorted.push_back(range);
+		block.freeBlocksSizeSorted.push_back(range);
+		block.maxAllocatableSize = block.freeBlocksSizeSorted.back().size;
+		return block.freeBlocksSizeSorted.size() == 1 && block.freeBlocksSizeSorted.back().size == block.originalSize;
 	}
+
+	auto offsetInsertIterator =
+		std::lower_bound(block.freeBlocksOffsetSorted.begin(), block.freeBlocksOffsetSorted.end(),
+						 VMemoryRange{ .offset = offset }, offsetComparator);
+	auto adjacentOffsetIterator = offsetInsertIterator;
+	auto sizeSortedIterator = std::lower_bound(block.freeBlocksSizeSorted.begin(), block.freeBlocksSizeSorted.end(),
+											   *offsetInsertIterator, sizeComparator);
+
+	VMemoryRange range = { .offset = offset, .size = size };
+	if (offsetInsertIterator == block.freeBlocksOffsetSorted.end())
+		block.freeBlocksOffsetSorted.push_back(range);
+	else
+		block.freeBlocksOffsetSorted.insert(offsetInsertIterator, range);
+
+	if (sizeSortedIterator == block.freeBlocksSizeSorted.end())
+		block.freeBlocksSizeSorted.push_back(range);
+	else
+		block.freeBlocksSizeSorted.insert(sizeSortedIterator, range);
+
+	mergeFreeAreas(block);
 
 	block.maxAllocatableSize = block.freeBlocksSizeSorted.back().size;
+
+	return block.freeBlocksSizeSorted.size() == 1 && block.freeBlocksSizeSorted.back().size == block.originalSize;
 }
 
-bool VGPUResourceAllocator::allocateBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped) {
+void VGPUResourceAllocator::mergeFreeAreas(VMemoryBlock& block) {
+	auto sizeComparator = [](const VMemoryRange& one, const VMemoryRange& other) { return one.size < other.size; };
+
+	if (block.freeBlocksOffsetSorted.empty())
+		return;
+	for (size_t i = 0; i < block.freeBlocksOffsetSorted.size() - 1; ++i) {
+		auto& area = block.freeBlocksOffsetSorted[i];
+		auto& nextArea = block.freeBlocksOffsetSorted[i + 1];
+
+		if (area.offset + area.size == nextArea.offset) {
+			area.size += nextArea.size;
+			block.freeBlocksOffsetSorted.erase(block.freeBlocksOffsetSorted.begin() + i + 1);
+			--i;
+		}
+	}
+
+	block.freeBlocksSizeSorted.clear();
+	block.freeBlocksSizeSorted.push_back(block.freeBlocksOffsetSorted[0]);
+
+	for (size_t i = 1; i < block.freeBlocksOffsetSorted.size(); ++i) {
+		auto& area = block.freeBlocksOffsetSorted[i];
+
+		block.freeBlocksSizeSorted.insert(std::lower_bound(block.freeBlocksSizeSorted.begin(),
+														   block.freeBlocksSizeSorted.end(), area, sizeComparator),
+										  area);
+	}
+}
+
+bool VGPUResourceAllocator::allocateBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped,
+										  bool createImageBlock) {
 	size = std::max(m_blockSize, size);
 	VkDeviceMemory newMemory;
 	VkMemoryAllocateInfo info = { .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -609,9 +649,13 @@ bool VGPUResourceAllocator::allocateBlock(uint32_t typeIndex, VkDeviceSize size,
 						   .freeBlocksOffsetSorted = { { .offset = 0, .size = size } },
 						   .capabilities = capabilities,
 						   .maxAllocatableSize = size,
+						   .originalSize = size,
 						   .memoryHandle = newMemory,
 						   .mappedPointer = mappedPointer };
-	m_memoryTypes[typeIndex].blocks.push_back(block);
+	if (createImageBlock)
+		m_memoryTypes[typeIndex].imageBlocks.push_back(block);
+	else
+		m_memoryTypes[typeIndex].blocks.push_back(block);
 
 	if (m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] < size)
 		m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] = size;

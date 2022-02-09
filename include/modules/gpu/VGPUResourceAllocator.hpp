@@ -23,6 +23,7 @@ struct VMemoryBlock {
 	VMemoryCapabilities capabilities;
 
 	VkDeviceSize maxAllocatableSize;
+	VkDeviceSize originalSize;
 
 	VkDeviceMemory memoryHandle;
 	void* mappedPointer;
@@ -33,6 +34,7 @@ struct VMemoryType {
 	uint32_t heapIndex;
 
 	std::vector<VMemoryBlock> blocks;
+	std::vector<VMemoryBlock> imageBlocks;
 };
 
 struct VBufferAllocation {
@@ -40,7 +42,7 @@ struct VBufferAllocation {
 
 	uint32_t typeIndex;
 	size_t blockIndex;
-	VkDeviceSize alignmentMargin;
+	VMemoryRange bufferContentRange;
 	VMemoryRange allocationRange;
 
 	VkBuffer buffers[frameInFlightCount];
@@ -55,8 +57,8 @@ struct VImageResourceViewInfo {
 };
 
 struct VAllocationResult {
-	VkDeviceSize alignmentMargin;
-	VMemoryRange range;
+	VMemoryRange allocationRange;
+	VMemoryRange usableRange;
 	size_t blockIndex;
 };
 
@@ -144,6 +146,8 @@ class VGPUResourceAllocator {
 
   private:
 	static constexpr VkDeviceSize m_blockSize = 32_MiB;
+	static constexpr VkDeviceSize m_bufferBlockFreeThreshold = 64_MiB;
+	static constexpr VkDeviceSize m_imageBlockFreeThreshold = 128_MiB;
 
 	void flushFreeList();
 
@@ -152,10 +156,14 @@ class VGPUResourceAllocator {
 	bool isTypeBigEnough(uint32_t typeIndex, VkDeviceSize size, bool createMapped);
 	std::optional<VAllocationResult> allocate(uint32_t typeIndex, VkDeviceSize alignment, VkDeviceSize size,
 											  bool createMapped);
-	std::optional<VAllocationResult> allocateInBlock(uint32_t typeIndex, size_t blockIndex, VkDeviceSize alignment, VkDeviceSize size,
+	std::optional<VAllocationResult> allocateImage(uint32_t typeIndex, VkDeviceSize alignment, VkDeviceSize size);
+	std::optional<VAllocationResult> allocateInBlock(uint32_t typeIndex, size_t blockIndex, VMemoryBlock& block, VkDeviceSize alignment, VkDeviceSize size,
 											  bool createMapped);
-	void freeInBlock(uint32_t typeIndex, size_t blockIndex, VkDeviceSize offset, VkDeviceSize size);
-	bool allocateBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped);
+	//returns true if whole block is free
+	bool freeInBlock(VMemoryBlock& block, VkDeviceSize offset,
+					 VkDeviceSize size);
+	void mergeFreeAreas(VMemoryBlock& block);
+	bool allocateBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped, bool createImageBlock);
 
 	VkDeviceSize roundUpAligned(VkDeviceSize n, VkDeviceSize alignment);
 	VkDeviceSize alignmentMargin(VkDeviceSize n, VkDeviceSize alignment);
@@ -163,6 +171,8 @@ class VGPUResourceAllocator {
 	VGPUContext* m_context = nullptr;
 
 	uint32_t m_currentFrameIndex = 0;
+
+	VkDeviceSize m_bufferImageGranularity;
 
 	std::vector<VMemoryType> m_memoryTypes;
 
