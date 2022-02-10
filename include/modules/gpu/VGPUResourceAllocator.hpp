@@ -107,8 +107,8 @@ struct VImageAllocation {
 	VMemoryRange allocationRange;
 	VkImage image;
 };
-using VBufferResourceHandle = VSlotmapHandle;
-using VImageResourceHandle = VSlotmapHandle;
+using VBufferResourceHandle = VSlotmapHandle<VBufferAllocation>;
+using VImageResourceHandle = VSlotmapHandle<VImageAllocation>;
 
 class VGPUResourceAllocator {
   public:

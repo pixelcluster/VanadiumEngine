@@ -25,7 +25,7 @@ struct VGPUImageTransfer {
 	VkImageLayout dstUsageLayout;
 };
 
-using VGPUTransferHandle = VSlotmapHandle;
+using VGPUTransferHandle = VSlotmapHandle<VGPUTransfer>;
 
 class VGPUTransferManager {
   public:

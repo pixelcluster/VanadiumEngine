@@ -21,8 +21,8 @@ struct VDescriptorTypeInfo {
 	size_t count;
 };
 
-using VDescriptorPoolHandle = VSlotmapHandle;
-using VDescriptorSizeClassHandle = VSlotmapHandle;
+using VDescriptorPoolHandle = VSlotmapHandle<VDescriptorPoolInfo>;
+using VDescriptorSizeClassHandle = VSlotmapHandle<VDescriptorSetSizeClass>;
 
 struct VDescriptorSetAllocationInfo {
 	std::vector<VDescriptorTypeInfo> typeInfos;

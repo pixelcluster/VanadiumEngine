@@ -1,30 +1,14 @@
 #pragma once
 
-#include <modules/gpu/VGPUResourceAllocator.hpp>
-#include <string_view>
 #include <helper/VFramegraphStringAllocator.hpp>
 #include <modules/gpu/VGPUDescriptorSetAllocator.hpp>
+#include <modules/gpu/VGPUResourceAllocator.hpp>
 #include <modules/gpu/transfer/VGPUTransferManager.hpp>
+#include <string_view>
 
 using VFramegraphString = std::basic_string<char, std::char_traits<char>, VFramegraphStringAllocator<char>>;
 
 class VFramegraphNode;
-
-struct VFramegraphBufferCreationParameters {
-	VkDeviceSize size;
-	VkBufferCreateFlags flags;
-};
-
-struct VFramegraphImageCreationParameters {
-	VkImageCreateFlags flags;
-	VkImageType imageType;
-	VkFormat format;
-	VkExtent3D extent;
-	uint32_t mipLevels;
-	uint32_t arrayLayers;
-	VkSampleCountFlagBits samples;
-	VkImageTiling tiling;
-};
 
 struct VFramegraphNodeContext {
 	uint32_t frameIndex;
@@ -101,20 +85,24 @@ inline bool operator<(const VFramegraphNodeImageAccess& one, const VFramegraphNo
 };
 
 struct VFramegraphBufferResource {
-	VBufferResourceHandle bufferResourceHandle;
+	VBufferResourceHandle resourceHandle;
 
 	VkBufferUsageFlags usageFlags;
 	std::vector<VFramegraphNodeBufferAccess> modifications;
 	std::vector<VFramegraphNodeBufferAccess> reads;
 };
 
+using VFramegraphBufferHandle = VSlotmapHandle<VFramegraphBufferResource>;
+
 struct VFramegraphImageResource {
-	VImageResourceHandle imageResourceHandle;
+	VImageResourceHandle resourceHandle;
 
 	VkImageUsageFlags usageFlags;
 	std::vector<VFramegraphNodeImageAccess> modifications;
 	std::vector<VFramegraphNodeImageAccess> reads;
 };
+
+using VFramegraphImageHandle = VSlotmapHandle<VFramegraphImageResource>;
 
 struct VFramegraphNodeInfo {
 	VFramegraphNode* node;
@@ -141,57 +129,88 @@ struct VFramegraphImageAccessMatch {
 	VkImageSubresourceRange range;
 };
 
+struct VFramegraphBufferCreationParameters {
+	VkDeviceSize size;
+	VkBufferCreateFlags flags;
+};
+
+struct VFramegraphCreatedBuffer {
+	VFramegraphBufferHandle bufferHandle;
+	VFramegraphBufferCreationParameters parameters;
+};
+
+using VFramegraphCreatedBufferHandle = VSlotmapHandle<VFramegraphCreatedBuffer>;
+
+struct VFramegraphImageCreationParameters {
+	VkImageCreateFlags flags;
+	VkImageType imageType;
+	VkFormat format;
+	VkExtent3D extent;
+	uint32_t mipLevels;
+	uint32_t arrayLayers;
+	VkSampleCountFlagBits samples;
+	VkImageTiling tiling;
+};
+
+struct VFramegraphCreatedImage {
+	VFramegraphImageHandle handle;
+	VFramegraphImageCreationParameters parameters;
+};
+
+using VFramegraphCreatedImageHandle = VSlotmapHandle<VFramegraphCreatedImage>;
+
 class VFramegraphContext {
   public:
 	VFramegraphContext() {}
 
-	void create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator, VGPUDescriptorSetAllocator* descriptorSetAllocator, VGPUTransferManager* transferManager);
+	void create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator,
+				VGPUDescriptorSetAllocator* descriptorSetAllocator, VGPUTransferManager* transferManager);
 
 	template <DerivesFrom<VFramegraphNode> T, typename... Args>
 	requires(ConstructibleWith<T, Args...>) VFramegraphNode* appendNode(Args... constructorArgs);
 
 	void setupResources();
 
-	void declareCreatedBuffer(VFramegraphNode* creator, const std::string_view& name,
-							  const VFramegraphBufferCreationParameters& parameters,
-							  const VFramegraphNodeBufferUsage& usage);
-	void declareCreatedImage(VFramegraphNode* creator, const std::string_view& name,
-							 const VFramegraphImageCreationParameters& parameters,
-							 const VFramegraphNodeImageUsage& usage);
-	void declareImportedBuffer(VFramegraphNode* creator, const std::string_view& name, VBufferResourceHandle handle,
+	VFramegraphCreatedBufferHandle declareCreatedBuffer(VFramegraphNode* creator,
+														const VFramegraphBufferCreationParameters& parameters,
+														const VFramegraphNodeBufferUsage& usage);
+	VFramegraphCreatedImageHandle declareCreatedImage(VFramegraphNode* creator,
+													  const VFramegraphImageCreationParameters& parameters,
+													  const VFramegraphNodeImageUsage& usage);
+	VFramegraphBufferHandle declareImportedBuffer(VFramegraphNode* creator, VBufferResourceHandle handle,
 							   const VFramegraphNodeBufferUsage& usage);
-	void declareImportedImage(VFramegraphNode* creator, const std::string_view& name, VImageResourceHandle handle,
+	VFramegraphImageHandle declareImportedImage(VFramegraphNode* creator, VImageResourceHandle handle,
 							  const VFramegraphNodeImageUsage& usage);
 
 	// These functions depend on the fact that all references are inserted in execution order!
-	void declareReferencedBuffer(VFramegraphNode* user, const std::string_view& name,
+	void declareReferencedBuffer(VFramegraphNode* user, VFramegraphBufferHandle handle,
 								 const VFramegraphNodeBufferUsage& usage);
-	void declareReferencedImage(VFramegraphNode* user, const std::string_view& name,
+	void declareReferencedImage(VFramegraphNode* user, VFramegraphImageHandle handle,
 								const VFramegraphNodeImageUsage& usage);
 
 	void declareReferencedSwapchainImage(VFramegraphNode* user, const VFramegraphNodeImageUsage& usage);
 
-	void invalidateBuffer(const std::string_view& name, VBufferResourceHandle newHandle);
-	void invalidateImage(const std::string_view& name, VImageResourceHandle newHandle);
+	void invalidateBuffer(VFramegraphBufferHandle handle, VBufferResourceHandle newHandle);
+	void invalidateImage(VFramegraphImageHandle handle, VImageResourceHandle newHandle);
 
 	VGPUContext* gpuContext() { return m_gpuContext; }
 	VGPUResourceAllocator* resourceAllocator() { return m_resourceAllocator; }
 	VGPUDescriptorSetAllocator* descriptorSetAllocator() { return m_descriptorSetAllocator; }
 	VGPUTransferManager* transferManager() { return m_transferManager; }
 
-	VFramegraphBufferResource bufferResource(const std::string_view& name) const;
-	VFramegraphImageResource imageResource(const std::string_view& name) const;
+	VFramegraphBufferResource bufferResource(VFramegraphBufferHandle handle) const;
+	VFramegraphImageResource imageResource(VFramegraphImageHandle handle) const;
 
-	void recreateBufferResource(const std::string_view& name, const VFramegraphBufferCreationParameters& parameters);
-	void recreateImageResource(const std::string_view& name, const VFramegraphImageCreationParameters& parameters);
+	void recreateBufferResource(VFramegraphBufferHandle handle, const VFramegraphBufferCreationParameters& parameters);
+	void recreateImageResource(VFramegraphImageHandle handle, const VFramegraphImageCreationParameters& parameters);
 
-	VkBuffer nativeBufferHandle(const std::string_view& name);
-	VkImage nativeImageHandle(const std::string_view& name);
+	VkBuffer nativeBufferHandle(VFramegraphBufferHandle handle);
+	VkImage nativeImageHandle(VFramegraphImageHandle handle);
 
 	VkImageView swapchainImageView(VFramegraphNode* node, uint32_t index);
 
-	VkBufferUsageFlags bufferUsageFlags(const std::string_view& name);
-	VkImageUsageFlags imageUsageFlags(const std::string_view& name);
+	VkBufferUsageFlags bufferUsageFlags(VFramegraphBufferHandle handle);
+	VkImageUsageFlags imageUsageFlags(VFramegraphImageHandle handle);
 
 	VkImageUsageFlags swapchainImageUsageFlags() const { return m_swapchainImageUsageFlags; }
 
@@ -202,8 +221,8 @@ class VFramegraphContext {
 	void destroy();
 
   private:
-	void createBuffer(const std::string_view& name);
-	void createImage(const std::string_view& name);
+	void createBuffer(VFramegraphCreatedBufferHandle handle);
+	void createImage(VFramegraphCreatedImageHandle handle);
 
 	void addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
 				  std::vector<VFramegraphNodeBufferAccess>& reads, const VFramegraphNodeBufferUsage& usage);
@@ -240,11 +259,11 @@ class VFramegraphContext {
 
 	std::vector<VFramegraphNodeInfo> m_nodes;
 
-	std::unordered_map<VFramegraphString, VFramegraphBufferResource> m_buffers;
-	std::unordered_map<VFramegraphString, VFramegraphImageResource> m_images;
+	VSlotmap<VFramegraphBufferResource> m_buffers;
+	VSlotmap<VFramegraphImageResource> m_images;
 
-	std::unordered_map<VFramegraphString, VFramegraphBufferCreationParameters> m_createdBufferParameters;
-	std::unordered_map<VFramegraphString, VFramegraphImageCreationParameters> m_createdImageParameters;
+	VSlotmap<VFramegraphCreatedBuffer> m_createdBufferParameters;
+	VSlotmap<VFramegraphCreatedImage> m_createdImageParameters;
 
 	bool m_firstFrameFlag = true;
 

@@ -72,7 +72,7 @@ VBufferResourceHandle VGPUResourceAllocator::createBuffer(const VkBufferCreateIn
 
 	if (typeIndex == ~0U) {
 		vkDestroyBuffer(m_context->device(), buffer, nullptr);
-		return ~0U;
+		return { ~0U };
 	}
 
 	auto result = allocate(typeIndex, requirements.alignment, requirements.size, createMapped);
@@ -91,7 +91,7 @@ VBufferResourceHandle VGPUResourceAllocator::createBuffer(const VkBufferCreateIn
 		--typeIndex;
 		if (!result.has_value()) {
 			vkDestroyBuffer(m_context->device(), buffer, nullptr);
-			return ~0U;
+			return { ~0U };
 		}
 	}
 
@@ -143,7 +143,7 @@ VBufferResourceHandle VGPUResourceAllocator::createPerFrameBuffer(const VkBuffer
 
 	if (typeIndex == ~0U) {
 		vkDestroyBuffer(m_context->device(), buffer, nullptr);
-		return ~0U;
+		return { ~0U };
 	}
 
 	auto result = allocate(typeIndex, requirements.alignment, totalSize, createMapped);
@@ -162,7 +162,7 @@ VBufferResourceHandle VGPUResourceAllocator::createPerFrameBuffer(const VkBuffer
 		--typeIndex;
 		if (!result.has_value()) {
 			vkDestroyBuffer(m_context->device(), buffer, nullptr);
-			return ~0U;
+			return { ~0U };
 		}
 	}
 
@@ -233,7 +233,7 @@ VImageResourceHandle VGPUResourceAllocator::createImage(const VkImageCreateInfo&
 
 	if (typeIndex == ~0U) {
 		vkDestroyImage(m_context->device(), image, nullptr);
-		return ~0U;
+		return { ~0U };
 	}
 
 	auto result = allocateImage(typeIndex, requirements.alignment, requirements.size);
@@ -252,7 +252,7 @@ VImageResourceHandle VGPUResourceAllocator::createImage(const VkImageCreateInfo&
 		--typeIndex;
 		if (!result.has_value()) {
 			vkDestroyImage(m_context->device(), image, nullptr);
-			return ~0U;
+			return { ~0U };
 		}
 	}
 

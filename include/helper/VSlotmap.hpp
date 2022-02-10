@@ -5,7 +5,7 @@
 #include <vector>
 #include <iterator>
 
-using VSlotmapHandle = size_t;
+template <typename T> struct VSlotmapHandle { size_t value; };
 
 /**
  *  \brief A slotmap memory structure whose elements can be accessed by unique identifiers.
@@ -146,7 +146,7 @@ template <typename T> class VSlotmap {
 	 * \param newElement The element that should be added to the slotmap.
 	 * \returns The handle of the new element.
 	 */
-	inline VSlotmapHandle addElement(const T& newElement);
+	inline VSlotmapHandle<T> addElement(const T& newElement);
 
 	/**
 	 * \brief Adds an element to the slotmap.
@@ -154,7 +154,7 @@ template <typename T> class VSlotmap {
 	 * \param newElement The element that should be added to the slotmap.
 	 * \returns The handle of the new element.
 	 */
-	inline VSlotmapHandle addElement(T&& newElement);
+	inline VSlotmapHandle<T> addElement(T&& newElement);
 
 	/**
 	 * \brief Gets the element that belongs to the specified handle.
@@ -162,7 +162,7 @@ template <typename T> class VSlotmap {
 	 * \param handle The specified handle.
 	 * \returns The element belonging to the specified handle. If "handle" is invalid, an exception will thrown.
 	 */
-	inline T& elementAt(VSlotmapHandle handle);
+	inline T& elementAt(VSlotmapHandle<T> handle);
 
 	/**
 	 * \brief Gets the element that belongs to the specified handle.
@@ -170,7 +170,7 @@ template <typename T> class VSlotmap {
 	 * \param handle The specified handle.
 	 * \returns The element belonging to the specified handle. If "handle" is invalid, an exception will thrown.
 	 */
-	inline const T& elementAt(VSlotmapHandle handle) const;
+	inline const T& elementAt(VSlotmapHandle<T> handle) const;
 
 	/**
 	 * \brief Removes the element specified by its handle.
@@ -179,11 +179,11 @@ template <typename T> class VSlotmap {
 	 *
 	 * \param handle The handle of the element to remove.
 	 */
-	inline void removeElement(VSlotmapHandle handle);
+	inline void removeElement(VSlotmapHandle<T> handle);
 
-	inline T& operator[](VSlotmapHandle handle);
+	inline T& operator[](VSlotmapHandle<T> handle);
 
-	inline const T& operator[](VSlotmapHandle handle) const;
+	inline const T& operator[](VSlotmapHandle<T> handle) const;
 
 	/**
 	 * \brief Wipes all elements of the slotmap.
@@ -210,23 +210,23 @@ template <typename T> class VSlotmap {
 	/**
 	 * \returns An iterator of the element with the specified handle.
 	 */
-	inline iterator find(VSlotmapHandle handle);
+	inline iterator find(VSlotmapHandle<T> handle);
 
 	/**
 	 * \returns The handle of the specified iterator.
 	 */
-	inline VSlotmapHandle handle(const iterator& handleIterator);
+	inline VSlotmapHandle<T> handle(const iterator& handleIterator);
 
   private:
 	// All elements.
 	std::vector<T> elements;
-	std::vector<VSlotmapHandle> keys;
+	std::vector<size_t> keys;
 	std::vector<size_t> eraseMap;
 	size_t freeKeyHead = 0;
 	size_t freeKeyTail = 0;
 };
 
-template <typename T> inline VSlotmapHandle VSlotmap<T>::addElement(const T& newElement) {
+template <typename T> inline VSlotmapHandle<T> VSlotmap<T>::addElement(const T& newElement) {
 	if (keys.size() == 0)
 		keys.push_back(0);
 	elements.push_back(newElement);
@@ -246,10 +246,10 @@ template <typename T> inline VSlotmapHandle VSlotmap<T>::addElement(const T& new
 	size_t returnIndex = freeKeyHead;
 	freeKeyHead = nextFreeIndex;
 
-	return returnIndex;
+	return { returnIndex };
 }
 
-template <typename T> inline VSlotmapHandle VSlotmap<T>::addElement(T&& newElement) {
+template <typename T> inline VSlotmapHandle<T> VSlotmap<T>::addElement(T&& newElement) {
 	if (keys.size() == 0)
 		keys.push_back(0);
 	elements.push_back(std::forward<T>(newElement));
@@ -269,21 +269,25 @@ template <typename T> inline VSlotmapHandle VSlotmap<T>::addElement(T&& newEleme
 	size_t returnIndex = freeKeyHead;
 	freeKeyHead = nextFreeIndex;
 
-	return returnIndex;
+	return { returnIndex };
 }
 
-template <typename T> inline T& VSlotmap<T>::elementAt(VSlotmapHandle handle) {
-	assert(eraseMap[keys[handle]] == handle);
-	return elements[keys[handle]];
+template <typename T> inline T& VSlotmap<T>::elementAt(VSlotmapHandle<T> handle) {
+	assert(keys.size() > handle.value);
+	assert(eraseMap[keys[handle.value]] == handle.value);
+	return elements[keys[handle.value]];
 }
 
-template <typename T> inline const T& VSlotmap<T>::elementAt(VSlotmapHandle handle) const {
-	assert(eraseMap[keys[handle]] == handle);
-	return elements[keys[handle]];
+template <typename T> inline const T& VSlotmap<T>::elementAt(VSlotmapHandle<T> handle) const {
+	assert(keys.size() > handle.value);
+	assert(eraseMap[keys[handle.value]] == handle);
+	return elements[keys[handle.value]];
 }
 
-template <typename T> inline void VSlotmap<T>::removeElement(VSlotmapHandle handle) {
-	size_t eraseElementIndex = keys[handle];
+template <typename T> inline void VSlotmap<T>::removeElement(VSlotmapHandle<T> handle) {
+	assert(keys.size() > handle.value);
+
+	size_t eraseElementIndex = keys[handle.value];
 
 	// Move last element in, update erase table
 	elements[eraseElementIndex] = std::move(elements[elements.size() - 1]);
@@ -297,14 +301,14 @@ template <typename T> inline void VSlotmap<T>::removeElement(VSlotmapHandle hand
 	eraseMap.erase(eraseMap.begin() + (eraseMap.size() - 1));
 
 	// Update free list nodes
-	keys[freeKeyTail] = handle;
-	keys[handle] = handle;
-	freeKeyTail = handle;
+	keys[freeKeyTail] = handle.value;
+	keys[handle.value] = handle.value;
+	freeKeyTail = handle.value;
 }
 
-template <typename T> inline T& VSlotmap<T>::operator[](VSlotmapHandle handle) { return elementAt(handle); }
+template <typename T> inline T& VSlotmap<T>::operator[](VSlotmapHandle<T> handle) { return elementAt(handle); }
 
-template <typename T> inline const T& VSlotmap<T>::operator[](VSlotmapHandle handle) const {
+template <typename T> inline const T& VSlotmap<T>::operator[](VSlotmapHandle<T> handle) const {
 	return elementAt(handle);
 }
 
@@ -320,12 +324,12 @@ template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::end() {
 	return iterator(elements.data() + elements.size());
 }
 
-template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::find(VSlotmapHandle handle) {
-	if (handle >= keys.size())
+template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::find(VSlotmapHandle<T> handle) {
+	if (handle.value >= keys.size())
 		return iterator(elements.data() + elements.size());
-	return iterator(elements.data() + keys[handle]);
+	return iterator(elements.data() + keys[handle.value]);
 }
 
-template <typename T> inline VSlotmapHandle VSlotmap<T>::handle(const VSlotmap<T>::iterator& handleIterator) {
-	return eraseMap[static_cast<T*>(handleIterator) - elements.data()];
+template <typename T> inline VSlotmapHandle<T> VSlotmap<T>::handle(const VSlotmap<T>::iterator& handleIterator) {
+	return { eraseMap[static_cast<T*>(handleIterator) - elements.data()] };
 }
