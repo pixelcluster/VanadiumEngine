@@ -165,6 +165,9 @@ class VGPUResourceAllocator {
 	void mergeFreeAreas(VMemoryBlock& block);
 	bool allocateBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped, bool createImageBlock);
 
+	void reorderOffsetArea(VMemoryBlock& block, size_t index);
+	void reorderSizeArea(VMemoryBlock& block, size_t index);
+
 	VkDeviceSize roundUpAligned(VkDeviceSize n, VkDeviceSize alignment);
 	VkDeviceSize alignmentMargin(VkDeviceSize n, VkDeviceSize alignment);
 
