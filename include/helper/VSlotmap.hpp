@@ -2,10 +2,19 @@
 
 #include <algorithm>
 #include <cassert>
-#include <vector>
 #include <iterator>
+#include <vector>
 
-template <typename T> struct VSlotmapHandle { size_t value; };
+template <typename T> struct VSlotmapHandle { 
+	size_t value;
+	bool operator==(const VSlotmapHandle<T>& other) const { return value == other.value; }
+};
+
+namespace std {
+	template <typename T> struct hash<VSlotmapHandle<T>> {
+		size_t operator()(const VSlotmapHandle<T>& handle) const { return std::hash<size_t>()(handle.value); }
+	};
+} // namespace std
 
 /**
  *  \brief A slotmap memory structure whose elements can be accessed by unique identifiers.
@@ -208,9 +217,24 @@ template <typename T> class VSlotmap {
 	inline iterator end();
 
 	/**
+	 * \returns An iterator of the begin of the elements.
+	 */
+	inline const_iterator cbegin() const;
+
+	/**
+	 * \returns An iterator of the end of the elements.
+	 */
+	inline const_iterator cend() const;
+
+	/**
 	 * \returns An iterator of the element with the specified handle.
 	 */
 	inline iterator find(VSlotmapHandle<T> handle);
+
+	/**
+	 * \returns An iterator of the element with the specified handle.
+	 */
+	inline const_iterator find(VSlotmapHandle<T> handle) const;
 
 	/**
 	 * \returns The handle of the specified iterator.
@@ -316,18 +340,30 @@ template <typename T> inline void VSlotmap<T>::clear() { elements.clear(); }
 
 template <typename T> inline size_t VSlotmap<T>::size() const { return elements.size(); }
 
-template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::begin() {
-	return iterator(elements.data());
-}
+template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::begin() { return iterator(elements.data()); }
 
 template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::end() {
 	return iterator(elements.data() + elements.size());
+}
+
+template <typename T> inline VSlotmap<T>::const_iterator VSlotmap<T>::cbegin() const {
+	return const_iterator(elements.data());
+}
+
+template <typename T> inline VSlotmap<T>::const_iterator VSlotmap<T>::cend() const {
+	return const_iterator(elements.data() + elements.size());
 }
 
 template <typename T> inline VSlotmap<T>::iterator VSlotmap<T>::find(VSlotmapHandle<T> handle) {
 	if (handle.value >= keys.size())
 		return iterator(elements.data() + elements.size());
 	return iterator(elements.data() + keys[handle.value]);
+}
+
+template <typename T> inline VSlotmap<T>::const_iterator VSlotmap<T>::find(VSlotmapHandle<T> handle) const {
+	if (handle.value >= keys.size())
+		return const_iterator(elements.data() + elements.size());
+	return const_iterator(elements.data() + keys[handle.value]);
 }
 
 template <typename T> inline VSlotmapHandle<T> VSlotmap<T>::handle(const VSlotmap<T>::iterator& handleIterator) {

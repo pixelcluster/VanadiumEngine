@@ -187,7 +187,7 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 		} 
 	};
 	context->declareReferencedSwapchainImage(this, usage);
-	context->declareImportedBuffer(this, "Triangle vertex data", m_vertexData,
+	context->declareImportedBuffer(this, m_vertexData,
 								   VFramegraphNodeBufferUsage{ .pipelineStages = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
 															   .accessTypes = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 															   .offset = 0,
@@ -219,7 +219,7 @@ void HelloTriangleNode::recordCommands(VFramegraphContext* context, VkCommandBuf
 	vkCmdSetScissor(targetCommandBuffer, 0, 1, &scissor);
 
 	VkDeviceSize offset = 0;
-	VkBuffer nativeBuffer = context->nativeBufferHandle("Triangle vertex data");
+	VkBuffer nativeBuffer = context->resourceAllocator()->nativeBufferHandle(m_vertexData);
 	vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &nativeBuffer, &offset);
 
 	vkCmdDraw(targetCommandBuffer, 3, 1, 0, 0);

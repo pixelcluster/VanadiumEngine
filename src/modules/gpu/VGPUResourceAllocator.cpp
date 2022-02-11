@@ -519,14 +519,19 @@ std::optional<VAllocationResult> VGPUResourceAllocator::allocateInBlock(uint32_t
 	auto offsetIterator = std::lower_bound(block.freeBlocksOffsetSorted.begin(), block.freeBlocksOffsetSorted.end(),
 										   range, offsetComparator);
 
-	block.freeBlocksOffsetSorted.erase(offsetIterator);
-
 	if (result.allocationRange.size != range.size) {
 		// make unused part of block another free range
 		range.offset += result.allocationRange.size;
 		range.size -= result.allocationRange.size;
+		offsetIterator->offset += result.allocationRange.size;
+		offsetIterator->size -= result.allocationRange.size;
 		reorderOffsetArea(block, allocationIndex);
 		reorderSizeArea(block, allocationIndex);
+	} else {
+		block.freeBlocksOffsetSorted.erase(offsetIterator);
+		auto sizeIterator = std::lower_bound(block.freeBlocksSizeSorted.begin(), block.freeBlocksSizeSorted.end(),
+											 range, sizeComparator);
+		block.freeBlocksSizeSorted.erase(sizeIterator);
 	}
 	if (block.freeBlocksSizeSorted.empty())
 		block.maxAllocatableSize = 0U;
@@ -552,23 +557,24 @@ bool VGPUResourceAllocator::freeInBlock(VMemoryBlock& block, VkDeviceSize offset
 		return block.freeBlocksSizeSorted.size() == 1 && block.freeBlocksSizeSorted.back().size == block.originalSize;
 	}
 
-	auto offsetInsertIterator =
-		std::lower_bound(block.freeBlocksOffsetSorted.begin(), block.freeBlocksOffsetSorted.end(),
-						 VMemoryRange{ .offset = offset }, offsetComparator);
-	auto adjacentOffsetIterator = offsetInsertIterator;
-	auto sizeSortedIterator = std::lower_bound(block.freeBlocksSizeSorted.begin(), block.freeBlocksSizeSorted.end(),
-											   *offsetInsertIterator, sizeComparator);
-
 	VMemoryRange range = { .offset = offset, .size = size };
-	if (offsetInsertIterator == block.freeBlocksOffsetSorted.end())
-		block.freeBlocksOffsetSorted.push_back(range);
-	else
-		block.freeBlocksOffsetSorted.insert(offsetInsertIterator, range);
 
-	if (sizeSortedIterator == block.freeBlocksSizeSorted.end())
+	auto offsetInsertIterator = std::lower_bound(block.freeBlocksOffsetSorted.begin(),
+												 block.freeBlocksOffsetSorted.end(), range, offsetComparator);
+
+	if (offsetInsertIterator == block.freeBlocksOffsetSorted.end()) {
+		block.freeBlocksOffsetSorted.push_back(range);
+	} else {
+		block.freeBlocksOffsetSorted.insert(offsetInsertIterator, range);
+	}
+
+	auto sizeInsertIterator =
+		std::lower_bound(block.freeBlocksSizeSorted.begin(), block.freeBlocksSizeSorted.end(), range, sizeComparator);
+
+	if (sizeInsertIterator == block.freeBlocksSizeSorted.end())
 		block.freeBlocksSizeSorted.push_back(range);
 	else
-		block.freeBlocksSizeSorted.insert(sizeSortedIterator, range);
+		block.freeBlocksSizeSorted.insert(sizeInsertIterator, range);
 
 	mergeFreeAreas(block);
 
@@ -607,17 +613,16 @@ void VGPUResourceAllocator::reorderOffsetArea(VMemoryBlock& block, size_t index)
 		reinsertIterator == block.freeBlocksOffsetSorted.end() - 1) {
 		block.freeBlocksOffsetSorted.erase(block.freeBlocksOffsetSorted.begin() + index);
 		block.freeBlocksOffsetSorted.push_back(range);
+	} else {
+		for (auto iterator = block.freeBlocksOffsetSorted.begin() + index; iterator != reinsertIterator; ++iterator) {
+			*iterator = std::move(*(iterator + 1));
+		}
+		*reinsertIterator = range;
 	}
-
-	for (auto iterator = block.freeBlocksOffsetSorted.begin() + index; iterator != reinsertIterator; ++iterator) {
-		*iterator = std::move(*(iterator + 1));
-	}
-	*reinsertIterator = range;
 }
 
 void VGPUResourceAllocator::reorderSizeArea(VMemoryBlock& block, size_t index) {
 	auto sizeComparator = [](const VMemoryRange& one, const VMemoryRange& other) { return one.size < other.size; };
-	block.freeBlocksSizeSorted.erase(block.freeBlocksSizeSorted.begin() + index);
 
 	auto range = block.freeBlocksSizeSorted[index];
 	auto reinsertIterator =
@@ -627,12 +632,12 @@ void VGPUResourceAllocator::reorderSizeArea(VMemoryBlock& block, size_t index) {
 		reinsertIterator == block.freeBlocksSizeSorted.end() - 1) {
 		block.freeBlocksSizeSorted.erase(block.freeBlocksSizeSorted.begin() + index);
 		block.freeBlocksSizeSorted.push_back(range);
+	} else {
+		for (auto iterator = block.freeBlocksSizeSorted.begin() + index; iterator != reinsertIterator; ++iterator) {
+			*iterator = std::move(*(iterator + 1));
+		}
+		*reinsertIterator = range;
 	}
-
-	for (auto iterator = block.freeBlocksSizeSorted.begin() + index; iterator != reinsertIterator; ++iterator) {
-		*iterator = std::move(*(iterator + 1));
-	}
-	*reinsertIterator = range;
 }
 
 bool VGPUResourceAllocator::allocateBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped,

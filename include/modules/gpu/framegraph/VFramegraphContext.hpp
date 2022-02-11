@@ -1,23 +1,10 @@
 #pragma once
 
-#include <helper/VFramegraphStringAllocator.hpp>
 #include <modules/gpu/VGPUDescriptorSetAllocator.hpp>
 #include <modules/gpu/VGPUResourceAllocator.hpp>
 #include <modules/gpu/transfer/VGPUTransferManager.hpp>
-#include <string_view>
-
-using VFramegraphString = std::basic_string<char, std::char_traits<char>, VFramegraphStringAllocator<char>>;
 
 class VFramegraphNode;
-
-struct VFramegraphNodeContext {
-	uint32_t frameIndex;
-	uint32_t imageIndex;
-	VkImage swapchainImage;
-
-	VkImageView swapchainImageView;
-	std::unordered_map<std::string, VkImageView> resourceImageViews;
-};
 
 struct VFramegraphNodeBufferUsage {
 	VkPipelineStageFlags pipelineStages;
@@ -84,7 +71,13 @@ inline bool operator<(const VFramegraphNodeImageAccess& one, const VFramegraphNo
 	return one.usingNodeIndex < other.usingNodeIndex;
 };
 
+struct VFramegraphBufferCreationParameters {
+	VkDeviceSize size;
+	VkBufferCreateFlags flags;
+};
+
 struct VFramegraphBufferResource {
+	VFramegraphBufferCreationParameters creationParameters;
 	VBufferResourceHandle resourceHandle;
 
 	VkBufferUsageFlags usageFlags;
@@ -94,10 +87,22 @@ struct VFramegraphBufferResource {
 
 using VFramegraphBufferHandle = VSlotmapHandle<VFramegraphBufferResource>;
 
+struct VFramegraphImageCreationParameters {
+	VkImageCreateFlags flags;
+	VkImageType imageType;
+	VkFormat format;
+	VkExtent3D extent;
+	uint32_t mipLevels;
+	uint32_t arrayLayers;
+	VkSampleCountFlagBits samples;
+	VkImageTiling tiling;
+};
+
 struct VFramegraphImageResource {
+	VFramegraphImageCreationParameters creationParameters;
+	VkImageUsageFlags usage;
 	VImageResourceHandle resourceHandle;
 
-	VkImageUsageFlags usageFlags;
 	std::vector<VFramegraphNodeImageAccess> modifications;
 	std::vector<VFramegraphNodeImageAccess> reads;
 };
@@ -107,7 +112,7 @@ using VFramegraphImageHandle = VSlotmapHandle<VFramegraphImageResource>;
 struct VFramegraphNodeInfo {
 	VFramegraphNode* node;
 
-	std::unordered_map<VFramegraphString, VImageResourceViewInfo> resourceViewInfos;
+	std::unordered_map<VFramegraphImageHandle, VImageResourceViewInfo> resourceViewInfos;
 	std::optional<VImageResourceViewInfo> swapchainResourceViewInfo;
 };
 
@@ -129,35 +134,14 @@ struct VFramegraphImageAccessMatch {
 	VkImageSubresourceRange range;
 };
 
-struct VFramegraphBufferCreationParameters {
-	VkDeviceSize size;
-	VkBufferCreateFlags flags;
+struct VFramegraphNodeContext {
+	uint32_t frameIndex;
+	uint32_t imageIndex;
+	VkImage swapchainImage;
+
+	VkImageView swapchainImageView;
+	std::unordered_map<VFramegraphImageHandle, VkImageView> resourceImageViews;
 };
-
-struct VFramegraphCreatedBuffer {
-	VFramegraphBufferHandle bufferHandle;
-	VFramegraphBufferCreationParameters parameters;
-};
-
-using VFramegraphCreatedBufferHandle = VSlotmapHandle<VFramegraphCreatedBuffer>;
-
-struct VFramegraphImageCreationParameters {
-	VkImageCreateFlags flags;
-	VkImageType imageType;
-	VkFormat format;
-	VkExtent3D extent;
-	uint32_t mipLevels;
-	uint32_t arrayLayers;
-	VkSampleCountFlagBits samples;
-	VkImageTiling tiling;
-};
-
-struct VFramegraphCreatedImage {
-	VFramegraphImageHandle handle;
-	VFramegraphImageCreationParameters parameters;
-};
-
-using VFramegraphCreatedImageHandle = VSlotmapHandle<VFramegraphCreatedImage>;
 
 class VFramegraphContext {
   public:
@@ -171,10 +155,10 @@ class VFramegraphContext {
 
 	void setupResources();
 
-	VFramegraphCreatedBufferHandle declareCreatedBuffer(VFramegraphNode* creator,
+	VFramegraphBufferHandle declareTransientBuffer(VFramegraphNode* creator,
 														const VFramegraphBufferCreationParameters& parameters,
 														const VFramegraphNodeBufferUsage& usage);
-	VFramegraphCreatedImageHandle declareCreatedImage(VFramegraphNode* creator,
+	VFramegraphImageHandle declareTransientImage(VFramegraphNode* creator,
 													  const VFramegraphImageCreationParameters& parameters,
 													  const VFramegraphNodeImageUsage& usage);
 	VFramegraphBufferHandle declareImportedBuffer(VFramegraphNode* creator, VBufferResourceHandle handle,
@@ -221,8 +205,8 @@ class VFramegraphContext {
 	void destroy();
 
   private:
-	void createBuffer(VFramegraphCreatedBufferHandle handle);
-	void createImage(VFramegraphCreatedImageHandle handle);
+	void createBuffer(VFramegraphBufferHandle handle);
+	void createImage(VFramegraphImageHandle handle);
 
 	void addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
 				  std::vector<VFramegraphNodeBufferAccess>& reads, const VFramegraphNodeBufferUsage& usage);
@@ -252,8 +236,6 @@ class VFramegraphContext {
 	VGPUDescriptorSetAllocator* m_descriptorSetAllocator;
 	VGPUTransferManager* m_transferManager;
 
-	VFramegraphStringAllocator<char> m_stringAllocator = VFramegraphStringAllocator<char>(16384);
-
 	VkCommandPool m_frameCommandPools[frameInFlightCount];
 	VkCommandBuffer m_frameCommandBuffers[frameInFlightCount];
 
@@ -262,8 +244,8 @@ class VFramegraphContext {
 	VSlotmap<VFramegraphBufferResource> m_buffers;
 	VSlotmap<VFramegraphImageResource> m_images;
 
-	VSlotmap<VFramegraphCreatedBuffer> m_createdBufferParameters;
-	VSlotmap<VFramegraphCreatedImage> m_createdImageParameters;
+	std::vector<VFramegraphBufferHandle> m_transientBuffers;
+	std::vector<VFramegraphImageHandle> m_transientImages;
 
 	bool m_firstFrameFlag = true;
 

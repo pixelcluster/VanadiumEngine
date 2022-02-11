@@ -226,13 +226,13 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 		} 
 	};
 	context->declareReferencedSwapchainImage(this, usage);
-	context->declareImportedBuffer(this, "Planet vertex data", m_vertexData,
+	context->declareImportedBuffer(this, m_vertexData,
 								   { .pipelineStages = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
 									 .accessTypes = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 									 .offset = 0,
 									 .size = VK_WHOLE_SIZE,
 									 .writes = false });
-	context->declareImportedBuffer(this, "Planet index data", m_indexData,
+	context->declareImportedBuffer(this, m_indexData,
 								   { .pipelineStages = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
 									 .accessTypes = VK_ACCESS_INDEX_READ_BIT,
 									 .offset = 0,
@@ -306,8 +306,8 @@ void PlanetRenderNode::recordCommands(VFramegraphContext* context, VkCommandBuff
 	vkCmdSetScissor(targetCommandBuffer, 0, 1, &scissor);
 
 	VkDeviceSize offset = 0;
-	VkBuffer vertexBuffer = context->nativeBufferHandle("Planet vertex data");
-	VkBuffer indexBuffer = context->nativeBufferHandle("Planet index data");
+	VkBuffer vertexBuffer = context->resourceAllocator()->nativeBufferHandle(m_vertexData);
+	VkBuffer indexBuffer = context->resourceAllocator()->nativeBufferHandle(m_indexData);
 
 	vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &vertexBuffer, &offset);
 	vkCmdBindIndexBuffer(targetCommandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
