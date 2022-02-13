@@ -76,10 +76,11 @@ void VGPUModule::onExecute(VEngine& engine) {
 	m_wasSwapchainInvalid = false;
 }
 
-void VGPUModule::onDeactivate(VEngine& engine) {}
+void VGPUModule::onDeactivate(VEngine& engine) {
+	vkDeviceWaitIdle(m_context.device());
+}
 
 void VGPUModule::onDestroy(VEngine& engine) {
-	vkDeviceWaitIdle(m_context.device());
 	for (auto& semaphore : m_signalSemaphores) {
 		vkDestroySemaphore(m_context.device(), semaphore, nullptr);
 	}

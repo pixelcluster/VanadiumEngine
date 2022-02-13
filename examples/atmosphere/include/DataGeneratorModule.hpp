@@ -2,13 +2,14 @@
 
 #include <VModule.hpp>
 #include <modules/gpu/VGPUModule.hpp>
+#include <framegraph_nodes/PlanetRenderNode.hpp>
 #include <modules/window/VWindowModule.hpp>
 #include <modules/gpu/transfer/VGPUTransferManager.hpp>
 #include <glm/glm.hpp>
 #include <numbers>
 
-constexpr size_t pointsPerLatitudeSegment = 128;
-constexpr size_t pointsPerLongitudeSegment = 128;
+constexpr size_t pointsPerLatitudeSegment = 256;
+constexpr size_t pointsPerLongitudeSegment = 256;
 constexpr size_t individualPointsPerLongitudeSegment = pointsPerLongitudeSegment + 1;
 constexpr size_t totalPointCount = pointsPerLatitudeSegment * individualPointsPerLongitudeSegment +
 								   2; // add 2 singularity points at the top of the sphere and at the bottom
@@ -16,6 +17,10 @@ constexpr size_t totalIndexCount = individualPointsPerLongitudeSegment * 6 * poi
 
 struct CameraSceneData {
 	glm::mat4 viewProjection;
+	glm::vec4 screenDim;
+	glm::vec4 camFrustumTopLeft;
+	glm::vec4 camRight;
+	glm::vec4 camUp;
 };
 
 struct VertexData {
@@ -25,7 +30,7 @@ struct VertexData {
 
 class DataGeneratorModule : public VModule {
   public:
-	DataGeneratorModule(VGPUModule* gpuModule, VWindowModule* windowModule);
+	DataGeneratorModule(VGPUModule* gpuModule, PlanetRenderNode* renderNode, VWindowModule* windowModule);
 
 	void onCreate(VEngine& engine);
 	void onActivate(VEngine& engine);
@@ -37,13 +42,9 @@ class DataGeneratorModule : public VModule {
 
 	virtual void onDependentModuleDeactivate(VEngine& engine, VModule* moduleToDestroy) {}
 
-	VBufferResourceHandle vertexBufferHandle() { return m_vertexBufferHandle; }
-	VBufferResourceHandle indexBufferHandle() { return m_indexBufferHandle; }
-	VGPUTransferHandle uboTransferHandle() { return m_sceneDataTransfer; }
-	VImageResourceHandle textureHandle() { return m_texHandle; }
-
   private:
 	VGPUModule* m_gpuModule;
+	PlanetRenderNode* m_renderNode;
 	VWindowModule* m_windowModule;
 
 	glm::vec3 m_camPos = glm::vec3(0.0f, 0.0f, -5.0f);
@@ -56,8 +57,14 @@ class DataGeneratorModule : public VModule {
 
 	VertexData* m_pointBuffer;
 	uint32_t* m_indexBuffer;
+
 	VBufferResourceHandle m_vertexBufferHandle;
 	VBufferResourceHandle m_indexBufferHandle;
 	VImageResourceHandle m_texHandle;
+	VImageResourceHandle m_seaMaskTexHandle;
 	VGPUTransferHandle m_sceneDataTransfer;
+
+	VkDescriptorSetLayout m_sceneDataSetLayout;
+	VkDescriptorSetLayout m_textureSetLayout;
+	VkSampler m_textureSampler;
 };

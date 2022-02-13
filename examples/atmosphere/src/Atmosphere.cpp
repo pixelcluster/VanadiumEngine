@@ -9,13 +9,10 @@ int main() {
 	VEngine engine;
 	VWindowModule* windowModule = engine.createModule<VGLFWWindowModule>(1280, 720, "Planet renderer");
 	VGPUModule* gpuModule = engine.createModule<VGPUModule>("Planet renderer", 0, windowModule);
-	DataGeneratorModule* bufferModule = engine.createModule<DataGeneratorModule>(gpuModule, windowModule);
 
-	gpuModule->framegraphContext().appendNode<PlanetRenderNode>(
-		bufferModule->vertexBufferHandle(),
-		bufferModule->indexBufferHandle(),
-		gpuModule->transferManager().dstBufferHandle(bufferModule->uboTransferHandle()), bufferModule->textureHandle(),
-		totalIndexCount);
+	PlanetRenderNode* renderNode = gpuModule->framegraphContext().appendNode<PlanetRenderNode>();
+
+	DataGeneratorModule* bufferModule = engine.createModule<DataGeneratorModule>(gpuModule, renderNode, windowModule);
 
 	engine.activateModule(windowModule);
 	engine.activateModule(gpuModule);

@@ -159,8 +159,7 @@ class VGPUResourceAllocator {
 	std::optional<VAllocationResult> allocateImage(uint32_t typeIndex, VkDeviceSize alignment, VkDeviceSize size);
 	std::optional<VAllocationResult> allocateInBlock(uint32_t typeIndex, size_t blockIndex, VMemoryBlock& block, VkDeviceSize alignment, VkDeviceSize size,
 											  bool createMapped);
-	//returns true if whole block is free
-	bool freeInBlock(VMemoryBlock& block, VkDeviceSize offset,
+	void freeInBlock(VMemoryBlock& block, VkDeviceSize offset,
 					 VkDeviceSize size);
 	void mergeFreeAreas(VMemoryBlock& block);
 	bool allocateBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped, bool createImageBlock);

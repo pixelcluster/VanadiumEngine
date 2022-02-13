@@ -151,7 +151,7 @@ class VFramegraphContext {
 				VGPUDescriptorSetAllocator* descriptorSetAllocator, VGPUTransferManager* transferManager);
 
 	template <DerivesFrom<VFramegraphNode> T, typename... Args>
-	requires(ConstructibleWith<T, Args...>) VFramegraphNode* appendNode(Args... constructorArgs);
+	requires(ConstructibleWith<T, Args...>) T* appendNode(Args... constructorArgs);
 
 	void setupResources();
 
@@ -267,8 +267,10 @@ class VFramegraphContext {
 };
 
 template <DerivesFrom<VFramegraphNode> T, typename... Args>
-requires(ConstructibleWith<T, Args...>) inline VFramegraphNode* VFramegraphContext::appendNode(
+requires(ConstructibleWith<T, Args...>) inline T* VFramegraphContext::appendNode(
 	Args... constructorArgs) {
 	m_nodes.push_back({ .node = new T(constructorArgs...) });
-	return m_nodes.back().node;
+	//VFramegraphNode might not be defined at this point, but T will contain all of its methods
+	reinterpret_cast<T*>(m_nodes.back().node)->create(this);
+	return reinterpret_cast<T*>(m_nodes.back().node);
 }

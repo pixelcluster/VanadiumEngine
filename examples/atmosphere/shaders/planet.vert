@@ -5,6 +5,10 @@ layout(location = 1) in vec2 texCoord;
 
 layout(set = 0, binding = 0) uniform SceneData {
 	mat4 viewProjection;
+	vec2 screenDim;
+	vec3 camFrustumTopLeft;
+	vec3 camRight;
+	vec3 camUp;
 };
 
 layout(location = 0) out vec2 outTexCoord;

@@ -13,7 +13,7 @@ class SwapchainClearNode : public VFramegraphNode {
 	void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 						const VFramegraphNodeContext& nodeContext) override;
 
-	void destroyResources(VFramegraphContext* context) override {}
+	void destroy(VFramegraphContext* context) override {}
 
   private:
 };

@@ -1,10 +1,13 @@
 #include <DataGeneratorModule.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <numbers>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 
-DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, VWindowModule* windowModule) {
+#include <modules/gpu/helper/ErrorHelper.hpp>
+#include <modules/gpu/helper/TextureImageLoader.hpp>
+#include <volk.h>
+
+DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, PlanetRenderNode* renderNode,
+										 VWindowModule* windowModule) {
 	m_gpuModule = gpuModule;
 	m_windowModule = windowModule;
 	m_pointBuffer = reinterpret_cast<VertexData*>(malloc(sizeof(VertexData) * totalPointCount));
@@ -18,7 +21,7 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, VWindowModule* w
 	float phi = 0.0f;
 	float dPhi = 2.0f * std::numbers::pi_v<float> / static_cast<float>(pointsPerLongitudeSegment);
 
-	// first circle around degenerate point
+	// first circle around singularity point
 	for (size_t i = 0; i < pointsPerLatitudeSegment; ++i) {
 		phi = 0.0f;
 		theta -= dTheta;
@@ -34,7 +37,6 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, VWindowModule* w
 			float cosPhi = cosf(phi);
 
 			m_pointBuffer[index].pos = glm::vec3(cosPhi * sinTheta, cosTheta, -sinPhi * sinTheta);
-		
 
 			m_pointBuffer[index].texCoord.x = 1.0f - phi / (2.0f * std::numbers::pi_v<float>);
 			m_pointBuffer[index].texCoord.y = -theta / std::numbers::pi_v<float>;
@@ -117,39 +119,107 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, VWindowModule* w
 		m_gpuModule->transferManager().createTransfer(sizeof(CameraSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 													  VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
 
-	int channels = 4;
+	m_texHandle =
+		loadTexture("./resources/earth_tex.jpg", &m_gpuModule->resourceAllocator(), &m_gpuModule->transferManager(),
+					VK_IMAGE_USAGE_SAMPLED_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
+					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	m_seaMaskTexHandle =
+		loadTexture("./resources/earth_bathymetry.jpg", &m_gpuModule->resourceAllocator(),
+					&m_gpuModule->transferManager(), VK_IMAGE_USAGE_SAMPLED_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+					VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-	int imageWidth, imageHeight;
+	VkSamplerCreateInfo samplerCreateInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+											  .magFilter = VK_FILTER_LINEAR,
+											  .minFilter = VK_FILTER_LINEAR,
+											  .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+											  .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+											  .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+											  .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT };
+	verifyResult(vkCreateSampler(m_gpuModule->context().device(), &samplerCreateInfo, nullptr, &m_textureSampler));
 
-	void* data = stbi_load("./resources/earth_tex.jpg", &imageWidth, &imageHeight, &channels, channels);
+	VkDescriptorSetLayoutBinding uboBinding = { .binding = 0,
+												.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+												.descriptorCount = 1,
+												.stageFlags =
+													VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT };
+	VkDescriptorSetLayoutCreateInfo setLayoutCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 1, .pBindings = &uboBinding
+	};
+	verifyResult(vkCreateDescriptorSetLayout(m_gpuModule->context().device(), &setLayoutCreateInfo, nullptr,
+											 &m_sceneDataSetLayout));
 
-	VkImageCreateInfo imageCreateInfo = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-										  .imageType = VK_IMAGE_TYPE_2D,
-										  .format = VK_FORMAT_R8G8B8A8_SRGB,
-										  .extent = { .width = static_cast<uint32_t>(imageWidth),
-													  .height = static_cast<uint32_t>(imageHeight),
-													  .depth = 1U },
-										  .mipLevels = 1U,
-										  .arrayLayers = 1U,
-										  .samples = VK_SAMPLE_COUNT_1_BIT,
-										  .tiling = VK_IMAGE_TILING_OPTIMAL,
-										  .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-										  .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-										  .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
+	VkDescriptorSetLayoutBinding texBindings[] = { { .binding = 0,
+													 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+													 .descriptorCount = 1,
+													 .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+													 .pImmutableSamplers = &m_textureSampler },
+												   { .binding = 1,
+													 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+													 .descriptorCount = 1,
+													 .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+													 .pImmutableSamplers = &m_textureSampler } };
+	VkDescriptorSetLayoutCreateInfo texSetLayoutCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 2, .pBindings = texBindings
+	};
+	verifyResult(vkCreateDescriptorSetLayout(m_gpuModule->context().device(), &texSetLayoutCreateInfo, nullptr,
+											 &m_textureSetLayout));
 
-	m_texHandle = m_gpuModule->resourceAllocator().createImage(imageCreateInfo, {}, { .deviceLocal = true });
+	VkImageView view = m_gpuModule->resourceAllocator().requestImageView(
+		m_texHandle, VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+											 .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+																   .baseMipLevel = 0,
+																   .levelCount = VK_REMAINING_MIP_LEVELS,
+																   .baseArrayLayer = 0,
+																   .layerCount = 1 } });
+	VkImageView seaMaskView = m_gpuModule->resourceAllocator().requestImageView(
+		m_seaMaskTexHandle, VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+													.subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+																		  .baseMipLevel = 0,
+																		  .levelCount = VK_REMAINING_MIP_LEVELS,
+																		  .baseArrayLayer = 0,
+																		  .layerCount = 1 } });
 
-	m_gpuModule->transferManager().submitImageTransfer(m_texHandle,
-													   { .imageSubresource = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-																			   .mipLevel = 0,
-																			   .baseArrayLayer = 0,
-																			   .layerCount = 1 },
-														 .imageExtent = { .width = static_cast<uint32_t>(imageWidth),
-																		  .height = static_cast<uint32_t>(imageHeight),
-																		  .depth = 1U } },
-													   data, imageWidth * imageHeight * 4,
-													   VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
-													   VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	auto allocations = m_gpuModule->descriptorSetAllocator().allocateDescriptorSets(
+		{ { .typeInfos = { { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .count = 1 } },
+			.layout = m_sceneDataSetLayout },
+		  { .typeInfos = { { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .count = 1 },
+						   { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .count = 1 } },
+			.layout = m_textureSetLayout } });
+
+	VkDescriptorBufferInfo info = { .buffer = m_gpuModule->resourceAllocator().nativeBufferHandle(
+										m_gpuModule->transferManager().dstBufferHandle(m_sceneDataTransfer)),
+									.offset = 0,
+									.range = VK_WHOLE_SIZE };
+
+	VkDescriptorImageInfo imageInfo = { .imageView = view, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+	VkDescriptorImageInfo seaMaskImageInfo = { .imageView = seaMaskView,
+											   .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+
+	VkWriteDescriptorSet setWrites[3] = { { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+											.dstSet = allocations[0].set,
+											.dstBinding = 0,
+											.dstArrayElement = 0,
+											.descriptorCount = 1,
+											.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+											.pBufferInfo = &info },
+										  { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+											.dstSet = allocations[1].set,
+											.dstBinding = 0,
+											.dstArrayElement = 0,
+											.descriptorCount = 1,
+											.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+											.pImageInfo = &imageInfo },
+										  { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+											.dstSet = allocations[1].set,
+											.dstBinding = 1,
+											.dstArrayElement = 0,
+											.descriptorCount = 1,
+											.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+											.pImageInfo = &seaMaskImageInfo } };
+	vkUpdateDescriptorSets(m_gpuModule->context().device(), 3, setWrites, 0, nullptr);
+
+	renderNode->setupObjects(m_vertexBufferHandle, m_indexBufferHandle, m_sceneDataSetLayout, allocations[0].set,
+							 m_textureSetLayout, allocations[1].set, totalIndexCount);
 }
 
 void DataGeneratorModule::onCreate(VEngine& engine) {}
@@ -195,16 +265,27 @@ void DataGeneratorModule::onExecute(VEngine& engine) {
 			break;
 	}
 
-	CameraSceneData sceneData = { .viewProjection = glm::perspective(glm::radians(65.0f),
-																	 static_cast<float>(m_windowModule->width()) /
-																		 static_cast<float>(m_windowModule->height()),
-																	 0.0f, 200.0f) *
-													glm::lookAt(m_camPos, m_camPos + directionCartesian,
-																glm::cross(directionCartesian, right)) };
+	constexpr float vFoV = glm::radians(65.0f);
+	float tanHalfFoV = tanf(vFoV * 0.5);
+	float aspectRatio = static_cast<float>(m_windowModule->width()) / static_cast<float>(m_windowModule->height());
+	glm::vec3 camUp = glm::cross(directionCartesian, right);
+
+	CameraSceneData sceneData = { .viewProjection = glm::perspective(vFoV, aspectRatio, 0.0f, 200.0f) *
+													glm::lookAt(m_camPos, m_camPos + directionCartesian, camUp),
+								  .screenDim = glm::vec4(static_cast<float>(m_windowModule->width()),
+														 static_cast<float>(m_windowModule->height()), 0.0f, 1.0f),
+								  .camFrustumTopLeft = glm::vec4(
+									  directionCartesian - camUp * tanHalfFoV + right * tanHalfFoV * aspectRatio, 1.0f),
+								  .camRight = glm::vec4(-right * tanHalfFoV * aspectRatio * 2.0f, 1.0f),
+								  .camUp = glm::vec4(camUp * tanHalfFoV * 2.0f, 1.0f) };
 	m_gpuModule->transferManager().updateTransferData(m_sceneDataTransfer, &sceneData);
 }
 
-void DataGeneratorModule::onDeactivate(VEngine& engine) {}
+void DataGeneratorModule::onDeactivate(VEngine& engine) {
+	vkDestroyDescriptorSetLayout(m_gpuModule->context().device(), m_sceneDataSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(m_gpuModule->context().device(), m_textureSetLayout, nullptr);
+	vkDestroySampler(m_gpuModule->context().device(), m_textureSampler, nullptr);
+}
 
 void DataGeneratorModule::onDestroy(VEngine& engine) {
 	free(m_pointBuffer);

@@ -359,20 +359,8 @@ void VGPUResourceAllocator::flushFreeList() {
 			vkDestroyBuffer(m_context->device(), allocation.buffers[0], nullptr);
 		}
 
-		// freeInBlock returns true if the whole block is free - consider destroying it
-		if (freeInBlock(m_memoryTypes[allocation.typeIndex].blocks[allocation.blockIndex],
-						allocation.allocationRange.offset, allocation.allocationRange.size)) {
-			VkDeviceSize totalAllocatableSize = 0;
-			for (auto& block : m_memoryTypes[allocation.typeIndex].blocks) {
-				totalAllocatableSize += block.maxAllocatableSize;
-			}
-			if (totalAllocatableSize > m_bufferBlockFreeThreshold) {
-				vkFreeMemory(m_context->device(),
-							 m_memoryTypes[allocation.typeIndex].blocks[allocation.blockIndex].memoryHandle, nullptr);
-				m_memoryTypes[allocation.typeIndex].blocks.erase(m_memoryTypes[allocation.typeIndex].blocks.begin() +
-																 allocation.blockIndex);
-			}
-		}
+		freeInBlock(m_memoryTypes[allocation.typeIndex].blocks[allocation.blockIndex],
+					allocation.allocationRange.offset, allocation.allocationRange.size);
 	}
 	m_bufferFreeList[m_currentFrameIndex].clear();
 
@@ -382,21 +370,9 @@ void VGPUResourceAllocator::flushFreeList() {
 		}
 		vkDestroyImage(m_context->device(), allocation.image, nullptr);
 
-		if (freeInBlock(m_memoryTypes[allocation.typeIndex].imageBlocks[allocation.blockIndex],
-						allocation.allocationRange.offset - allocation.alignmentMargin,
-						allocation.allocationRange.size + allocation.alignmentMargin)) {
-			VkDeviceSize totalAllocatableSize = 0;
-			for (auto& block : m_memoryTypes[allocation.typeIndex].imageBlocks) {
-				totalAllocatableSize += block.maxAllocatableSize;
-			}
-			if (totalAllocatableSize > m_bufferBlockFreeThreshold) {
-				vkFreeMemory(m_context->device(),
-							 m_memoryTypes[allocation.typeIndex].imageBlocks[allocation.blockIndex].memoryHandle,
-							 nullptr);
-				m_memoryTypes[allocation.typeIndex].imageBlocks.erase(
-					m_memoryTypes[allocation.typeIndex].imageBlocks.begin() + allocation.blockIndex);
-			}
-		}
+		freeInBlock(m_memoryTypes[allocation.typeIndex].imageBlocks[allocation.blockIndex],
+					allocation.allocationRange.offset - allocation.alignmentMargin,
+					allocation.allocationRange.size + allocation.alignmentMargin);
 	}
 	m_imageFreeList[m_currentFrameIndex].clear();
 }
@@ -542,7 +518,7 @@ std::optional<VAllocationResult> VGPUResourceAllocator::allocateInBlock(uint32_t
 	return result;
 }
 
-bool VGPUResourceAllocator::freeInBlock(VMemoryBlock& block, VkDeviceSize offset, VkDeviceSize size) {
+void VGPUResourceAllocator::freeInBlock(VMemoryBlock& block, VkDeviceSize offset, VkDeviceSize size) {
 
 	auto offsetComparator = [](const VMemoryRange& one, const VMemoryRange& other) {
 		return one.offset < other.offset;
@@ -554,7 +530,7 @@ bool VGPUResourceAllocator::freeInBlock(VMemoryBlock& block, VkDeviceSize offset
 		block.freeBlocksOffsetSorted.push_back(range);
 		block.freeBlocksSizeSorted.push_back(range);
 		block.maxAllocatableSize = block.freeBlocksSizeSorted.back().size;
-		return block.freeBlocksSizeSorted.size() == 1 && block.freeBlocksSizeSorted.back().size == block.originalSize;
+		return;
 	}
 
 	VMemoryRange range = { .offset = offset, .size = size };
@@ -580,7 +556,7 @@ bool VGPUResourceAllocator::freeInBlock(VMemoryBlock& block, VkDeviceSize offset
 
 	block.maxAllocatableSize = block.freeBlocksSizeSorted.back().size;
 
-	return block.freeBlocksSizeSorted.size() == 1 && block.freeBlocksSizeSorted.back().size == block.originalSize;
+	return;
 }
 
 void VGPUResourceAllocator::mergeFreeAreas(VMemoryBlock& block) {

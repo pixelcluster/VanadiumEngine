@@ -16,7 +16,7 @@ class HelloTriangleNode : public VFramegraphNode {
 
 	void handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height) override;
 
-	void destroyResources(VFramegraphContext* context) override;
+	void destroy(VFramegraphContext* context) override;
 
   private:
 	VBufferResourceHandle m_vertexData;

@@ -19,12 +19,13 @@ class VGPUModule : public VModule {
 
 	virtual void onDependentModuleDeactivate(VEngine& engine, VModule* moduleToDestroy);
 
+	VGPUContext& context() { return m_context; }
+
 	//No more nodes can be added after the module is activated once
 	VFramegraphContext& framegraphContext() { return m_framegraphContext; }
-
 	VGPUTransferManager& transferManager() { return m_transferManager; }
-
 	VGPUResourceAllocator& resourceAllocator() { return m_resourceAllocator; }
+	VGPUDescriptorSetAllocator& descriptorSetAllocator() { return m_descriptorSetAllocator; }
 
   private:
 	VGPUContext m_context;

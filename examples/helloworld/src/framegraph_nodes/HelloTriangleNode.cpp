@@ -252,7 +252,7 @@ void HelloTriangleNode::handleWindowResize(VFramegraphContext* context, uint32_t
 	m_height = height;
 }
 
-void HelloTriangleNode::destroyResources(VFramegraphContext* context) {
+void HelloTriangleNode::destroy(VFramegraphContext* context) {
 	for (auto& framebuffer : m_framebuffers) {
 		vkDestroyFramebuffer(context->gpuContext()->device(), framebuffer, nullptr);
 	}

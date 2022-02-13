@@ -4,8 +4,8 @@
 [submodule "dependencies/glfw"]
 	path = dependencies/glfw
 	url = https://github.com/glfw/glfw.git
-[submodule "examples/dependencies/stb"]
-	path = examples/dependencies/stb
+[submodule "dependencies/stb"]
+	path = dependencies/stb
 	url = https://github.com/nothings/stb.git
 [submodule "examples/dependencies/glm"]
 	path = examples/dependencies/glm

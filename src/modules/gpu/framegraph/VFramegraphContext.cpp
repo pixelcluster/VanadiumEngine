@@ -498,7 +498,7 @@ void VFramegraphContext::destroy() {
 	}
 
 	for (auto& node : m_nodes) {
-		node.node->destroyResources(this);
+		node.node->destroy(this);
 	}
 
 	for (auto& views : m_swapchainImageViews) {

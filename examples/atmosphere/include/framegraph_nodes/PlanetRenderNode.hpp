@@ -1,34 +1,39 @@
 #pragma once
 
-#include <modules/gpu/framegraph/VFramegraphNode.hpp>
+#include <PlanetObject.hpp>
 #include <glm/glm.hpp>
+#include <modules/gpu/framegraph/VFramegraphNode.hpp>
 
 class PlanetRenderNode : public VFramegraphNode {
   public:
-	PlanetRenderNode(VBufferResourceHandle vertexDataBuffer, VBufferResourceHandle indexDataBuffer,
-					 VBufferResourceHandle sceneDataBuffer, VImageResourceHandle texHandle, uint32_t indexCount);
+	PlanetRenderNode();
+
+	void create(VFramegraphContext* context);
+
+	void setupObjects(VBufferResourceHandle vertexDataBuffer, VBufferResourceHandle indexDataBuffer,
+					  VkDescriptorSetLayout sceneDataLayout, VkDescriptorSet sceneDataSet,
+					  VkDescriptorSetLayout texSetLayout, VkDescriptorSet texSet, uint32_t indexCount);
 
 	void setupResources(VFramegraphContext* context);
 
 	void initResources(VFramegraphContext* context);
 
 	void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-								const VFramegraphNodeContext& nodeContext);
+						const VFramegraphNodeContext& nodeContext);
 
 	void handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height);
 
-	void destroyResources(VFramegraphContext* context);
+	void destroy(VFramegraphContext* context);
+
   private:
 	VBufferResourceHandle m_vertexData;
 	VBufferResourceHandle m_indexData;
-	VBufferResourceHandle m_uboHandle;
-	VImageResourceHandle m_texHandle;
 
 	uint32_t m_indexCount;
 
 	VkSampler m_texSampler;
 
-	VkDescriptorSetLayout m_setLayout;
+	VkDescriptorSetLayout m_uboSetLayout;
 	VkDescriptorSet m_uboSet;
 	VkDescriptorSetLayout m_texSetLayout;
 	VkDescriptorSet m_texSet;
