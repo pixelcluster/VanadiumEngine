@@ -7,6 +7,8 @@ class HelloTriangleNode : public VFramegraphNode {
   public:
 	HelloTriangleNode(VBufferResourceHandle vertexDataHandle);
 
+	void create(VFramegraphContext* context) override {}
+
 	void setupResources(VFramegraphContext* context) override;
 
 	void initResources(VFramegraphContext* context) override {}

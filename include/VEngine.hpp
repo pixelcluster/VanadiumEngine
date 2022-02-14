@@ -7,11 +7,7 @@
 #include <semaphore>
 #include <string_view>
 #include <mutex>
-
-template <typename T, typename... Args>
-concept ConstructibleWith = requires(Args... args) {
-	T(args...);
-};
+#include <concepts>
 
 using VScoreboardingFunction = void (*)(const std::vector<VModule*>& activatedModules,
 										const std::vector<VModuleDependency>& moduleDependencies,
@@ -28,8 +24,8 @@ class VEngine {
 	VEngine& operator=(VEngine&&) = default;
 	~VEngine();
 
-	template <DerivesFrom<VModule> T, typename... Args>
-	requires(ConstructibleWith<T, Args...>) T* createModule(Args... args);
+	template <std::derived_from<VModule> T, typename... Args>
+	requires(std::constructible_from<T, Args...>) T* createModule(Args... args);
 
 	void activateModule(VModule* moduleToActivate);
 	void deactivateModule(VModule* moduleToDeactivate);
@@ -66,8 +62,8 @@ class VEngine {
 	std::mutex m_moduleAccessMutex;
 };
 
-template <DerivesFrom<VModule> T, typename... Args>
-requires(ConstructibleWith<T, Args...>) inline T* VEngine::createModule(Args... args) {
+template <std::derived_from<VModule> T, typename... Args>
+requires(std::constructible_from<T, Args...>) inline T* VEngine::createModule(Args... args) {
 	auto lock = std::unique_lock<std::mutex>(m_moduleAccessMutex);
 	m_modules.push_back(new T(args...));
 	T* result = reinterpret_cast<T*>(m_modules.back());

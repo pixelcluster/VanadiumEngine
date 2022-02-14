@@ -166,15 +166,24 @@ void VGPUContext::create(const std::string_view& appName, uint32_t appVersion, V
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
+	VkCommandPoolCreateInfo poolCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+											   .queueFamilyIndex = m_graphicsQueueFamilyIndex };
+
 	for (size_t i = 0; i < frameInFlightCount; ++i) {
 		verifyResult(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameCompletionFences[i]));
 		verifyResult(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_swapchainImageSemaphores[i]));
+
+		verifyResult(vkCreateCommandPool(m_device, &poolCreateInfo, nullptr, &m_frameCommandPools[i]));
 	}
 
 	m_frameIndex = 0;
 }
 
 void VGPUContext::destroy() {
+	for (auto& pool : m_frameCommandPools) {
+		vkDestroyCommandPool(m_device, pool, nullptr);
+	}
+
 	for (auto& semaphore : m_swapchainImageSemaphores) {
 		vkDestroySemaphore(m_device, semaphore, nullptr);
 	}
@@ -194,12 +203,14 @@ void VGPUContext::destroy() {
 	vkDestroyInstance(m_instance, nullptr);
 }
 
-void VGPUContext::initFrameForAcquiredImage() {
-	verifyResult(vkWaitForFences(m_device, 1, &m_frameCompletionFences[m_frameIndex], VK_TRUE, UINT64_MAX));
-	verifyResult(vkResetFences(m_device, 1, &m_frameCompletionFences[m_frameIndex]));
-}
-
 AcquireResult VGPUContext::acquireImage() {
+	vkResetCommandPool(m_device, m_frameCommandPools[m_frameIndex], 0);
+	m_buffersToSubmit.clear();
+	for (auto& buffer : m_additionalCommandBufferFreeList[m_frameIndex]) {
+		m_freeCommandBuffers[m_frameIndex].push_back(buffer);
+	}
+	m_additionalCommandBufferFreeList[m_frameIndex].clear();
+
 	verifyResult(vkWaitForFences(m_device, 1, &m_frameCompletionFences[m_frameIndex], VK_TRUE, UINT64_MAX));
 	verifyResult(vkResetFences(m_device, 1, &m_frameCompletionFences[m_frameIndex]));
 
@@ -297,4 +308,31 @@ bool VGPUContext::recreateSwapchain(VWindowModule* windowModule, VkImageUsageFla
 	m_swapchainImages.resize(swapchainImageCount);
 	verifyResult(vkGetSwapchainImagesKHR(m_device, m_swapchain, &swapchainImageCount, m_swapchainImages.data()));
 	return true;
+}
+
+VkCommandBuffer VGPUContext::allocateAdditionalCommandBuffer(uint32_t frameIndex) {
+	if (m_freeCommandBuffers[frameIndex].empty()) {
+		VkCommandBufferAllocateInfo allocateInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.commandPool = m_frameCommandPools[frameIndex],
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = 1,
+		};
+		VkCommandBuffer newBuffer;
+		verifyResult(vkAllocateCommandBuffers(m_device, &allocateInfo, &newBuffer));
+		return newBuffer;
+	} else {
+		VkCommandBuffer buffer = m_freeCommandBuffers[frameIndex].back();
+		m_freeCommandBuffers[frameIndex].pop_back();
+		return buffer;
+	}
+}
+
+void VGPUContext::submitAdditionalCommandBuffer(VkCommandBuffer bufferToSubmit) {
+	m_buffersToSubmit.push_back(bufferToSubmit);
+	m_additionalCommandBufferFreeList[m_frameIndex].push_back(bufferToSubmit);
+}
+
+const std::vector<VkCommandBuffer>& VGPUContext::additionalCommandBuffersToSubmit() {
+	return m_buffersToSubmit;
 }

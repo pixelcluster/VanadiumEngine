@@ -46,15 +46,22 @@ class VGPUContext {
 
 	VkFence frameCompletionFence() { return m_frameCompletionFences[m_frameIndex]; }
 
-	void initFrameForAcquiredImage();
-
 	AcquireResult acquireImage();
 	SwapchainState presentImage(uint32_t imageIndex, VkSemaphore waitSemaphore);
 	bool recreateSwapchain(VWindowModule* windowModule, VkImageUsageFlags imageUsageFlags);
 
+	uint32_t frameIndex() const { return m_frameIndex; }
+
 	const std::vector<VkImage>& swapchainImages() { return m_swapchainImages; }
 
 	VkFormat swapchainImageFormat() const { return VK_FORMAT_B8G8R8A8_SRGB; }
+
+	VkCommandPool perFrameCommandPool(uint32_t frameIndex) { return m_frameCommandPools[frameIndex]; }
+	VkCommandBuffer allocateAdditionalCommandBuffer(uint32_t frameIndex);
+
+	void submitAdditionalCommandBuffer(VkCommandBuffer bufferToSubmit);
+
+	const std::vector<VkCommandBuffer>& additionalCommandBuffersToSubmit();
 
   private:
 	VGPUCapabilities m_capabilities = {};
@@ -75,6 +82,10 @@ class VGPUContext {
 	VkSemaphore m_swapchainImageSemaphores[frameInFlightCount];
 	uint32_t m_frameIndex;
 
+	VkCommandPool m_frameCommandPools[frameInFlightCount];
+	std::vector<VkCommandBuffer> m_freeCommandBuffers[frameInFlightCount];
+	std::vector<VkCommandBuffer> m_additionalCommandBufferFreeList[frameInFlightCount];
+	std::vector<VkCommandBuffer> m_buffersToSubmit;
 	VkFence m_frameCompletionFences[frameInFlightCount];
 
 	std::vector<VkImage> m_swapchainImages;

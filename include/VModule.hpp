@@ -8,11 +8,6 @@
 class VEngine;
 class VModule;
 
-template <typename Derived, typename Base>
-concept DerivesFrom = requires(Derived* derived) {
-	static_cast<Base*>(derived);
-};
-
 enum class VOptionVariableType { Int, Float, Bool, String };
 
 struct VOptionVariable {

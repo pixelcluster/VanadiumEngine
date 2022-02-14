@@ -44,14 +44,9 @@ void VFramegraphContext::create(VGPUContext* context, VGPUResourceAllocator* res
 	m_descriptorSetAllocator = descriptorSetAllocator;
 	m_transferManager = transferManager;
 
-	VkCommandPoolCreateInfo poolCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-											   .queueFamilyIndex = m_gpuContext->graphicsQueueFamilyIndex() };
-
 	for (size_t i = 0; i < frameInFlightCount; ++i) {
-		verifyResult(vkCreateCommandPool(m_gpuContext->device(), &poolCreateInfo, nullptr, &m_frameCommandPools[i]));
-
 		VkCommandBufferAllocateInfo allocateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-													 .commandPool = m_frameCommandPools[i],
+													 .commandPool = m_gpuContext->perFrameCommandPool(i),
 													 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 													 .commandBufferCount = 1 };
 		verifyResult(vkAllocateCommandBuffers(m_gpuContext->device(), &allocateInfo, &m_frameCommandBuffers[i]));
@@ -347,7 +342,6 @@ VkCommandBuffer VFramegraphContext::recordFrame(const AcquireResult& result) {
 	updateBarriers(result.imageIndex);
 
 	VkCommandBuffer frameCommandBuffer = m_frameCommandBuffers[result.frameIndex];
-	vkResetCommandPool(m_gpuContext->device(), m_frameCommandPools[result.frameIndex], 0);
 
 	VkCommandBufferBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 										   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
@@ -492,10 +486,6 @@ void VFramegraphContext::handleSwapchainResize(uint32_t width, uint32_t height) 
 }
 
 void VFramegraphContext::destroy() {
-
-	for (auto& pool : m_frameCommandPools) {
-		vkDestroyCommandPool(m_gpuContext->device(), pool, nullptr);
-	}
 
 	for (auto& node : m_nodes) {
 		node.node->destroy(this);

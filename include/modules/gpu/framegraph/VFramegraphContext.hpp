@@ -3,6 +3,7 @@
 #include <modules/gpu/VGPUDescriptorSetAllocator.hpp>
 #include <modules/gpu/VGPUResourceAllocator.hpp>
 #include <modules/gpu/transfer/VGPUTransferManager.hpp>
+#include <concepts>
 
 class VFramegraphNode;
 
@@ -150,8 +151,8 @@ class VFramegraphContext {
 	void create(VGPUContext* context, VGPUResourceAllocator* resourceAllocator,
 				VGPUDescriptorSetAllocator* descriptorSetAllocator, VGPUTransferManager* transferManager);
 
-	template <DerivesFrom<VFramegraphNode> T, typename... Args>
-	requires(ConstructibleWith<T, Args...>) T* appendNode(Args... constructorArgs);
+	template <std::derived_from<VFramegraphNode> T, typename... Args>
+	requires(std::constructible_from<T, Args...>) T* appendNode(Args... constructorArgs);
 
 	void setupResources();
 
@@ -236,7 +237,6 @@ class VFramegraphContext {
 	VGPUDescriptorSetAllocator* m_descriptorSetAllocator;
 	VGPUTransferManager* m_transferManager;
 
-	VkCommandPool m_frameCommandPools[frameInFlightCount];
 	VkCommandBuffer m_frameCommandBuffers[frameInFlightCount];
 
 	std::vector<VFramegraphNodeInfo> m_nodes;
@@ -266,8 +266,8 @@ class VFramegraphContext {
 	std::vector<std::unordered_map<VImageResourceViewInfo, VkImageView>> m_swapchainImageViews = { {} };
 };
 
-template <DerivesFrom<VFramegraphNode> T, typename... Args>
-requires(ConstructibleWith<T, Args...>) inline T* VFramegraphContext::appendNode(
+template <std::derived_from<VFramegraphNode> T, typename... Args>
+requires(std::constructible_from<T, Args...>) inline T* VFramegraphContext::appendNode(
 	Args... constructorArgs) {
 	m_nodes.push_back({ .node = new T(constructorArgs...) });
 	//VFramegraphNode might not be defined at this point, but T will contain all of its methods

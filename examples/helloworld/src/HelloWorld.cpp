@@ -11,7 +11,7 @@ int main() {
 	VGPUModule* gpuModule = engine.createModule<VGPUModule>("Vanadium Hello World", 0, windowModule);
 	VertexBufferUpdateModule* bufferModule = engine.createModule<VertexBufferUpdateModule>(gpuModule, windowModule);
 
-	gpuModule->framegraphContext().appendNode<SwapchainClearNode>();
+	SwapchainClearNode* clearNode = gpuModule->framegraphContext().appendNode<SwapchainClearNode>();
 	gpuModule->framegraphContext().appendNode<HelloTriangleNode>(bufferModule->vertexBufferHandle());
 
 	engine.activateModule(windowModule);
