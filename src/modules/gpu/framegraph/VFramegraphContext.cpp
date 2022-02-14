@@ -54,15 +54,6 @@ void VFramegraphContext::create(VGPUContext* context, VGPUResourceAllocator* res
 }
 
 void VFramegraphContext::setupResources() {
-	for (auto& handle : m_transientBuffers) {
-		m_resourceAllocator->destroyBuffer(m_buffers[handle].resourceHandle);
-	}
-	for (auto& handle : m_transientImages) {
-		m_resourceAllocator->destroyImage(m_images[handle].resourceHandle);
-	}
-
-	m_transientBuffers.clear();
-	m_transientImages.clear();
 	m_nodeBufferMemoryBarriers.resize(m_nodes.size());
 	m_nodeImageMemoryBarriers.resize(m_nodes.size());
 	m_nodeBarrierStages.resize(m_nodes.size());
@@ -84,7 +75,7 @@ void VFramegraphContext::setupResources() {
 VFramegraphBufferHandle VFramegraphContext::declareTransientBuffer(
 	VFramegraphNode* creator, const VFramegraphBufferCreationParameters& parameters,
 	const VFramegraphNodeBufferUsage& usage) {
-	VFramegraphBufferHandle handle = m_buffers.addElement(VFramegraphBufferResource{});
+	VFramegraphBufferHandle handle = m_buffers.addElement(VFramegraphBufferResource{.creationParameters = parameters});
 	m_transientBuffers.push_back(handle);
 
 	auto nodeIterator =
@@ -102,14 +93,14 @@ VFramegraphBufferHandle VFramegraphContext::declareTransientBuffer(
 
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	addUsage(nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
+	addUsage(handle, nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
 	return handle;
 }
 
 VFramegraphImageHandle VFramegraphContext::declareTransientImage(VFramegraphNode* creator,
 																 const VFramegraphImageCreationParameters& parameters,
 																 const VFramegraphNodeImageUsage& usage) {
-	VFramegraphImageHandle handle = m_images.addElement(VFramegraphImageResource{});
+	VFramegraphImageHandle handle = m_images.addElement(VFramegraphImageResource{ .creationParameters = parameters });
 	m_transientImages.push_back(handle);
 
 	auto nodeIterator =
@@ -121,7 +112,7 @@ VFramegraphImageHandle VFramegraphContext::declareTransientImage(VFramegraphNode
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
 	auto usageIterator = m_images.find(handle);
-	addUsage(nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
+	addUsage(handle, nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
 
 	if (usage.viewInfo.has_value()) {
 		nodeIterator->resourceViewInfos.insert(
@@ -151,7 +142,7 @@ VFramegraphBufferHandle VFramegraphContext::declareImportedBuffer(VFramegraphNod
 
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	addUsage(nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
+	addUsage(bufferHandle, nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
 
 	return bufferHandle;
 }
@@ -169,7 +160,7 @@ VFramegraphImageHandle VFramegraphContext::declareImportedImage(VFramegraphNode*
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
 	auto usageIterator = m_images.find(imageHandle);
-	addUsage(nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
+	addUsage(imageHandle, nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
 
 	if (usage.viewInfo.has_value()) {
 		nodeIterator->resourceViewInfos.insert(
@@ -195,7 +186,7 @@ void VFramegraphContext::declareReferencedBuffer(VFramegraphNode* user, VFramegr
 
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	addUsage(nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
+	addUsage(handle, nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
 }
 
 void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, VFramegraphImageHandle handle,
@@ -216,7 +207,7 @@ void VFramegraphContext::declareReferencedImage(VFramegraphNode* user, VFramegra
 
 	size_t nodeIndex = nodeIterator - m_nodes.begin();
 
-	addUsage(nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
+	addUsage(handle, nodeIndex, usageIterator->modifications, usageIterator->reads, usage);
 
 	if (usage.viewInfo.has_value()) {
 		if (nodeIterator == m_nodes.end()) {
@@ -529,9 +520,10 @@ void VFramegraphContext::createImage(VFramegraphImageHandle handle) {
 	m_images[handle].resourceHandle = m_resourceAllocator->createImage(createInfo, {}, { .deviceLocal = true });
 }
 
-void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
+void VFramegraphContext::addUsage(VFramegraphBufferHandle handle, size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
 								  std::vector<VFramegraphNodeBufferAccess>& reads,
 								  const VFramegraphNodeBufferUsage& usage) {
+	m_buffers[handle].usageFlags |= usage.usageFlags;
 	VFramegraphNodeBufferAccess access = {
 		.usingNodeIndex = nodeIndex,
 		.stageFlags = usage.pipelineStages,
@@ -547,6 +539,14 @@ void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeB
 		auto insertIterator = std::lower_bound(reads.begin(), reads.end(), access);
 		reads.insert(insertIterator, access);
 	}
+}
+
+void VFramegraphContext::addUsage(VFramegraphImageHandle handle, size_t nodeIndex,
+								  std::vector<VFramegraphNodeImageAccess>& modifications,
+								  std::vector<VFramegraphNodeImageAccess>& reads,
+								  const VFramegraphNodeImageUsage& usage) {
+	m_images[handle].usage |= usage.usageFlags;
+	addUsage(nodeIndex, modifications, reads, usage);
 }
 
 void VFramegraphContext::addUsage(size_t nodeIndex, std::vector<VFramegraphNodeImageAccess>& modifications,

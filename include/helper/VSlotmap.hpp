@@ -304,7 +304,7 @@ template <typename T> inline T& VSlotmap<T>::elementAt(VSlotmapHandle<T> handle)
 
 template <typename T> inline const T& VSlotmap<T>::elementAt(VSlotmapHandle<T> handle) const {
 	assert(keys.size() > handle.value);
-	assert(eraseMap[keys[handle.value]] == handle);
+	assert(eraseMap[keys[handle.value]] == handle.value);
 	return elements[keys[handle.value]];
 }
 

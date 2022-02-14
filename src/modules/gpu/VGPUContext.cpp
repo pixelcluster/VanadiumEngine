@@ -204,15 +204,15 @@ void VGPUContext::destroy() {
 }
 
 AcquireResult VGPUContext::acquireImage() {
+	verifyResult(vkWaitForFences(m_device, 1, &m_frameCompletionFences[m_frameIndex], VK_TRUE, UINT64_MAX));
+	verifyResult(vkResetFences(m_device, 1, &m_frameCompletionFences[m_frameIndex]));
+
 	vkResetCommandPool(m_device, m_frameCommandPools[m_frameIndex], 0);
 	m_buffersToSubmit.clear();
 	for (auto& buffer : m_additionalCommandBufferFreeList[m_frameIndex]) {
 		m_freeCommandBuffers[m_frameIndex].push_back(buffer);
 	}
 	m_additionalCommandBufferFreeList[m_frameIndex].clear();
-
-	verifyResult(vkWaitForFences(m_device, 1, &m_frameCompletionFences[m_frameIndex], VK_TRUE, UINT64_MAX));
-	verifyResult(vkResetFences(m_device, 1, &m_frameCompletionFences[m_frameIndex]));
 
 	AcquireResult acquireResult;
 	VkResult result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_swapchainImageSemaphores[m_frameIndex],

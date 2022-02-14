@@ -1,0 +1,105 @@
+#include <framegraph_nodes/ScatteringLUTNode.hpp>
+
+void ScatteringLUTNode::create(VFramegraphContext* context) {
+	VkImageSubresourceRange lutSubresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+													.baseMipLevel = 0,
+													.levelCount = 1,
+													.baseArrayLayer = 0,
+													.layerCount = 1 };
+	m_transmittanceLUTHandle = context->declareTransientImage(
+		this,
+		{ .imageType = VK_IMAGE_TYPE_2D,
+		  .format = VK_FORMAT_R32_SFLOAT,
+		  .extent = { .width = 64, .height = 256, .depth = 1 },
+		  .mipLevels = 1,
+		  .arrayLayers = 1,
+		  .samples = VK_SAMPLE_COUNT_1_BIT,
+		  .tiling = VK_IMAGE_TILING_OPTIMAL },
+		{ .pipelineStages = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		  .accessTypes = VK_ACCESS_SHADER_WRITE_BIT,
+		  .startLayout = VK_IMAGE_LAYOUT_GENERAL,
+		  .finishLayout = VK_IMAGE_LAYOUT_GENERAL,
+		  .usageFlags = VK_IMAGE_USAGE_STORAGE_BIT,
+		  .subresourceRange = lutSubresourceRange,
+		  .writes = true,
+		  .viewInfo = VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+											  .components = { .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .a = VK_COMPONENT_SWIZZLE_IDENTITY },
+											  .subresourceRange = lutSubresourceRange } });
+
+	m_skyViewLUTHandle = context->declareTransientImage(
+		this,
+		{ .imageType = VK_IMAGE_TYPE_2D,
+		  .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+		  .extent = { .width = 200, .height = 100, .depth = 1 },
+		  .mipLevels = 1,
+		  .arrayLayers = 1,
+		  .samples = VK_SAMPLE_COUNT_1_BIT,
+		  .tiling = VK_IMAGE_TILING_OPTIMAL },
+		{ .pipelineStages = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		  .accessTypes = VK_ACCESS_SHADER_WRITE_BIT,
+		  .startLayout = VK_IMAGE_LAYOUT_GENERAL,
+		  .finishLayout = VK_IMAGE_LAYOUT_GENERAL,
+		  .usageFlags = VK_IMAGE_USAGE_STORAGE_BIT,
+		  .subresourceRange = lutSubresourceRange,
+		  .writes = true,
+		  .viewInfo = VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+											  .components = { .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .a = VK_COMPONENT_SWIZZLE_IDENTITY },
+											  .subresourceRange = lutSubresourceRange } });
+
+	m_aerialPerspectiveLUTHandle = context->declareTransientImage(
+		this,
+		{ .imageType = VK_IMAGE_TYPE_3D,
+		  .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+		  .extent = { .width = 32, .height = 32, .depth = 32 },
+		  .mipLevels = 1,
+		  .arrayLayers = 1,
+		  .samples = VK_SAMPLE_COUNT_1_BIT,
+		  .tiling = VK_IMAGE_TILING_OPTIMAL },
+		{ .pipelineStages = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		  .accessTypes = VK_ACCESS_SHADER_WRITE_BIT,
+		  .startLayout = VK_IMAGE_LAYOUT_GENERAL,
+		  .finishLayout = VK_IMAGE_LAYOUT_GENERAL,
+		  .usageFlags = VK_IMAGE_USAGE_STORAGE_BIT,
+		  .subresourceRange = lutSubresourceRange,
+		  .writes = true,
+		  .viewInfo = VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_3D,
+											  .components = { .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .a = VK_COMPONENT_SWIZZLE_IDENTITY },
+											  .subresourceRange = lutSubresourceRange } });
+
+	m_multiscatterLUTHandle = context->declareTransientImage(
+		this,
+		{ .imageType = VK_IMAGE_TYPE_3D,
+		  .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+		  .extent = { .width = 32, .height = 32, .depth = 32 },
+		  .mipLevels = 1,
+		  .arrayLayers = 1,
+		  .samples = VK_SAMPLE_COUNT_1_BIT,
+		  .tiling = VK_IMAGE_TILING_OPTIMAL },
+		{ .pipelineStages = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		  .accessTypes = VK_ACCESS_SHADER_WRITE_BIT,
+		  .startLayout = VK_IMAGE_LAYOUT_GENERAL,
+		  .finishLayout = VK_IMAGE_LAYOUT_GENERAL,
+		  .usageFlags = VK_IMAGE_USAGE_STORAGE_BIT,
+		  .subresourceRange = lutSubresourceRange,
+		  .writes = true,
+		  .viewInfo = VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_3D,
+											  .components = { .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+															  .a = VK_COMPONENT_SWIZZLE_IDENTITY },
+											  .subresourceRange = lutSubresourceRange } });
+}
+
+void ScatteringLUTNode::setupResources(VFramegraphContext* context) {}
+
+void ScatteringLUTNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+									   const VFramegraphNodeContext& nodeContext) {}

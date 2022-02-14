@@ -92,7 +92,7 @@ void main() {
 	vec3 lightDir = normalize(sphereNormal - vec3(3.0f, 0.5f, 0.0));
 	vec3 viewDir = -normalize(sphereNormal - camPos);
 
-	float roughness2 = mix(1.0f, 0.001f, seaFactor);
+	float roughness2 = mix(1.0f, 0.05f, seaFactor);
 	float ior = mix(1.86, 1.333f, seaFactor);
 	float strength = mix(4.0f, 20.0f, seaFactor);
 	float specularStrength = mix(1.0f, 500.0f, seaFactor);

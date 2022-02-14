@@ -14,6 +14,7 @@ struct VFramegraphNodeBufferUsage {
 	VkDeviceSize offset;
 	VkDeviceSize size;
 	bool writes;
+	VkBufferUsageFlags usageFlags;
 };
 
 struct VFramegraphBufferBarrier {
@@ -39,7 +40,6 @@ inline bool operator<(const VFramegraphNodeBufferAccess& one, const VFramegraphN
 
 struct VFramegraphNodeImageUsage {
 	VkPipelineStageFlags pipelineStages;
-	VkImageAspectFlags aspectFlags;
 	VkAccessFlags accessTypes;
 	VkImageLayout startLayout;
 	VkImageLayout finishLayout;
@@ -209,8 +209,10 @@ class VFramegraphContext {
 	void createBuffer(VFramegraphBufferHandle handle);
 	void createImage(VFramegraphImageHandle handle);
 
-	void addUsage(size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
+	void addUsage(VFramegraphBufferHandle handle, size_t nodeIndex, std::vector<VFramegraphNodeBufferAccess>& modifications,
 				  std::vector<VFramegraphNodeBufferAccess>& reads, const VFramegraphNodeBufferUsage& usage);
+	void addUsage(VFramegraphImageHandle handle, size_t nodeIndex, std::vector<VFramegraphNodeImageAccess>& modifications,
+				  std::vector<VFramegraphNodeImageAccess>& reads, const VFramegraphNodeImageUsage& usage);
 	void addUsage(size_t nodeIndex, std::vector<VFramegraphNodeImageAccess>& modifications,
 				  std::vector<VFramegraphNodeImageAccess>& reads, const VFramegraphNodeImageUsage& usage);
 

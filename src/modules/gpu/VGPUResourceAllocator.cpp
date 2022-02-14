@@ -447,7 +447,7 @@ std::optional<VAllocationResult> VGPUResourceAllocator::allocateImage(uint32_t t
 	size_t blockIndex = 0;
 	for (auto& block : m_memoryTypes[typeIndex].imageBlocks) {
 		if (block.maxAllocatableSize >= size) {
-			auto result = allocateInBlock(typeIndex, blockIndex, m_memoryTypes[typeIndex].blocks[blockIndex], alignment,
+			auto result = allocateInBlock(typeIndex, blockIndex, m_memoryTypes[typeIndex].imageBlocks[blockIndex], alignment,
 										  size, false);
 			if (result.has_value())
 				return result;
