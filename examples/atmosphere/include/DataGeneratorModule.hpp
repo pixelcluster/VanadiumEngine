@@ -17,10 +17,7 @@ constexpr size_t totalIndexCount = individualPointsPerLongitudeSegment * 6 * poi
 
 struct CameraSceneData {
 	glm::mat4 viewProjection;
-	glm::vec4 screenDim;
-	glm::vec4 camFrustumTopLeft;
-	glm::vec4 camRight;
-	glm::vec4 camUp;
+	glm::vec4 camPos;
 };
 
 struct VertexData {

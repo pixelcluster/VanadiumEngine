@@ -9,10 +9,7 @@ layout(location = 1) in vec3 sphereNormal;
 
 layout(set = 0, binding = 0) uniform SceneData {
 	mat4 viewProjection;
-	vec2 screenDim;
-	vec3 camFrustumTopLeft;
-	vec3 camRight;
-	vec3 camUp;
+	vec3 camPos;
 };
 
 layout(set = 1, binding = 0) uniform sampler2D tex;
@@ -80,7 +77,7 @@ float torranceSparrowBRDF(float roughness2, vec3 wi, vec3 wo, vec3 normal, float
 	float sin2ThetaH = 1.0f - cos2ThetaH;
 	float tan2ThetaH = sin2ThetaH / cos2ThetaH;
 
-	float cosThetaI = max(dot(wi, normal), 0.0f);
+	float cosThetaI = abs(dot(wi, normal));
 	float cosThetaO = abs(dot(wo, normal));
 
 	if(cosThetaI == 0.0f)
@@ -91,20 +88,18 @@ float torranceSparrowBRDF(float roughness2, vec3 wi, vec3 wo, vec3 normal, float
 
 void main() {
 	//https://en.wikipedia.org/wiki/Relative_luminance
-	bool isSea = dot(texture(seaMask, inTexCoord).rgb, vec3(0.2126, 0.7152, 0.0722)) > 0.01f;
-	vec3 lightDir = normalize(sphereNormal - vec3(-3.0f, 0.0f, 0.0));
-	vec2 normalizedScreenCoords = (gl_FragCoord.xy - vec2(0.5f)) / screenDim;
-	vec3 viewDir = normalize(camFrustumTopLeft + normalizedScreenCoords.x * camRight + normalizedScreenCoords.y * camUp);
+	float seaFactor = clamp(dot(texture(seaMask, inTexCoord).rgb, vec3(0.2126, 0.7152, 0.0722)), 0.0f, 1.0f);
+	vec3 lightDir = normalize(sphereNormal - vec3(3.0f, 0.5f, 0.0));
+	vec3 viewDir = -normalize(sphereNormal - camPos);
 
-	float roughness2, ior;
-	if(isSea) {
-		roughness2 = 0.001f;
-		ior = 1.333f;
-	}
-	else {
-		roughness2 = 1.5f;
-		ior = 1.86f;
-	}
+	float roughness2 = mix(1.0f, 0.001f, seaFactor);
+	float ior = mix(1.86, 1.333f, seaFactor);
+	float strength = mix(4.0f, 20.0f, seaFactor);
+	float specularStrength = mix(1.0f, 500.0f, seaFactor);
 
-	outColor = vec4(texture(tex, inTexCoord).rgb * torranceSparrowBRDF(roughness2, -lightDir, viewDir, sphereNormal, ior) * 500.0f, 1.0f);
+	vec3 baseColor = texture(tex, inTexCoord).rgb;
+	float specular = torranceSparrowBRDF(roughness2, -lightDir, viewDir, sphereNormal, ior) * specularStrength;
+	float lightingFactor = (specular + 1.0f / PI) * clamp(dot(-lightDir, sphereNormal), 0.0f, 1.0f) * strength;
+
+	outColor = vec4(baseColor * (lightingFactor + 0.01f), 1.0f);
 }

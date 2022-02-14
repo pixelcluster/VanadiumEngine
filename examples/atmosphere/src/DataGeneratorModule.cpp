@@ -272,12 +272,7 @@ void DataGeneratorModule::onExecute(VEngine& engine) {
 
 	CameraSceneData sceneData = { .viewProjection = glm::perspective(vFoV, aspectRatio, 0.0f, 200.0f) *
 													glm::lookAt(m_camPos, m_camPos + directionCartesian, camUp),
-								  .screenDim = glm::vec4(static_cast<float>(m_windowModule->width()),
-														 static_cast<float>(m_windowModule->height()), 0.0f, 1.0f),
-								  .camFrustumTopLeft = glm::vec4(
-									  directionCartesian - camUp * tanHalfFoV + right * tanHalfFoV * aspectRatio, 1.0f),
-								  .camRight = glm::vec4(-right * tanHalfFoV * aspectRatio * 2.0f, 1.0f),
-								  .camUp = glm::vec4(camUp * tanHalfFoV * 2.0f, 1.0f) };
+								  .camPos = glm::vec4(m_camPos, 1.0f) };
 	m_gpuModule->transferManager().updateTransferData(m_sceneDataTransfer, &sceneData);
 }
 

@@ -14,7 +14,7 @@ file(GLOB SHADERS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/shaders")
 
 file(DOWNLOAD "https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74218/world.200412.3x5400x2700.jpg" "${CMAKE_CURRENT_BINARY_DIR}/resources/earth_tex.jpg" SHOW_PROGRESS)
-file(DOWNLOAD "https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73963/gebco_08_rev_bath_3600x1800_color.jpg" "${CMAKE_CURRENT_BINARY_DIR}/resources/earth_bathymetry.jpg" SHOW_PROGRESS)
+file(DOWNLOAD "http://planetpixelemporium.com/download/download.php?8081/earthspec10k.jpg" "${CMAKE_CURRENT_BINARY_DIR}/resources/earth_bathymetry.jpg" SHOW_PROGRESS)
 
 foreach(SHADER IN LISTS SHADERS)
 	get_filename_component(FILENAME ${SHADER} NAME_WLE)
