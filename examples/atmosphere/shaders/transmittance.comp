@@ -9,8 +9,7 @@ const float pi3 = pi * pi * pi;
 const uint nSamples = 40;
 
 layout(push_constant) uniform Constants {
-	ivec3 executionDimensions;
-	ivec3 lutSize;
+	ivec2 lutSize;
 	vec3 betaExtinctionZeroMie;
 	float heightScaleRayleigh;
 	float heightScaleMie;

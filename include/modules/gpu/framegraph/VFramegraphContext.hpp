@@ -192,6 +192,7 @@ class VFramegraphContext {
 	VkBuffer nativeBufferHandle(VFramegraphBufferHandle handle);
 	VkImage nativeImageHandle(VFramegraphImageHandle handle);
 
+	VkImageView imageView(VFramegraphNode* node, VFramegraphImageHandle handle);
 	VkImageView swapchainImageView(VFramegraphNode* node, uint32_t index);
 
 	VkBufferUsageFlags bufferUsageFlags(VFramegraphBufferHandle handle);

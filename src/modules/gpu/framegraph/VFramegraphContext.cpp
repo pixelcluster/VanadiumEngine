@@ -69,6 +69,13 @@ void VFramegraphContext::setupResources() {
 		createImage(handle);
 	}
 
+	for (auto& node : m_nodes) {
+		for (auto& info : node.resourceViewInfos) {
+			m_resourceAllocator->requestImageView(m_images[info.first].resourceHandle, info.second);
+		}
+		node.node->initResources(this);
+	}
+
 	updateDependencyInfo();
 }
 
@@ -306,6 +313,18 @@ VkImage VFramegraphContext::nativeImageHandle(VFramegraphImageHandle handle) {
 		}
 	}
 	return m_resourceAllocator->nativeImageHandle(m_images[handle].resourceHandle);
+}
+
+VkImageView VFramegraphContext::imageView(VFramegraphNode* node, VFramegraphImageHandle handle) {
+	auto nodeIterator =
+		std::find_if(m_nodes.begin(), m_nodes.end(), [node](const auto& info) { return info.node == node; });
+	if (nodeIterator == m_nodes.end()) {
+		printf("invalid node for dependency!\n");
+		return VK_NULL_HANDLE;
+	}
+
+	size_t nodeIndex = nodeIterator - m_nodes.begin();
+	return m_resourceAllocator->requestImageView(m_images[handle].resourceHandle, nodeIterator->resourceViewInfos[handle]);
 }
 
 VkImageView VFramegraphContext::swapchainImageView(VFramegraphNode* node, uint32_t index) {

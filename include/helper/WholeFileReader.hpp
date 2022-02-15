@@ -4,7 +4,7 @@
 #include <limits>
 #include <malloc.h>
 
-void* readFile(const char* name, size_t* fileSize) { 
+inline void* readFile(const char* name, size_t* fileSize) { 
 	auto stream = std::ifstream(name, std::ios_base::binary);
 	if (!stream.is_open()) {
 		*fileSize = 0;
