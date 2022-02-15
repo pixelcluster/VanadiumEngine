@@ -1,0 +1,75 @@
+#version 450 core
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, rgba32f) uniform writeonly image2D transmittanceLUT;
+
+const float pi = 3.14159265359;
+const float pi3 = pi * pi * pi;
+const uint nSamples = 40;
+
+layout(push_constant) uniform Constants {
+	ivec3 executionDimensions;
+	ivec3 lutSize;
+	vec3 betaExtinctionZeroMie;
+	float heightScaleRayleigh;
+	float heightScaleMie;
+	float iorAir;
+	float molecularDensity;
+	float maxHeight;
+	float groundRadius;
+};
+
+vec3 betaExtinctionRayleigh(float height) {
+	float diffIorAir = (iorAir * iorAir - 1);
+	vec3 lambda = vec3(680, 550, 440) * 1e-9;
+	vec3 lambda4 = lambda * lambda * lambda * lambda;
+	return 8 * pi3 * diffIorAir * diffIorAir / (3 * molecularDensity * lambda4) * exp(-height / heightScaleRayleigh);
+}
+
+vec3 betaExtinctionMie(float height) {
+	return betaExtinctionZeroMie * exp(-height / heightScaleMie);
+}
+
+void main() {
+	ivec2 imageCoordinate = ivec2(gl_LocalInvocationID.xy) * ivec2(gl_WorkGroupID.xy);
+	vec2 normalizedCoordinates = imageCoordinate / vec2(lutSize);
+
+	float startHeight = maxHeight * normalizedCoordinates.x;
+	float cosTheta = normalizedCoordinates.y * 2.0f - 1.0f;
+	vec3 startPos = vec3(0.0f, groundRadius + startHeight, 0.0f);
+	vec3 direction = vec3(sqrt(1.0f - cosTheta * cosTheta), cosTheta, 0.0f);
+
+	float endPosT = 1.0f;
+	float radius = groundRadius + maxHeight;
+	vec3 centerToOrigin = -startPos;
+
+	float dirDotCTO = dot(direction, centerToOrigin);
+
+	float discriminant = pow(2 * dirDotCTO, 2) - 4.0f * (dot(centerToOrigin, centerToOrigin) - radius * radius);
+
+	if(discriminant >= 0.0) {
+		float q;
+		if(dirDotCTO > 0.0f) {
+			q = -1.0f * dirDotCTO - sqrt(discriminant);
+		}
+		else {
+			q = -1.0f * dirDotCTO + sqrt(discriminant);
+		}
+		endPosT = min(q, (dot(centerToOrigin, centerToOrigin) - radius * radius) / q);
+	}
+
+	float deltaT = endPosT / nSamples;
+	vec3 currentPos = vec3(0.0f, startHeight, 0.0f);
+	
+	vec3 result = vec3(0.0f);
+
+	for(uint i = 0; i < nSamples; ++i, currentPos += direction * deltaT) {
+		result += betaExtinctionMie(currentPos.y) + betaExtinctionRayleigh(currentPos.y);
+	}
+	result /= endPosT;
+
+	if(imageCoordinate.x < lutSize.x && imageCoordinate.y < lutSize.y) {
+		imageStore(transmittanceLUT, imageCoordinate, vec4(result, 1.0f));
+	}
+}

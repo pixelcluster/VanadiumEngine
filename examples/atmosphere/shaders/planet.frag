@@ -1,6 +1,4 @@
 #version 450 core
-//editor config
-//! #extension GL_KHR_vulkan_glsl : require
 
 layout(location = 0) out vec4 outColor;
 
@@ -90,16 +88,19 @@ void main() {
 	//https://en.wikipedia.org/wiki/Relative_luminance
 	float seaFactor = clamp(dot(texture(seaMask, inTexCoord).rgb, vec3(0.2126, 0.7152, 0.0722)), 0.0f, 1.0f);
 	vec3 lightDir = normalize(sphereNormal - vec3(3.0f, 0.5f, 0.0));
+	vec3 lightColor = vec3(1.5f, 1.0f, 0.5f);
 	vec3 viewDir = -normalize(sphereNormal - camPos);
 
-	float roughness2 = mix(1.0f, 0.05f, seaFactor);
-	float ior = mix(1.86, 1.333f, seaFactor);
-	float strength = mix(4.0f, 20.0f, seaFactor);
-	float specularStrength = mix(1.0f, 500.0f, seaFactor);
-
 	vec3 baseColor = texture(tex, inTexCoord).rgb;
+	float baseColorLuminance = dot(baseColor, vec3(0.2126, 0.7152, 0.0722));
+
+	float roughness2 = mix(1.0f, 0.01f, seaFactor);
+	float ior = mix(1.86, 1.333f, seaFactor);
+	float strength = mix(4.0f, 50.0f, (1.0f - smoothstep(0.0f, 0.009f, baseColorLuminance)) * seaFactor);
+	float specularStrength = mix(1.0f, 100.0f, (1.0f - smoothstep(0.0f, 0.009f, baseColorLuminance)) * seaFactor);
+
 	float specular = torranceSparrowBRDF(roughness2, -lightDir, viewDir, sphereNormal, ior) * specularStrength;
 	float lightingFactor = (specular + 1.0f / PI) * clamp(dot(-lightDir, sphereNormal), 0.0f, 1.0f) * strength;
 
-	outColor = vec4(baseColor * (lightingFactor + 0.01f), 1.0f);
+	outColor = vec4(baseColor * (lightingFactor * lightColor + 0.01f), 1.0f);
 }

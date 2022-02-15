@@ -9,7 +9,7 @@ void ScatteringLUTNode::create(VFramegraphContext* context) {
 	m_transmittanceLUTHandle = context->declareTransientImage(
 		this,
 		{ .imageType = VK_IMAGE_TYPE_2D,
-		  .format = VK_FORMAT_R32_SFLOAT,
+		  .format = VK_FORMAT_R32G32B32A32_SFLOAT,
 		  .extent = { .width = 64, .height = 256, .depth = 1 },
 		  .mipLevels = 1,
 		  .arrayLayers = 1,
