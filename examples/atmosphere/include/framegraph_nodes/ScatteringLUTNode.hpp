@@ -5,7 +5,7 @@
 
 struct TransmittanceComputeData {
 	glm::ivec4 lutSize;
-	glm::vec4 betaExtinctionZeroMie;
+	glm::vec3 betaExtinctionZeroMie;
 	float heightScaleRayleigh;
 	float heightScaleMie;
 	float iorAir;

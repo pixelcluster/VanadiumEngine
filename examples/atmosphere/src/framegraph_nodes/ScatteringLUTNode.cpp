@@ -13,7 +13,7 @@ void ScatteringLUTNode::create(VFramegraphContext* context) {
 		this,
 		{ .imageType = VK_IMAGE_TYPE_2D,
 		  .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-		  .extent = { .width = 64, .height = 256, .depth = 1 },
+		  .extent = { .width = 256, .height = 64, .depth = 1 },
 		  .mipLevels = 1,
 		  .arrayLayers = 1,
 		  .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -176,13 +176,13 @@ void ScatteringLUTNode::initResources(VFramegraphContext* context) {
 
 void ScatteringLUTNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 									   const VFramegraphNodeContext& nodeContext) {
-	TransmittanceComputeData transmittanceData = { .lutSize = glm::ivec4(64, 256, 1, 1),
-												   .betaExtinctionZeroMie = glm::vec4(5.8f, 13.5f, 33.1f, 1e6f) * 1e-6f,
+	TransmittanceComputeData transmittanceData = { .lutSize = glm::ivec4(256, 64, 1, 1),
+												   .betaExtinctionZeroMie = glm::vec3(5.8f, 13.5f, 33.1f) * 1e-6f,
 												   .heightScaleRayleigh = 8,
 												   .heightScaleMie = 1.2,
 												   .iorAir = 1.00029,
 												   .molecularDensity = 1.2041,
-												   .maxHeight = 60.0f,
+												   .maxHeight = 100.0f,
 												   .groundRadius = 6360.0f };
 
 	vkCmdBindPipeline(targetCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_transmittanceComputationPipeline);
@@ -191,7 +191,7 @@ void ScatteringLUTNode::recordCommands(VFramegraphContext* context, VkCommandBuf
 							nullptr);
 	vkCmdPushConstants(targetCommandBuffer, m_transmittanceComputationPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
 					   sizeof(TransmittanceComputeData), &transmittanceData);
-	vkCmdDispatch(targetCommandBuffer, 8, 24, 1);
+	vkCmdDispatch(targetCommandBuffer, 32, 8, 1);
 }
 
 void ScatteringLUTNode::destroy(VFramegraphContext* context) {
