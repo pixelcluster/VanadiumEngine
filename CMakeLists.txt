@@ -5,6 +5,12 @@ project ("VanadiumEngine")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+option(USE_TESTS "Build and run tests" ON)
+
+if(${USE_TESTS}) 
+	enable_testing()
+endif()
+
 add_subdirectory(dependencies/glfw)
 add_subdirectory(dependencies/volk)
 

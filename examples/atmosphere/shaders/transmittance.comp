@@ -1,5 +1,7 @@
 #version 450 core
 
+#extension GL_GOOGLE_include_directive : require
+
 layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(set = 0, binding = 0, rgba32f) uniform writeonly image2D transmittanceLUT;
@@ -34,57 +36,7 @@ void uvToHeightCosTheta(vec2 uv, out float height, out float cosTheta) {
 	cosTheta = clamp(cosTheta, -1.0, 1.0);
 }
 
-float opticalLengthToX0(vec2 x, vec2 direction, float endPosT, float heightScale) {
-	float deltaT = endPosT / nSamples;
-	vec2 currentPos = vec2(0.0f, x.y);
-	
-	float result = 0.0f;
-
-	return result;
-}
-
-vec3 betaExtinctionRayleigh(float height) {
-	float diffIorAir = (iorAir * iorAir - 1);
-	vec3 lambda = vec3(680, 550, 440) * 1e-9;
-	vec3 lambda4 = lambda * lambda * lambda * lambda;
-	return 8 * pi3 * diffIorAir * diffIorAir / (3 * molecularDensity * lambda4) * exp(-(height - groundRadius) / heightScaleRayleigh);
-}
-
-vec3 betaExtinctionMie(float height) {
-	return /*betaExtinctionZeroMie **/ exp(-(height - groundRadius) / heightScaleMie).xxx;
-}
-
-float nearestDistanceToSphere(float startHeight, vec2 direction, float radius) {
-	vec2 centerToOrigin = vec2(0.0f, -startHeight);
-
-	float dirDotCTO = dot(direction, centerToOrigin);
-
-	float discriminant = pow(2 * dirDotCTO, 2) - 4.0f * (dot(centerToOrigin, centerToOrigin) - radius * radius);
-
-	if(discriminant >= 0.0) {
-		float q;
-		if(dirDotCTO > 0.0f) {
-			q = -1.0f * dirDotCTO - sqrt(discriminant);
-		}
-		else {
-			q = -1.0f * dirDotCTO + sqrt(discriminant);
-		}
-		float q1 = (dot(centerToOrigin, centerToOrigin) - radius * radius) / q;
-		float result;
-		if(q < 0.0f) {
-			if(q1 < 0.0f)
-				return max(q, q1);
-			else
-				return q1;
-		}
-		else if(q1 < 0.0f) {
-			return q;
-		}
-		else {
-			return min(q, q1);
-		}
-	}
-}
+#include "functions/transmittance-compute.glsl"
 
 void main() {
 	ivec2 imageCoordinate = ivec2(gl_LocalInvocationID.xy) + ivec2(gl_WorkGroupID.xy) * ivec2(gl_WorkGroupSize.xy);
@@ -103,15 +55,8 @@ void main() {
 	else
 		endPosT = min(tTop, tGround);
 
-	vec3 result = vec3(0.0f);
-	vec2 currentPos = vec2(0.0f, startHeight);
-	float deltaT = endPosT / nSamples;
-	for(uint i = 0; i < nSamples; ++i, currentPos += direction * deltaT) {
-		result += (/*betaExtinctionRayleigh(length(currentPos)) +*/ betaExtinctionMie(length(currentPos))) * deltaT;
-	}
-	result = endPosT.xxx;//exp(-result);
 
 	if(imageCoordinate.x < lutSize.x && imageCoordinate.y < lutSize.y) {
-		imageStore(transmittanceLUT, imageCoordinate, vec4(result, 1.0f));
+		imageStore(transmittanceLUT, imageCoordinate, vec4(calcTransmittance(vec2(0.0f, startHeight), direction, endPosT), 1.0f));
 	}
 }

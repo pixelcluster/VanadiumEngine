@@ -21,6 +21,10 @@ foreach(SHADER IN LISTS SHADERS)
 	get_filename_component(EXTENSION ${SHADER} LAST_EXT)
 	get_filename_component(SOURCEPATH ${SHADER} ABSOLUTE)
 
+	if(EXTENSION STREQUAL "")
+		continue()
+	endif()
+
 	string(SUBSTRING ${EXTENSION} 1 -1 EXTENSION)
 
 	list(APPEND SHADER_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/depend-dummy-${FILENAME}.${EXTENSION}")
