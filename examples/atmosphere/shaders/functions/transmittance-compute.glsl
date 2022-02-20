@@ -1,14 +1,11 @@
 //? #version 450 core
 
 vec3 betaExtinctionRayleigh(float height) {
-	float diffIorAir = (iorAir * iorAir - 1);
-	vec3 lambda = vec3(680.0f, 550.0f, 440.0f) * 1e-9f;
-	vec3 lambda4 = lambda * lambda * lambda * lambda;
-	return 8 * pi3 * diffIorAir * diffIorAir / (3 * molecularDensity * lambda4) * exp(-(height - groundRadius) / heightScaleRayleigh);
+	return betaExtinctionZeroRayleigh.rgb * 5.0f * exp(-(height - groundRadius) / heightScaleRayleigh);
 }
 
 vec3 betaExtinctionMie(float height) {
-	return betaExtinctionZeroMie * vec3(exp(-(height - groundRadius) / heightScaleMie));
+	return betaExtinctionZeroMie.rgb * vec3(exp(-(height - groundRadius) / heightScaleMie));
 }
 
 // https://github.com/sebh/UnrealEngineSkyAtmosphere/blob/master/Resources/SkyAtmosphereCommon.hlsl#L142 ported to GLSL with minor modifications
@@ -20,8 +17,9 @@ vec3 betaExtinctionMie(float height) {
 float nearestDistanceToSphere(float h0, vec2 rd, float sR)
 {
 	float a = dot(rd, rd);
-	float b = 2.0f * rd.y * h0;
-	float c = (h0 * h0) - (sR * sR);
+	vec2 s0_r0 = vec2(0.0f, h0) - vec2(0.0f);
+	float b = 2.0 * dot(rd, s0_r0);
+	float c = dot(s0_r0, s0_r0) - (sR * sR);
 	float delta = b * b - 4.0f * a * c;
 	if (delta < 0.0f || a == 0.0f)
 	{
@@ -46,11 +44,19 @@ float nearestDistanceToSphere(float h0, vec2 rd, float sR)
 
 vec3 calcTransmittance(vec2 startPos, vec2 direction, float endPosT) {
 	vec3 result = vec3(0.0f);
+
 	vec2 currentPos = startPos;
 	float deltaT = endPosT / nSamples;
+
+	vec3 lastMieExtinction = betaExtinctionMie(length(startPos));
+	vec3 lastRayleighExtinction = betaExtinctionRayleigh(length(startPos));
 	for(uint i = 0; i < nSamples; ++i, currentPos += direction * deltaT) {
-		result += (/*betaExtinctionRayleigh(length(currentPos)) +*/ betaExtinctionMie(length(currentPos))) / deltaT;
+		vec3 mieExtinction = betaExtinctionMie(length(currentPos));
+		vec3 rayleighExtinction = betaExtinctionRayleigh(length(currentPos));
+		result += ((rayleighExtinction + lastRayleighExtinction + mieExtinction + lastMieExtinction) * 0.5f) * deltaT;
+		lastMieExtinction = mieExtinction;
+		lastRayleighExtinction = rayleighExtinction;
 	}
-	//result = vec3(endPosT);//exp(-result);
+	result = exp(-result);
 	return result;
 }

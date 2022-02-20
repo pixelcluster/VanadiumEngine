@@ -11,12 +11,11 @@ const float pi3 = pi * pi * pi;
 const uint nSamples = 40;
 
 layout(push_constant) uniform Constants {
-	ivec2 lutSize;
-	vec3 betaExtinctionZeroMie;
+	ivec4 lutSize;
+	vec4 betaExtinctionZeroMie;
+	vec4 betaExtinctionZeroRayleigh;
 	float heightScaleRayleigh;
 	float heightScaleMie;
-	float iorAir;
-	float molecularDensity;
 	float maxHeight;
 	float groundRadius;
 };
@@ -40,7 +39,7 @@ void uvToHeightCosTheta(vec2 uv, out float height, out float cosTheta) {
 
 void main() {
 	ivec2 imageCoordinate = ivec2(gl_LocalInvocationID.xy) + ivec2(gl_WorkGroupID.xy) * ivec2(gl_WorkGroupSize.xy);
-	vec2 normalizedCoordinates = imageCoordinate / vec2(lutSize);
+	vec2 normalizedCoordinates = imageCoordinate / vec2(lutSize.xy);
 
 	float startHeight, cosTheta;
 	uvToHeightCosTheta(normalizedCoordinates, startHeight, cosTheta);

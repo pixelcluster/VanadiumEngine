@@ -11,5 +11,9 @@ target_link_libraries(SphereIntersectionTest glm::glm TestCommon)
 add_executable(OpticalDepthTest opticaldepth_int.cpp AtmosphereParamsCommon.hpp)
 target_link_libraries(OpticalDepthTest glm::glm TestCommon)
 
+add_executable(ExtinctionTest height_exp.cpp AtmosphereParamsCommon.hpp)
+target_link_libraries(ExtinctionTest glm::glm TestCommon)
+
 add_test(NAME "sphere_intersection" COMMAND SphereIntersectionTest)
 add_test(NAME "optical_depth" COMMAND OpticalDepthTest)
+add_test(NAME "extinction" COMMAND ExtinctionTest)
