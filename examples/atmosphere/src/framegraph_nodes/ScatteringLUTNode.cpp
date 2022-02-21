@@ -176,15 +176,15 @@ void ScatteringLUTNode::initResources(VFramegraphContext* context) {
 
 void ScatteringLUTNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 									   const VFramegraphNodeContext& nodeContext) {
-	TransmittanceComputeData transmittanceData = {
-		.lutSize = glm::ivec4(256, 64, 1, 1),
-		.betaExtinctionZeroMie = glm::vec4(0.004440f + 0.003996f),
-		.betaExtinctionZeroRayleigh = glm::vec4(0.008876253f, 0.015174764f, 0.032528274f, 1.0f),
-		.heightScaleRayleigh = 8,
-		.heightScaleMie = 1.2,
-		.maxHeight = 100.0f,
-		.groundRadius = 6360.0f
-	};
+	TransmittanceComputeData transmittanceData = { .lutSize = glm::ivec4(256, 64, 1, 1),
+												   .betaExtinctionZeroMie = glm::vec4(0.004440f + 0.003996f),
+												   .betaExtinctionZeroRayleigh =
+													   glm::vec4(0.0008550384996041757f, 0.0012439402924739342f,
+																 0.002836730008898043f, 1.0f),
+												   .heightScaleRayleigh = 8,
+												   .heightScaleMie = 1.2,
+												   .maxHeight = 100.0f,
+												   .groundRadius = 6360.0f };
 
 	vkCmdBindPipeline(targetCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_transmittanceComputationPipeline);
 	vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
