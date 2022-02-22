@@ -10,7 +10,9 @@ struct TransmittanceComputeData {
 	glm::vec4 absorptionZeroOzone;
 	float heightScaleRayleigh;
 	float heightScaleMie;
-	float maxHeightOzone;
+	float layerHeightOzone;
+	float layer0ConstantFactorOzone;
+	float layer1ConstantFactorOzone;
 	float heightRangeOzone;
 	float maxHeight;
 	float groundRadius;

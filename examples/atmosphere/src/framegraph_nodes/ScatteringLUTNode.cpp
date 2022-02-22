@@ -177,14 +177,16 @@ void ScatteringLUTNode::initResources(VFramegraphContext* context) {
 void ScatteringLUTNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 									   const VFramegraphNodeContext& nodeContext) {
 	TransmittanceComputeData transmittanceData = { .lutSize = glm::ivec4(256, 64, 1, 1),
-												   .betaExtinctionZeroMie = glm::vec4(0.004440f + 0.003996f),
+												   .betaExtinctionZeroMie = glm::vec4(0.004440f),
 												   .betaExtinctionZeroRayleigh =
-													   glm::vec4(0.005802f, 0.013558f, 0.331f, 1.0f),
+													   glm::vec4(0.005802f, 0.013558f, 0.0331f, 1.0f),
 												   .absorptionZeroOzone =
 													   glm::vec4(0.00065f, 0.001881f, 0.000085f, 1.0f),
 												   .heightScaleRayleigh = 8,
 												   .heightScaleMie = 1.2,
-												   .maxHeightOzone = 25.0f,
+												   .layerHeightOzone = 25.0f,
+												   .layer0ConstantFactorOzone = -2.0f / 3.0f,
+												   .layer1ConstantFactorOzone = 8.0f / 3.0f,
 												   .heightRangeOzone = 15.0f,
 												   .maxHeight = 100.0f,
 												   .groundRadius = 6360.0f };
