@@ -7,8 +7,11 @@ struct TransmittanceComputeData {
 	glm::ivec4 lutSize;
 	glm::vec4 betaExtinctionZeroMie;
 	glm::vec4 betaExtinctionZeroRayleigh;
+	glm::vec4 absorptionZeroOzone;
 	float heightScaleRayleigh;
 	float heightScaleMie;
+	float maxHeightOzone;
+	float heightRangeOzone;
 	float maxHeight;
 	float groundRadius;
 };

@@ -14,8 +14,11 @@ layout(push_constant) uniform Constants {
 	ivec4 lutSize;
 	vec4 betaExtinctionZeroMie;
 	vec4 betaExtinctionZeroRayleigh;
+	vec4 absorptionZeroOzone;
 	float heightScaleRayleigh;
 	float heightScaleMie;
+	float maxHeightOzone;
+	float heightRangeOzone;
 	float maxHeight;
 	float groundRadius;
 };

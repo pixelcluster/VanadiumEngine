@@ -5,7 +5,11 @@ vec3 betaExtinctionRayleigh(float height) {
 }
 
 vec3 betaExtinctionMie(float height) {
-	return betaExtinctionZeroMie.rgb * vec3(exp(-(height - groundRadius) / heightScaleMie));
+	return betaExtinctionZeroMie.rgb * exp(-(height - groundRadius) / heightScaleMie);
+}
+
+vec3 betaExtinctionOzone(float height) {
+	return absorptionZeroOzone.rgb * max(1.0f - abs(height - maxHeightOzone) / heightRangeOzone, 0.0f);
 }
 
 // https://github.com/sebh/UnrealEngineSkyAtmosphere/blob/master/Resources/SkyAtmosphereCommon.hlsl#L142 ported to GLSL with minor modifications
@@ -47,16 +51,22 @@ vec3 calcTransmittance(vec2 startPos, vec2 direction, float endPosT) {
 
 	vec2 currentPos = startPos;
 	float deltaT = endPosT / nSamples;
-
-	vec3 lastMieExtinction = betaExtinctionMie(length(startPos));
-	vec3 lastRayleighExtinction = betaExtinctionRayleigh(length(startPos));
-	for(uint i = 0; i < nSamples; ++i, currentPos += direction * deltaT) {
-		vec3 mieExtinction = betaExtinctionMie(length(currentPos));
-		vec3 rayleighExtinction = betaExtinctionRayleigh(length(currentPos));
-		result += ((rayleighExtinction + lastRayleighExtinction + mieExtinction + lastMieExtinction) * 0.5f) * deltaT;
-		lastMieExtinction = mieExtinction;
-		lastRayleighExtinction = rayleighExtinction;
+	
+	vec3 mieExtinction = betaExtinctionMie(length(currentPos));
+	vec3 rayleighExtinction = betaExtinctionRayleigh(length(currentPos));
+	vec3 ozoneExtinction = betaExtinctionOzone(length(currentPos));
+	result += (/*rayleighExtinction + mieExtinction + */ozoneExtinction) * 0.5f;
+	for(uint i = 1; i < nSamples; ++i, currentPos += direction * deltaT) {
+		mieExtinction = betaExtinctionMie(length(currentPos));
+		rayleighExtinction = betaExtinctionRayleigh(length(currentPos));
+		ozoneExtinction = betaExtinctionOzone(length(currentPos));
+		result += (/*rayleighExtinction + mieExtinction + */ozoneExtinction);
 	}
+	mieExtinction = betaExtinctionMie(length(currentPos));
+	rayleighExtinction = betaExtinctionRayleigh(length(currentPos));
+	ozoneExtinction = betaExtinctionOzone(length(currentPos));
+	result += (/*rayleighExtinction + mieExtinction + */ozoneExtinction) * 0.5f;
+	result *= deltaT;
 	result = exp(-result);
 	return result;
 }
