@@ -50,8 +50,8 @@ void main() {
 	uvToHeightCosTheta(normalizedCoordinates, startHeight, cosTheta);
 	vec2 direction = vec2(sqrt(1.0f - cosTheta * cosTheta), cosTheta);
 
-	float endPosT = nearestDistanceToSphere(startHeight, direction, groundRadius);
-	float tGround = nearestDistanceToSphere(startHeight, direction, groundRadius + maxHeight);
+	float tGround = nearestDistanceToSphere(startHeight, direction, groundRadius);
+	float endPosT = nearestDistanceToSphere(startHeight, direction, groundRadius + maxHeight);
 	
 	if(tGround > 0.0f)
 		endPosT = min(endPosT, tGround);

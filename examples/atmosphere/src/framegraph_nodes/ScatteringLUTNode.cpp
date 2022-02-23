@@ -176,20 +176,20 @@ void ScatteringLUTNode::initResources(VFramegraphContext* context) {
 
 void ScatteringLUTNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 									   const VFramegraphNodeContext& nodeContext) {
-	TransmittanceComputeData transmittanceData = { .lutSize = glm::ivec4(256, 64, 1, 1),
-												   .betaExtinctionZeroMie = glm::vec4(0.004440f),
-												   .betaExtinctionZeroRayleigh =
-													   glm::vec4(0.005802f, 0.013558f, 0.0331f, 1.0f),
-												   .absorptionZeroOzone =
-													   glm::vec4(0.00065f, 0.001881f, 0.000085f, 1.0f),
-												   .heightScaleRayleigh = 8,
-												   .heightScaleMie = 1.2,
-												   .layerHeightOzone = 25.0f,
-												   .layer0ConstantFactorOzone = -2.0f / 3.0f,
-												   .layer1ConstantFactorOzone = 8.0f / 3.0f,
-												   .heightRangeOzone = 15.0f,
-												   .maxHeight = 100.0f,
-												   .groundRadius = 6360.0f };
+	TransmittanceComputeData transmittanceData = {
+		.lutSize = glm::ivec4(256, 64, 1, 1),
+		.betaExtinctionZeroMie = glm::vec4(0.004440f),
+		.betaExtinctionZeroRayleigh = glm::vec4(0.008612455256387713, 0.013011847505420919, 0.028268803129247174, 1.0f),
+		.absorptionZeroOzone = glm::vec4(0.00065f, 0.001881f, 0.000085f, 1.0f),
+		.heightScaleRayleigh = 8,
+		.heightScaleMie = 1.2,
+		.layerHeightOzone = 25.0f,
+		.layer0ConstantFactorOzone = -2.0f / 3.0f,
+		.layer1ConstantFactorOzone = 8.0f / 3.0f,
+		.heightRangeOzone = 15.0f,
+		.maxHeight = 100.0f,
+		.groundRadius = 6360.0f
+	};
 
 	vkCmdBindPipeline(targetCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_transmittanceComputationPipeline);
 	vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,

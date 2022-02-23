@@ -55,7 +55,7 @@ vec3 calcTransmittance(vec2 pos, vec2 direction, float deltaT) {
 	vec3 rayleighExtinction = betaExtinctionRayleigh(length(pos));
 	vec3 ozoneExtinction = betaExtinctionOzone(length(pos));
 	result += (rayleighExtinction + mieExtinction + ozoneExtinction) * 0.5f;
-	for(uint i = 0; i < nSamples; ++i, pos += direction * deltaT) {
+	for(uint i = 1; i < nSamples - 1; ++i, pos += direction * deltaT) {
 		mieExtinction = betaExtinctionMie(length(pos));
 		rayleighExtinction = betaExtinctionRayleigh(length(pos));
 		ozoneExtinction = betaExtinctionOzone(length(pos));
