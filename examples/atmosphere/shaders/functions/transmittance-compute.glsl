@@ -4,8 +4,8 @@ vec3 betaExtinctionRayleigh(float height) {
 	return betaExtinctionZeroRayleigh.rgb * exp(-(height - groundRadius) / heightScaleRayleigh);
 }
 
-vec3 betaExtinctionMie(float height) {
-	return betaExtinctionZeroMie.rgb * exp(-(height - groundRadius) / heightScaleMie);
+float betaExtinctionMie(float height) {
+	return betaExtinctionZeroMie.r * exp(-(height - groundRadius) / heightScaleMie);
 }
 
 vec3 betaExtinctionOzone(float height) {
@@ -48,27 +48,23 @@ float nearestDistanceToSphere(float h0, vec2 rd, float sR)
 	return max(0.0f, min(sol0, sol1));
 }
 
-vec3 calcTransmittance(vec2 startPos, vec2 direction, float endPosT) {
+vec3 calcTransmittance(vec2 pos, vec2 direction, float deltaT) {
 	vec3 result = vec3(0.0f);
-
-	vec2 currentPos = startPos;
-	float deltaT = endPosT / nSamples;
 	
-	vec3 mieExtinction = betaExtinctionMie(length(currentPos));
-	vec3 rayleighExtinction = betaExtinctionRayleigh(length(currentPos));
-	vec3 ozoneExtinction = betaExtinctionOzone(length(currentPos));
+	float mieExtinction = betaExtinctionMie(length(pos));
+	vec3 rayleighExtinction = betaExtinctionRayleigh(length(pos));
+	vec3 ozoneExtinction = betaExtinctionOzone(length(pos));
 	result += (rayleighExtinction + mieExtinction + ozoneExtinction) * 0.5f;
-	for(uint i = 1; i < nSamples / 2; ++i, currentPos += direction * deltaT) {
-		mieExtinction = betaExtinctionMie(length(currentPos));
-		rayleighExtinction = betaExtinctionRayleigh(length(currentPos));
-		ozoneExtinction = betaExtinctionOzone(length(currentPos));
+	for(uint i = 0; i < nSamples; ++i, pos += direction * deltaT) {
+		mieExtinction = betaExtinctionMie(length(pos));
+		rayleighExtinction = betaExtinctionRayleigh(length(pos));
+		ozoneExtinction = betaExtinctionOzone(length(pos));
 		result += (rayleighExtinction + mieExtinction + ozoneExtinction);
 	}
-	mieExtinction = betaExtinctionMie(length(currentPos));
-	rayleighExtinction = betaExtinctionRayleigh(length(currentPos));
-	ozoneExtinction = betaExtinctionOzone(length(currentPos));
+	mieExtinction = betaExtinctionMie(length(pos));
+	rayleighExtinction = betaExtinctionRayleigh(length(pos));
+	ozoneExtinction = betaExtinctionOzone(length(pos));
 	result += (rayleighExtinction + mieExtinction + ozoneExtinction) * 0.5f;
-	result *= deltaT;
-	result = exp(-result);
+	result = exp(-result * deltaT);
 	return result;
 }

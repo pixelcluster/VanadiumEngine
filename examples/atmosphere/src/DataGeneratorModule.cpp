@@ -235,16 +235,16 @@ void DataGeneratorModule::onExecute(VEngine& engine) {
 	glm::vec3 right = glm::vec3(sinPhi, 0.0f, cosPhi);
 
 	if (m_windowModule->keyCharState('W') != VKeyState::Released) {
-		m_camPos += directionCartesian * 2.0f * static_cast<float>(m_windowModule->deltaTime());
+		m_camPos += directionCartesian * 1.0f * static_cast<float>(m_windowModule->deltaTime());
 	}
 	if (m_windowModule->keyCharState('S') != VKeyState::Released) {
-		m_camPos -= directionCartesian * 2.0f * static_cast<float>(m_windowModule->deltaTime());
+		m_camPos -= directionCartesian * 1.0f * static_cast<float>(m_windowModule->deltaTime());
 	}
 	if (m_windowModule->keyCharState('A') != VKeyState::Released) {
-		m_camPos += right * 2.0f * static_cast<float>(m_windowModule->deltaTime());
+		m_camPos += right * 1.0f * static_cast<float>(m_windowModule->deltaTime());
 	}
 	if (m_windowModule->keyCharState('D') != VKeyState::Released) {
-		m_camPos -= right * 2.0f * static_cast<float>(m_windowModule->deltaTime());
+		m_camPos -= right * 1.0f * static_cast<float>(m_windowModule->deltaTime());
 	}
 
 	switch (m_windowModule->mouseKeyState(0)) {
