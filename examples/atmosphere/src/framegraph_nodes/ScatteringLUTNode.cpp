@@ -180,7 +180,7 @@ void ScatteringLUTNode::recordCommands(VFramegraphContext* context, VkCommandBuf
 		.lutSize = glm::ivec4(256, 64, 1, 1),
 		.betaExtinctionZeroMie = glm::vec4(0.004440f),
 		.betaExtinctionZeroRayleigh = glm::vec4(0.008612455256387713, 0.013011847505420919, 0.028268803129247174, 1.0f),
-		.absorptionZeroOzone = glm::vec4(0.00065f, 0.001881f, 0.000085f, 1.0f),
+		.absorptionZeroOzone = glm::vec4(0.002366656826034617f, 0.001620425091578396f, 0.00010373049232375621f, 1.0f),
 		.heightScaleRayleigh = 8,
 		.heightScaleMie = 1.2,
 		.layerHeightOzone = 25.0f,
