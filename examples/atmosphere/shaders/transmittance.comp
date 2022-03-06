@@ -25,21 +25,6 @@ layout(push_constant) uniform Constants {
 	float groundRadius;
 };
 
-void uvToHeightCosTheta(vec2 uv, out float height, out float cosTheta) {
-	float x_mu = uv.x;
-	float x_r = uv.y;
-
-	float H = sqrt((groundRadius + maxHeight) * (groundRadius + maxHeight) - groundRadius * groundRadius);
-	float rho = H * x_r;
-	height = sqrt(rho * rho + groundRadius * groundRadius);
-
-	float d_min = (groundRadius + maxHeight) - height;
-	float d_max = rho + H;
-	float d = d_min + x_mu * (d_max - d_min);
-	cosTheta = d == 0.0 ? 1.0f : (H * H - rho * rho - d * d) / (2.0 * height * d);
-	cosTheta = clamp(cosTheta, -1.0, 1.0);
-}
-
 #include "functions/transmittance-compute.glsl"
 
 void main() {
