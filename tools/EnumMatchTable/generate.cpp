@@ -37,7 +37,7 @@ EnumMap parseBasicEnums(const XMLElement* registry) {
 		if (nameC) {
 			name = nameC;
 		}
-		if (name.find("FlagBits", 0) == std::string::npos)
+		if (name.find("VkPipelineLayoutCreateFlagBits", 0) == std::string::npos)
 			enumMap.insert(std::pair<std::string, VulkanEnum>(name, parseBasicEnumNode(enumsNode)));
 		enumsNode = enumsNode->NextSiblingElement("enums");
 	}

@@ -29,9 +29,7 @@ struct InstanceRasterizationConfig {
 	float lineWidth;
 };
 
-struct InstanceMultisampleConfig {
-	VkSampleCountFlagBits rasterizationSamples;
-};
+using InstanceMultisampleConfig = VkSampleCountFlags;
 
 struct InstanceDepthStencilConfig {
 	bool depthTestEnable;
@@ -65,8 +63,15 @@ class ProjectDatabase {
 	void deserializeRasterization(const Json::Value& node);
 	void deserializeMultisample(const Json::Value& node);
 	void deserializeDepthStencil(const Json::Value& node);
+	void deserializeStencilState(const Json::Value& node);
 	void deserializeColorBlend(const Json::Value& node);
 	void deserializeColorAttachmentBlend(const Json::Value& node);
+
+	uint32_t asUIntOr(const Json::Value& value, const std::string_view& name, uint32_t fallback);
+	float asFloatOr(const Json::Value& value, const std::string_view& name, float fallback);
+	bool asBoolOr(const Json::Value& value, const std::string_view& name, bool fallback);
+	const char* asCStringOr(const Json::Value& value, const std::string_view& name, const char* fallback);
+	std::string asStringOr(const Json::Value& value, const std::string_view& name, const std::string& fallback);
 
 	std::string m_name;
 

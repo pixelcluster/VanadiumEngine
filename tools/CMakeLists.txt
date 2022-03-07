@@ -23,4 +23,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatc
 
 add_executable(vcp ${CPP_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp)
 target_include_directories(vcp PUBLIC ${Vulkan_INCLUDE_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/vcp/include" ${CMAKE_CURRENT_BINARY_DIR}/generated_include)
+if(MSVC)
+	target_compile_options(vcp PUBLIC "/bigobj")
+endif()
 target_link_libraries(vcp jsoncpp_static)
