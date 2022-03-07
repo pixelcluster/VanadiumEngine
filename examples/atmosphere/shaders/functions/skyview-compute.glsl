@@ -4,7 +4,7 @@
 #include "common.glsl"
 
 vec3 luminance(float height, float cosTheta) {
-	
+	return vec3(0.0f);
 }
 
 vec3 computeLuminance(float height, float cosTheta) {
@@ -21,5 +21,5 @@ vec3 computeLuminance(float height, float cosTheta) {
 	}
 
 
-
+	return vec3(0.0f);
 }

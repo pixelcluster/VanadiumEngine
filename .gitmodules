@@ -10,3 +10,9 @@
 [submodule "examples/dependencies/glm"]
 	path = examples/dependencies/glm
 	url = https://github.com/g-truc/glm.git
+[submodule "dependencies/tinyxml"]
+	path = dependencies/tinyxml
+	url = https://github.com/leethomason/tinyxml2.git
+[submodule "dependencies/jsoncpp"]
+	path = dependencies/jsoncpp
+	url = https://github.com/open-source-parsers/jsoncpp.git

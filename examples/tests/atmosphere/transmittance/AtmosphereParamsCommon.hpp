@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <glm/glm.hpp>
 
+#define GLSL_C_TEST
+
 using namespace glm;
 
 using uint = uint32_t;

@@ -39,6 +39,8 @@ float nearestDistanceToSphere(float h0, vec2 rd, float sR)
 
 //from https://github.com/sebh/UnrealEngineSkyAtmosphere ported to GLSL
 
+#ifndef GLSL_C_TEST
+
 void uvToHeightCosTheta(vec2 uv, out float height, out float cosTheta) {
 	float x_mu = uv.x;
 	float x_r = uv.y;
@@ -69,3 +71,5 @@ vec2 heightCosThetaToUv(float height, float cosTheta)
 
 	return vec2(x_mu, x_r);
 }
+
+#endif
