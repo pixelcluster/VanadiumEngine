@@ -190,7 +190,7 @@ void ProjectDatabase::deserializeMultisample(const Json::Value& node) {
 			auto flagBitIterator = VkSampleCountFlagBitsFromString.find(flag);
 			if (flagBitIterator == VkSampleCountFlagBitsFromString.end()) {
 				std::cout << "Warning: Invalid Sample Count Flag bit specified! Ignoring bit. If flags are 0, "
-							 "VK_SAMPLE_COUNT_1_BIT is chosen.\n";
+							 "1_BIT is chosen.\n";
 			} else {
 				sampleCount |= flagBitIterator->second;
 			}
@@ -204,13 +204,215 @@ void ProjectDatabase::deserializeMultisample(const Json::Value& node) {
 	}
 }
 
-void ProjectDatabase::deserializeDepthStencil(const Json::Value& node) {}
+void ProjectDatabase::deserializeDepthStencil(const Json::Value& node) {
+	m_instanceDepthStencilConfigs.reserve(node.size());
+	for (auto& config : node) {
+		VkCompareOp depthCompareOp;
 
-void ProjectDatabase::deserializeStencilState(const Json::Value& node) {}
+		auto compareOpIterator =
+			VkCompareOpFromString.find(asCStringOr(config, "depth-compare-op", "VK_COMPARE_OP_LESS"));
+		if (compareOpIterator == VkCompareOpFromString.end()) {
+			std::cout << "Warning: Invalid Depth Compare Op specified. Choosing LESS, may cause "
+						 "unintended behaviour...\n";
+			depthCompareOp = VK_COMPARE_OP_LESS;
+		} else {
+			depthCompareOp = compareOpIterator->second;
+		}
 
-void ProjectDatabase::deserializeColorBlend(const Json::Value& node) {}
+		InstanceDepthStencilConfig depthStencilConfig = { .depthTestEnable = asBoolOr(config, "depth-test", true),
+														  .depthWriteEnable = asBoolOr(config, "depth-writes", true),
+														  .depthCompareOp = depthCompareOp,
+														  .depthBoundsTestEnable =
+															  asBoolOr(config, "depth-bounds-test", false),
+														  .stencilTestEnable = asBoolOr(config, "stencil-test", false),
+														  .front = deserializeStencilState(config["front"]),
+														  .back = deserializeStencilState(config["back"]),
+														  .minDepthBounds = asFloatOr(config, "depth-bounds-min", 0.0f),
+														  .maxDepthBounds =
+															  asFloatOr(config, "depth-bounds-max", 1.0f) };
+		m_instanceDepthStencilConfigs.push_back(depthStencilConfig);
+	}
+}
 
-void ProjectDatabase::deserializeColorAttachmentBlend(const Json::Value& node) {}
+VkStencilOpState ProjectDatabase::deserializeStencilState(const Json::Value& node) {
+	VkStencilOp failOp, passOp, depthFailOp;
+	VkCompareOp compareOp;
+
+	auto failOpIterator = VkStencilOpFromString.find(asCStringOr(node, "fail", "VK_STENCIL_OP_KEEP"));
+	if (failOpIterator == VkStencilOpFromString.end()) {
+		std::cout << "Warning: Invalid Stencil Fail Op specified. Choosing KEEP, may cause unintended behaviour...\n";
+		failOp = VK_STENCIL_OP_KEEP;
+	} else {
+		failOp = failOpIterator->second;
+	}
+	auto passOpIterator = VkStencilOpFromString.find(asCStringOr(node, "pass", "VK_STENCIL_OP_KEEP"));
+	if (passOpIterator == VkStencilOpFromString.end()) {
+		std::cout << "Warning: Invalid Stencil Pass Op specified. Choosing KEEP, may cause unintended behaviour...\n";
+		passOp = VK_STENCIL_OP_KEEP;
+	} else {
+		passOp = passOpIterator->second;
+	}
+	auto depthFailOpIterator = VkStencilOpFromString.find(asCStringOr(node, "depthFail", "VK_STENCIL_OP_KEEP"));
+	if (depthFailOpIterator == VkStencilOpFromString.end()) {
+		std::cout << "Warning: Invalid Stencil Pass/Depth Fail Op specified. Choosing KEEP, may cause unintended "
+					 "behaviour...\n";
+		depthFailOp = VK_STENCIL_OP_KEEP;
+	} else {
+		depthFailOp = depthFailOpIterator->second;
+	}
+
+	VkCompareOp stencilCompareOp;
+
+	auto compareOpIterator = VkCompareOpFromString.find(asCStringOr(node, "compare-op", "VK_COMPARE_OP_LESS"));
+	if (compareOpIterator == VkCompareOpFromString.end()) {
+		std::cout << "Warning: Invalid Stencil Compare Op specified. Choosing LESS, may cause "
+					 "unintended behaviour...\n";
+		stencilCompareOp = VK_COMPARE_OP_LESS;
+	} else {
+		stencilCompareOp = compareOpIterator->second;
+	}
+
+	return { .failOp = failOp,
+			 .passOp = passOp,
+			 .depthFailOp = depthFailOp,
+			 .compareOp = stencilCompareOp,
+			 .compareMask = asUIntOr(node, "compare-mask", 0),
+			 .writeMask = asUIntOr(node, "write-mask", 0),
+			 .reference = asUIntOr(node, "reference", 0) };
+}
+
+void ProjectDatabase::deserializeColorBlend(const Json::Value& node) {
+	m_instanceColorBlendConfigs.reserve(node.size());
+	for (auto& config : node) {
+		VkLogicOp logicOp;
+
+		auto logicOpIterator = VkLogicOpFromString.find(asCStringOr(node, "logic-op", "VK_LOGIC_OP_NO_OP"));
+		if (logicOpIterator == VkLogicOpFromString.end()) {
+			std::cout << "Warning: Invalid Logic Op specified. Choosing NO_OP, may cause unintended behaviour...\n";
+			logicOp = VK_LOGIC_OP_NO_OP;
+		} else {
+			logicOp = logicOpIterator->second;
+		}
+
+		float blendConstants[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		if (node["blend-constants"].size() > 4) {
+			std::cout << "Warning: More than 4 blend constants specified. Ignoring superfluous constants.\n";
+		}
+		for (uint32_t i = 0; i < node["blend-constants"].size() && i < 4; ++i) {
+			if (node["blend-constants"][i].isNumeric()) {
+				blendConstants[i] = node["blend-constants"][i].asFloat();
+			} else {
+				std::cout << "Warning: Blend constant " << i << " is not numeric, treating value like 0.0.\n";
+			}
+		}
+
+		InstanceColorBlendConfig blendConfig = { .logicOpEnable = asBoolOr(node, "logic-op-enable", false),
+												 .logicOp = logicOp,
+												 .blendConstants = { blendConstants[0], blendConstants[1],
+																	 blendConstants[2], blendConstants[3] } };
+
+		m_instanceColorBlendConfigs.push_back(blendConfig);
+	}
+}
+
+void ProjectDatabase::deserializeColorAttachmentBlend(const Json::Value& node) {
+	m_instanceColorAttachmentBlendConfigs.reserve(node.size());
+	for (auto& config : node) {
+		VkBlendFactor srcColorFactor, srcAlphaFactor, dstColorFactor, dstAlphaFactor;
+		VkBlendOp colorBlendOp, alphaBlendOp;
+		VkColorComponentFlags componentFlags = 0;
+
+		auto srcColorFactorIterator =
+			VkBlendFactorFromString.find(asCStringOr(config, "src-color-factor", "VK_BLEND_FACTOR_SRC_ALPHA"));
+		if (srcColorFactorIterator == VkBlendFactorFromString.end()) {
+			std::cout
+				<< "Warning: Invalid Src Color Blend Factor specified. Choosing SRC_ALPHA, might lead to unintended "
+				   "behaviour...\n";
+			srcColorFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		} else {
+			srcColorFactor = srcColorFactorIterator->second;
+		}
+
+		auto dstColorFactorIterator = VkBlendFactorFromString.find(
+			asCStringOr(config, "dst-color-factor", "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA"));
+		if (dstColorFactorIterator == VkBlendFactorFromString.end()) {
+			std::cout << "Warning: Invalid Dst Color Blend Factor specified. Choosing ONE_MINUS_SRC_ALPHA, might lead "
+						 "to unintended "
+						 "behaviour...\n";
+			dstColorFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		} else {
+			dstColorFactor = dstColorFactorIterator->second;
+		}
+
+		auto srcAlphaFactorIterator =
+			VkBlendFactorFromString.find(asCStringOr(config, "src-alpha-factor", "VK_BLEND_FACTOR_SRC_ALPHA"));
+		if (srcAlphaFactorIterator == VkBlendFactorFromString.end()) {
+			std::cout
+				<< "Warning: Invalid Src Alpha Blend Factor specified. Choosing SRC_ALPHA, might lead to unintended "
+				   "behaviour...\n";
+			srcAlphaFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		} else {
+			srcAlphaFactor = srcAlphaFactorIterator->second;
+		}
+
+		auto dstAlphaFactorIterator = VkBlendFactorFromString.find(
+			asCStringOr(config, "dst-alpha-factor", "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA"));
+		if (dstAlphaFactorIterator == VkBlendFactorFromString.end()) {
+			std::cout
+				<< "Warning: Invalid Dst Alpha Blend Factor specified. Choosing ONE_MINUS_SRC_ALPHA, might lead to "
+				   "unintended "
+				   "behaviour...\n";
+			dstAlphaFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		} else {
+			dstAlphaFactor = dstAlphaFactorIterator->second;
+		}
+
+		auto colorBlendOpIterator = VkBlendOpFromString.find(asCStringOr(config, "color-blend-op", "VK_BLEND_OP_ADD"));
+		if (colorBlendOpIterator == VkBlendOpFromString.end()) {
+			std::cout
+				<< "Warning: Invalid Color Blend Op specified. Choosing ADD, might lead to unintended behaviour...\n";
+			colorBlendOp = VK_BLEND_OP_ADD;
+		} else {
+			colorBlendOp = colorBlendOpIterator->second;
+		}
+
+		auto alphaBlendOpIterator = VkBlendOpFromString.find(asCStringOr(config, "alpha-blend-op", "VK_BLEND_OP_ADD"));
+		if (alphaBlendOpIterator == VkBlendOpFromString.end()) {
+			std::cout
+				<< "Warning: Invalid Alpha Blend Op specified. Choosing ADD, might lead to unintended behaviour...\n";
+			alphaBlendOp = VK_BLEND_OP_ADD;
+		} else {
+			alphaBlendOp = alphaBlendOpIterator->second;
+		}
+
+		auto componentFlagBits = splitFlags(asStringOr(config, "components",
+													   "VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | "
+													   "VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT"));
+		for (auto& flagBit : componentFlagBits) {
+			auto bitIterator = VkColorComponentFlagBitsFromString.find(flagBit);
+			if (bitIterator == VkColorComponentFlagBitsFromString.end()) {
+				std::cout << "Invalid Color Component Flag Bit specified, ignoring bit. If the flag is zero, all "
+							 "components will be set.\n";
+			} else {
+				componentFlags |= bitIterator->second;
+			}
+		}
+		if (componentFlags == 0) {
+			componentFlags = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+							 VK_COLOR_COMPONENT_A_BIT;
+		}
+
+		InstanceColorAttachmentBlendConfig blendConfig = { .blendEnable = asBoolOr(config, "blend-enable", false),
+														   .srcColorBlendFactor = srcColorFactor,
+														   .dstColorBlendFactor = dstColorFactor,
+														   .colorBlendOp = colorBlendOp,
+														   .srcAlphaBlendFactor = srcAlphaFactor,
+														   .dstAlphaBlendFactor = dstAlphaFactor,
+														   .alphaBlendOp = alphaBlendOp,
+														   .colorWriteMask = componentFlags };
+		m_instanceColorAttachmentBlendConfigs.push_back(blendConfig);
+	}
+}
 
 uint32_t ProjectDatabase::asUIntOr(const Json::Value& value, const std::string_view& name, uint32_t fallback) {
 	if (value.isMember(name.data()) && value[name.data()].isUInt()) {

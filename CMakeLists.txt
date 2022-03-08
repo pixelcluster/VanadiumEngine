@@ -13,8 +13,8 @@ endif()
 
 add_subdirectory(dependencies/glfw)
 add_subdirectory(dependencies/volk)
-add_subdirectory(dependencies/tinyxml)
-add_subdirectory(dependencies/jsoncpp)
+add_subdirectory(dependencies/tinyxml EXCLUDE_FROM_ALL)
+add_subdirectory(dependencies/jsoncpp EXCLUDE_FROM_ALL)
 
 if(UNIX AND NOT APPLE)
 	option(USE_WAYLAND "Use Wayland instead of X11")

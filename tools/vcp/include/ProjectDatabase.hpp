@@ -63,7 +63,7 @@ class ProjectDatabase {
 	void deserializeRasterization(const Json::Value& node);
 	void deserializeMultisample(const Json::Value& node);
 	void deserializeDepthStencil(const Json::Value& node);
-	void deserializeStencilState(const Json::Value& node);
+	VkStencilOpState deserializeStencilState(const Json::Value& node);
 	void deserializeColorBlend(const Json::Value& node);
 	void deserializeColorAttachmentBlend(const Json::Value& node);
 
