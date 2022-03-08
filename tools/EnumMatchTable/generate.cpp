@@ -37,7 +37,15 @@ EnumMap parseBasicEnums(const XMLElement* registry) {
 		if (nameC) {
 			name = nameC;
 		}
-		if (name.find("VkPipelineLayoutCreateFlagBits", 0) == std::string::npos)
+		std::vector<std::string> blocklist = { "VkPipelineLayoutCreateFlagBits", "VkSemaphoreCreateFlagBits",
+											   "VkImageFormatConstraintsFlagBitsFUCHSIA", "VkShaderModuleCreateFlagBits" };
+
+		bool isNameAllowed = true;
+		for (auto& entry : blocklist) {
+			isNameAllowed &= name.find(entry, 0) == std::string::npos;
+		}
+
+		if (isNameAllowed)
 			enumMap.insert(std::pair<std::string, VulkanEnum>(name, parseBasicEnumNode(enumsNode)));
 		enumsNode = enumsNode->NextSiblingElement("enums");
 	}
