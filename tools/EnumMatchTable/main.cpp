@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
 	tinyxml2::XMLDocument vkXml;
 	vkXml.LoadFile(xmlPath.c_str());
 	if (vkXml.Error()) {
-		std::cout << "Error: Error opening or parsing" << xmlPath <<  "! Does the file exist?\n";
+		std::cout << "Error: Error opening or parsing " << xmlPath <<  "! Does the file exist?\n";
 		return EXIT_FAILURE;
 	}
 

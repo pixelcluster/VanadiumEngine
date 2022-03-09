@@ -53,9 +53,7 @@ using InstanceColorAttachmentBlendConfig = VkPipelineColorBlendAttachmentState;
 
 class ProjectDatabase {
   public:
-	ProjectDatabase() {}
-
-	void deserialize(const std::string_view& filename);
+	ProjectDatabase(const Json::Value& projectRoot);
 
   private:
 	void deserializeVertexInput(const Json::Value& node);

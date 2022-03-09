@@ -4,7 +4,6 @@
 #include <helper/VModuleThread.hpp>
 #include <helper/VScoreboarding.hpp>
 #include <cstddef>
-#include <semaphore>
 #include <string_view>
 #include <mutex>
 #include <concepts>

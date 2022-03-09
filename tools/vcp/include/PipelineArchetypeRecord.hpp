@@ -10,15 +10,6 @@ struct ShaderSourceFile {
 	std::string_view path;
 };
 
-struct VertexAttribute {
-	uint32_t location;
-	VkFormat format;
-};
-
-struct VertexInputConfig {
-	std::vector<VertexAttribute> attributes;
-};
-
 enum class PipelineType {
 	Graphics, Compute
 };

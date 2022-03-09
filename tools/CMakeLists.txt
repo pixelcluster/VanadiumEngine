@@ -15,9 +15,16 @@ file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vcp/src/*.cpp"
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated_include)
+
+if(EXISTS "/usr/share/vulkan/registry/vk.xml")
+	set(SDK_PATH "/usr")
+else()
+	set(SDK_PATH $ENV{VULKAN_SDK})
+endif()
+
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp 
 				   COMMAND EnumMatchTable 
-				   ARGS "$ENV{VULKAN_SDK}/share/vulkan/registry/vk.xml" 
+				   ARGS "${SDK_PATH}/share/vulkan/registry/vk.xml" 
 				   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated_include 
 				   DEPENDS EnumMatchTable)
 
