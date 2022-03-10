@@ -2,6 +2,7 @@
 #include <string_view>
 #include <vector>
 #include <fstream>
+#include <limits>
 
 #include <PipelineArchetypeRecord.hpp>
 #include <ProjectDatabase.hpp>

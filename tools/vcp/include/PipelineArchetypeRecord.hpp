@@ -5,6 +5,8 @@
 #include <string_view>
 #include <vector>
 
+#include <json/json.h>
+
 struct ShaderSourceFile {
 	VkShaderStageFlagBits stage;
 	std::string_view path;
@@ -16,8 +18,12 @@ enum class PipelineType {
 
 class PipelineArchetypeRecord {
   public:
-	void addShaderSource(ShaderSourceFile&& file);
+	PipelineArchetypeRecord(const Json::Value& archetypeRoot);
   private:
+	void addShaderSource(ShaderSourceFile&& file);
+
 	std::vector<ShaderSourceFile> m_files;
 
+	std::vector<uint32_t> m_setBindingOffsets;
+	std::vector<VkDescriptorSetLayoutBinding> m_bindings;
 };
