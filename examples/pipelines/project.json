@@ -1,12 +1,11 @@
 {
   "name": "Test pipeline",
-  "type": "Graphics",
   "archetype": {
+    "type": "Graphics",
     "vert": "../atmosphere/planet.vert",
     "frag": "../atmosphere/planet.frag",
     "sets": [
       {
-        "index": 0,
         "bindings": [
           {
             "binding": 0,
@@ -17,7 +16,6 @@
         ]
       },
       {
-        "index": 1,
         "bindings": [
           {
             "binding": 0,

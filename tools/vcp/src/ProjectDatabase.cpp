@@ -1,25 +1,8 @@
 #include <EnumMatchTable.hpp>
 #include <ProjectDatabase.hpp>
 #include <iostream>
-#include <sstream>
 #include <cfloat>
-
-std::vector<std::string> splitFlags(const std::string& list) {
-	std::stringstream listStream = std::stringstream(list);
-	std::string listEntry;
-	std::vector<std::string> splitList;
-
-	while (std::getline(listStream, listEntry, '|')) {
-		for (size_t i = 0; i < listEntry.size(); ++i) {
-			if (listEntry[i] == ' ') {
-				listEntry.erase(listEntry.begin() + i);
-				--i;
-			}
-		}
-		splitList.push_back(listEntry);
-	}
-	return splitList;
-}
+#include <ParsingUtils.hpp>
 
 ProjectDatabase::ProjectDatabase(const Json::Value& projectRoot) {
 	deserializeVertexInput(projectRoot["vertex-input"]);

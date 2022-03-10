@@ -16,14 +16,19 @@ enum class PipelineType {
 	Graphics, Compute
 };
 
+struct DescriptorSetLayoutInfo {
+	VkDescriptorSetLayoutBinding binding;
+	bool usesImmutableSamplers;
+};
+
 class PipelineArchetypeRecord {
   public:
 	PipelineArchetypeRecord(const Json::Value& archetypeRoot);
   private:
-	void addShaderSource(ShaderSourceFile&& file);
+	PipelineType m_pipelineType;
 
 	std::vector<ShaderSourceFile> m_files;
 
 	std::vector<uint32_t> m_setBindingOffsets;
-	std::vector<VkDescriptorSetLayoutBinding> m_bindings;
+	std::vector<DescriptorSetLayoutInfo> m_bindings;
 };
