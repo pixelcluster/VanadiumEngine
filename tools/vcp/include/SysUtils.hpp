@@ -9,6 +9,7 @@ struct SubprocessID {
 };
 
 #elif defined(_WIN32)
+#define NOMINMAX
 #include <Windows.h>
 
 struct SubprocessID {
@@ -17,5 +18,5 @@ struct SubprocessID {
 };
 #endif
 
-SubprocessID startSubprocess(char* processName, std::vector<char*> arguments);
+SubprocessID startSubprocess(const char* processName, const std::vector<const char*>& arguments);
 void waitForSubprocess(const SubprocessID& id);

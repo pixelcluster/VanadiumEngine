@@ -2,11 +2,12 @@ cmake_minimum_required (VERSION 3.16)
 
 project ("VanadiumEngine")
 
-#FormatMatchTable
+#EnumMatchTable
 
-file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/EnumMatchTable/*.cpp")
+file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/EnumMatchTable/src/*.cpp")
 
 add_executable(EnumMatchTable ${CPP_SOURCES})
+target_include_directories(EnumMatchTable PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/EnumMatchTable/include")
 target_link_libraries(EnumMatchTable tinyxml2)
 
 #vcp
@@ -22,14 +23,15 @@ else()
 	set(SDK_PATH $ENV{VULKAN_SDK})
 endif()
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp 
-				   COMMAND EnumMatchTable 
-				   ARGS "${SDK_PATH}/share/vulkan/registry/vk.xml" 
-				   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated_include 
-				   DEPENDS EnumMatchTable)
+add_executable(vcp ${CPP_SOURCES} "${CMAKE_SOURCE_DIR}/dependencies/spirv-reflect/spirv_reflect.c" ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp)
 
-add_executable(vcp ${CPP_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp)
-target_include_directories(vcp PUBLIC ${Vulkan_INCLUDE_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/vcp/include" ${CMAKE_CURRENT_BINARY_DIR}/generated_include)
+target_include_directories(vcp PUBLIC 
+	${Vulkan_INCLUDE_DIRS} 
+	"${CMAKE_CURRENT_SOURCE_DIR}/vcp/include" 
+	"${CMAKE_SOURCE_DIR}/include" 
+	"${CMAKE_SOURCE_DIR}/dependencies/spirv-reflect" 
+	"${CMAKE_CURRENT_BINARY_DIR}/generated_include")
+
 if(MSVC)
 	target_compile_options(vcp PUBLIC "/bigobj")
 endif()

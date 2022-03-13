@@ -17,6 +17,8 @@ add_subdirectory(dependencies/volk)
 add_subdirectory(dependencies/tinyxml EXCLUDE_FROM_ALL)
 add_subdirectory(dependencies/jsoncpp EXCLUDE_FROM_ALL)
 
+add_subdirectory(tools)
+
 if(UNIX AND NOT APPLE)
 	option(USE_WAYLAND "Use Wayland instead of X11")
 	if(USE_WAYLAND)
@@ -54,4 +56,3 @@ target_include_directories(VanadiumEngine PUBLIC "include" ${Vulkan_INCLUDE_DIRS
 target_link_libraries(VanadiumEngine volk::volk glfw)
 
 add_subdirectory(examples)
-add_subdirectory(tools)

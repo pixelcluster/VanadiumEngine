@@ -16,3 +16,6 @@
 [submodule "dependencies/jsoncpp"]
 	path = dependencies/jsoncpp
 	url = https://github.com/open-source-parsers/jsoncpp.git
+[submodule "dependencies/spirv-reflect"]
+	path = dependencies/spirv-reflect
+	url = https://github.com/KhronosGroup/SPIRV-Reflect.git
