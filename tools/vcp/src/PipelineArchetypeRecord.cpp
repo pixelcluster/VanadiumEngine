@@ -294,7 +294,7 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 
 				auto& pipelineBinding = *pipelineBindingIterator;
 
-				if (binding->descriptor_type != pipelineBinding.binding.descriptorType) {
+				if (static_cast<VkDescriptorType>(binding->descriptor_type) != pipelineBinding.binding.descriptorType) {
 					std::cout << srcPath << ": Error: Descriptor type mismatch at set " << setIndex << ", binding" << i << ".\n";
 					m_isValid = false;
 				}

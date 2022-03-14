@@ -5,6 +5,7 @@
 #include <variant>
 #include <optional>
 #include <vector>
+#include <string>
 
 class VEngine;
 class VModule;

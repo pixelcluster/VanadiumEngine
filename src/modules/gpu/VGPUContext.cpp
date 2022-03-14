@@ -11,6 +11,8 @@
 #include <optional>
 #include <vector>
 
+#include <cstring>
+
 const char* platformSurfaceExtensionName() {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 	return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;

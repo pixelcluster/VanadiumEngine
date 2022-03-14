@@ -17,7 +17,7 @@ class VGPUModule : public VModule {
 	virtual void onDeactivate(VEngine& engine) override;
 	virtual void onDestroy(VEngine& engine) override;
 
-	virtual void onDependentModuleDeactivate(VEngine& engine, VModule* moduleToDestroy);
+	virtual void onDependentModuleDeactivate(VEngine& engine, VModule* moduleToDestroy) override;
 
 	VGPUContext& context() { return m_context; }
 

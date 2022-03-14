@@ -19,8 +19,6 @@ class VEngine {
 	VEngine() {}
 	VEngine(const VEngine&) = delete;
 	VEngine& operator=(const VEngine&) = delete;
-	VEngine(VEngine&&) = default;
-	VEngine& operator=(VEngine&&) = default;
 	~VEngine();
 
 	template <std::derived_from<VModule> T, typename... Args>

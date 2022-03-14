@@ -38,6 +38,8 @@ size_t parseOption(int argc, char** argv, size_t index, Options& options) {
 	if (argv[index] == std::string_view("--working-dir")) {
 		if (checkOption(argc, argv, index, "--working-dir")) {
 			options.projectDir = argv[index + 1];
+			if(options.projectDir.back() != '/')
+				options.projectDir.push_back('/');
 			return index + 1;
 		}
 	} else if (argv[index] == std::string_view("--compiler-command")) {

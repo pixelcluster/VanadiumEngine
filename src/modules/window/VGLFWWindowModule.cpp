@@ -1,6 +1,8 @@
 #include <modules/window/VGLFWWindowModule.hpp>
 #include <modules/gpu/helper/ErrorHelper.hpp>
 
+#include <cstring>
+
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (key >= 32 && key <= 96) {
 		VKeyState state;

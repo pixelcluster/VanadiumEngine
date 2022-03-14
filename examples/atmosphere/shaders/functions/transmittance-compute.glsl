@@ -17,7 +17,7 @@
 #include "common.glsl"
 
 vec3 betaExtinctionRayleigh(float height) {
-	return betaExtinctionZeroRayleigh.rgb * exp(-(height - groundRadius) / heightScaleRayleigh);
+	return vec3(betaExtinctionZeroRayleigh.r, betaExtinctionZeroRayleigh.g, betaExtinctionZeroRayleigh.b) * exp(-(height - groundRadius) / heightScaleRayleigh);
 }
 
 float betaExtinctionMie(float height) {
@@ -27,7 +27,7 @@ float betaExtinctionMie(float height) {
 vec3 betaExtinctionOzone(float height) {
 	float densityFactor = (height - groundRadius) > layerHeightOzone ? -(height - groundRadius) / heightRangeOzone : (height - groundRadius) / heightRangeOzone;
 	densityFactor += (height - groundRadius) > layerHeightOzone ? layer1ConstantFactorOzone : layer0ConstantFactorOzone;
-	return absorptionZeroOzone.rgb * clamp(densityFactor, 0.0f, 1.0f);
+	return vec3(absorptionZeroOzone.r, absorptionZeroOzone.g, absorptionZeroOzone.b) * clamp(densityFactor, 0.0f, 1.0f);
 }
 
 vec3 calcTransmittance(vec2 pos, vec2 direction, float deltaT) {

@@ -2,6 +2,8 @@
 #include <modules/gpu/helper/ErrorHelper.hpp>
 #include <volk.h>
 
+#include <bit>
+
 void VGPUResourceAllocator::create(VGPUContext* gpuContext) {
 	m_bufferFreeList.resize(frameInFlightCount);
 	m_imageFreeList.resize(frameInFlightCount);

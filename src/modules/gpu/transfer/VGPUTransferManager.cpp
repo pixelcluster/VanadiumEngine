@@ -1,6 +1,7 @@
 #include <modules/gpu/helper/ErrorHelper.hpp>
 #include <modules/gpu/transfer/VGPUTransferManager.hpp>
 #include <volk.h>
+#include <cstring>
 
 void VGPUTransferManager::create(VGPUContext* context, VGPUResourceAllocator* allocator) {
 	m_context = context;

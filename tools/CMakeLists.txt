@@ -23,7 +23,15 @@ else()
 	set(SDK_PATH $ENV{VULKAN_SDK})
 endif()
 
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp 
+				   COMMAND EnumMatchTable 
+				   ARGS "${SDK_PATH}/share/vulkan/registry/vk.xml" 
+				   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated_include 
+				   DEPENDS EnumMatchTable)
+
 add_executable(vcp ${CPP_SOURCES} "${CMAKE_SOURCE_DIR}/dependencies/spirv-reflect/spirv_reflect.c" ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp)
+
+set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp PROPERTIES GENERATED TRUE)
 
 target_include_directories(vcp PUBLIC 
 	${Vulkan_INCLUDE_DIRS} 
