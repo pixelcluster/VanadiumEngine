@@ -42,7 +42,7 @@ endif()
 
 set(VANADIUM_GPU_DEBUG false CACHE BOOL "Enable debug utilities for GPU modules")
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/VDebug.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/include/VDebug.hpp")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/Debug.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/include/Debug.hpp")
 
 file(GLOB_RECURSE CPP_SOURCES CONFIGURE_DEPENDS 
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
