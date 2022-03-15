@@ -5,41 +5,52 @@
 #include <vulkan/vulkan.h>
 
 namespace vanadium::graphics {
-    struct LibraryBuffer
-    {
-        uint64_t id;
-        void* data;
-        size_t dataSize;
-    };
 
-    struct LibraryImageLOD
+    constexpr uint32_t assetLibraryVersion = 1;
+
+    struct LibraryImageMipmap
     {
-        uint64_t id;
         uint32_t width;
         uint32_t height;
-        VkFormat format;
+        void* data;
     };
     
     struct LibraryImage
     {
-        uint64_t id;
-        std::vector<LibraryImageLOD> lods;
+        VkFormat format;
+        std::vector<uint64_t> mipmapIDs;
     };
 
     struct LibraryMesh
     {
-        uint64_t id;
-        std::vector<LibraryBuffer> lods;
+        void* data;
+        size_t dataSize;
     };
+
+    struct BinaryHeaderInfo
+    {
+        size_t imageCount;
+        size_t meshCount;
+
+        void* dataStart;
+        void* meshStart;
+        void* imageStart;
+        void* dataStart;
+    };
+    
 
     class AssetLibrary
     {
     public:
         AssetLibrary(const std::string& libraryFile);
     private:
-        std::string m_libraryFileName;
-        void* libraryData;
+        BinaryHeaderInfo parseLibraryFile();
 
+        std::string m_libraryFileName;
+        void* m_libraryData;
+
+        std::vector<LibraryImage> m_images;
+        std::vector<LibraryMesh> m_meshes;
     };
     
 }

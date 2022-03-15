@@ -53,7 +53,7 @@ find_package(Vulkan REQUIRED FATAL_ERROR)
 
 add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS})
 
-target_precompile_headers(VanadiumEngine PRIVATE "include/VEngine.hpp")
+target_precompile_headers(VanadiumEngine PRIVATE "include/Engine.hpp")
 
 target_include_directories(VanadiumEngine PUBLIC "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb")
 target_link_libraries(VanadiumEngine volk::volk glfw)
