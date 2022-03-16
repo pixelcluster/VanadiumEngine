@@ -6,51 +6,58 @@
 
 namespace vanadium::graphics {
 
-    constexpr uint32_t assetLibraryVersion = 1;
+	constexpr uint32_t assetLibraryVersion = 1;
 
-    struct LibraryImageMipmap
-    {
-        uint32_t width;
-        uint32_t height;
-        void* data;
-    };
-    
-    struct LibraryImage
-    {
-        VkFormat format;
-        std::vector<uint64_t> mipmapIDs;
-    };
+	struct LibraryImage {
+		VkFormat format;
+		uint32_t width;
+		uint32_t height;
+		uint32_t mipCount;
+		void* dataStart;
+	};
 
-    struct LibraryMesh
-    {
-        void* data;
-        size_t dataSize;
-    };
+	struct LibraryMesh {
+		void* data;
+		size_t dataSize;
+	};
 
-    struct BinaryHeaderInfo
-    {
-        size_t imageCount;
-        size_t meshCount;
+	struct BinaryHeaderInfo {
+		size_t imageCount;
+		size_t meshCount;
 
-        void* dataStart;
-        void* meshStart;
-        void* imageStart;
-        void* dataStart;
-    };
+		size_t binaryDataSize;
+
+		void* meshBinaryDataStart;
+        void* imageBinaryDataStart;
+        
+        std::ifstream dataStream;
+	};
     
 
-    class AssetLibrary
-    {
-    public:
-        AssetLibrary(const std::string& libraryFile);
-    private:
-        BinaryHeaderInfo parseLibraryFile();
+	class AssetLibrary {
+	  public:
+		AssetLibrary(const std::string& libraryFile);
 
-        std::string m_libraryFileName;
-        void* m_libraryData;
+	  private:
+		BinaryHeaderInfo parseLibraryFile();
+		void addMesh(BinaryHeaderInfo& headerInfo);
+		void addImage(BinaryHeaderInfo& headerInfo);
 
-        std::vector<LibraryImage> m_images;
-        std::vector<LibraryMesh> m_meshes;
-    };
-    
-}
+		template <typename T> T readFromFile(std::ifstream& stream, bool expectEOF = false);
+
+		std::string m_libraryFileName;
+		void* m_libraryData;
+
+		std::vector<LibraryImage> m_images;
+		std::vector<LibraryMesh> m_meshes;
+	};
+
+	template <typename T> T AssetLibrary::readFromFile(std::ifstream& stream, bool expectEOF) {
+		T value;
+		stream.read(reinterpret_cast<char*>(&value), sizeof(T));
+		if (!expectEOF)
+			assertFatal(stream.good(), "Invalid asset library file!\n");
+		return value;
+	}
+
+} // namespace vanadium::graphics
