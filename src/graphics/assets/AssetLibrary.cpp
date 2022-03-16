@@ -9,16 +9,16 @@ void* offsetVoidPtr(void* data, uint64_t size) {
 
 namespace vanadium::graphics {
 	AssetLibrary::AssetLibrary(const std::string& libraryFile) : m_libraryFileName(libraryFile) {
-        BinaryHeaderInfo headerInfo = parseLibraryFile();
-        for(uint32_t i = 0; i < headerInfo.meshCount; ++i) {
-            addMesh(headerInfo);
-        }
-        for(uint32_t i = 0; i < headerInfo.imageCount; ++i) {
-            addImage(headerInfo);
-        }
-        headerInfo.dataStream.read(reinterpret_cast<char*>(headerInfo.meshBinaryDataStart), headerInfo.binaryDataSize);
-        headerInfo.dataStream.close();
-    }
+		BinaryHeaderInfo headerInfo = parseLibraryFile();
+		for (uint32_t i = 0; i < headerInfo.meshCount; ++i) {
+			addMesh(headerInfo);
+		}
+		for (uint32_t i = 0; i < headerInfo.imageCount; ++i) {
+			addImage(headerInfo);
+		}
+		headerInfo.dataStream.read(reinterpret_cast<char*>(headerInfo.meshBinaryDataStart), headerInfo.binaryDataSize);
+		headerInfo.dataStream.close();
+	}
 
 	BinaryHeaderInfo AssetLibrary::parseLibraryFile() {
 		std::ifstream inFileStream = std::ifstream(m_libraryFileName);
@@ -42,7 +42,7 @@ namespace vanadium::graphics {
 
 		return { .meshCount = meshCount,
 				 .imageCount = imageCount,
-                 .binaryDataSize = totalDataSize,
+				 .binaryDataSize = totalDataSize,
 				 .meshBinaryDataStart = data,
 				 .imageBinaryDataStart = offsetVoidPtr(data, meshBinaryDataSize),
 				 .dataStream = std::move(inFileStream) };
@@ -67,5 +67,19 @@ namespace vanadium::graphics {
 							 .height = imageHeight,
 							 .mipCount = mipCount,
 							 .dataStart = offsetVoidPtr(headerInfo.imageBinaryDataStart, dataOffset) });
+	}
+
+	const LibraryImage& AssetLibrary::image(uint64_t id) {
+		if (id < m_images.size())
+			return m_images[id];
+		else
+			return {};
+	}
+
+	const LibraryMesh& AssetLibrary::mesh(uint64_t id) {
+		if (id < m_meshes.size())
+			return m_meshes[id];
+		else
+			return {};
 	}
 } // namespace vanadium::graphics

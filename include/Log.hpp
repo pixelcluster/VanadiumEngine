@@ -16,7 +16,7 @@ namespace vanadium {
 
 	template <typename... Ts> void logFatal(const char* message, Ts... values) { 
         fprintf(stderr, message, values...);
-        std::exit(1);
+        std::abort();
     }
 
 	template <typename... Ts> void logFatal(int exitCode, const char* message, Ts... values) { 

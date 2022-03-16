@@ -38,6 +38,8 @@ namespace vanadium::graphics {
 	  public:
 		AssetLibrary(const std::string& libraryFile);
 
+		const LibraryImage& image(uint64_t id);
+		const LibraryMesh& mesh(uint64_t id);
 	  private:
 		BinaryHeaderInfo parseLibraryFile();
 		void addMesh(BinaryHeaderInfo& headerInfo);
