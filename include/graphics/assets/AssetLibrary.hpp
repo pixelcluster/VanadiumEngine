@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <vector>
+#include <fstream>
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>

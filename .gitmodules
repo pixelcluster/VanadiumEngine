@@ -19,3 +19,6 @@
 [submodule "dependencies/spirv-reflect"]
 	path = dependencies/spirv-reflect
 	url = https://github.com/KhronosGroup/SPIRV-Reflect.git
+[submodule "dependencies/robin-hood"]
+	path = dependencies/robin-hood
+	url = https://github.com/martinus/robin-hood-hashing.git

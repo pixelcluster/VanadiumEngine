@@ -30,6 +30,7 @@ add_subdirectory(dependencies/glfw)
 add_subdirectory(dependencies/volk)
 add_subdirectory(dependencies/tinyxml EXCLUDE_FROM_ALL)
 add_subdirectory(dependencies/jsoncpp EXCLUDE_FROM_ALL)
+add_subdirectory(dependencies/robin-hood)
 
 add_subdirectory(tools)
 
@@ -56,6 +57,6 @@ add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS})
 target_precompile_headers(VanadiumEngine PRIVATE "include/Engine.hpp")
 
 target_include_directories(VanadiumEngine PUBLIC "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb")
-target_link_libraries(VanadiumEngine volk::volk glfw)
+target_link_libraries(VanadiumEngine volk::volk glfw robin-hood)
 
 add_subdirectory(examples)

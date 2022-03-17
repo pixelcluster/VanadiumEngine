@@ -1,7 +1,7 @@
 #pragma once
 
 #define VK_NO_PROTOTYPES
-#include <modules/gpu/helper/ErrorHelper.hpp>
+#include <graphics/helper/ErrorHelper.hpp>
 #include <string>
 #include <volk.h>
 #include <vulkan/vulkan.h>
