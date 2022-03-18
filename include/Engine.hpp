@@ -1,4 +1,6 @@
+#pragma once
 #include <cstdint>
+#include <graphics/GraphicsSubsystem.hpp>
 
 namespace vanadium {
     enum class EngineStartupFlags {
@@ -11,5 +13,8 @@ namespace vanadium {
         Engine(uint32_t engineStartupFlags);
     private:
         uint32_t m_startupFlags;
+
+        windowing::WindowInterface m_windowInterface;
+        graphics::GraphicsSubsystem m_graphicsSubsystem;
     };
 }

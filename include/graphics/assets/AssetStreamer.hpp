@@ -1,7 +1,8 @@
+#pragma once
 #include <helper/SparseArray.hpp>
 #include <graphics/assets/AssetLibrary.hpp>
-#include <graphics/util/VGPUResourceAllocator.hpp>
-#include <graphics/util/VGPUTransferManager.hpp>
+#include <graphics/util/GPUResourceAllocator.hpp>
+#include <graphics/util/GPUTransferManager.hpp>
 
 
 namespace vanadium::graphics

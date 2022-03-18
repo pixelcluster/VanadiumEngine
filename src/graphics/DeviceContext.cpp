@@ -32,10 +32,10 @@ namespace vanadium::graphics {
 		verifyResult(volkInitialize());
 
 		VkApplicationInfo appInfo = { .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-									  .applicationVersion = appVersion,
 									  .pApplicationName = appName.data(),
-									  .engineVersion = 1,
+									  .applicationVersion = appVersion,
 									  .pEngineName = "Vanadium",
+									  .engineVersion = 1,
 									  .apiVersion = VK_API_VERSION_1_0 };
 
 		std::vector<const char*> instanceExtensionNames;
@@ -92,10 +92,8 @@ namespace vanadium::graphics {
 
 			uint32_t queueFamilyIndex = 0;
 			for (auto& properties : queueFamilyProperties) {
-				VkBool32 surfaceSupport = VK_FALSE;
-				vkGetPhysicalDeviceSurfaceSupportKHR(device, queueFamilyIndex, windowSurface.surface(),
-													 &surfaceSupport);
-				if ((properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) && surfaceSupport) {
+				if ((properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+					windowSurface.supportsPresent(device, queueFamilyIndex)) {
 					chosenDevice = device;
 					chosenQueueFamilyIndex = queueFamilyIndex;
 					break;
@@ -115,7 +113,7 @@ namespace vanadium::graphics {
 
 		m_physicalDevice = chosenDevice.value();
 
-		windowSurface.setPhysicalDevice(m_physicalDevice);
+		windowSurface.create(m_instance);
 
 		std::vector<const char*> deviceExtensionNames = { "VK_KHR_swapchain" };
 
@@ -151,21 +149,12 @@ namespace vanadium::graphics {
 		volkLoadDevice(m_device);
 
 		m_physicalDevice = chosenDevice.value();
-		std::vector<VkSurfaceFormatKHR> surfaceFormats = enumerate<VkPhysicalDevice, VkSurfaceFormatKHR, VkSurfaceKHR>(
-			m_physicalDevice, m_surface, vkGetPhysicalDeviceSurfaceFormatsKHR);
-
-		if (std::find_if(surfaceFormats.begin(), surfaceFormats.end(), [](const auto& format) {
-				return format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
-					   format.format == VK_FORMAT_B8G8R8A8_SRGB;
-			}) == surfaceFormats.end()) {
-			std::exit(-6);
-		}
 
 		vkGetDeviceQueue(m_device, chosenQueueFamilyIndex, 0, &m_graphicsQueue);
 
 		m_graphicsQueueFamilyIndex = chosenQueueFamilyIndex;
 
-		VkFenceCreateInfo fenceCreateInfo = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+		/*VkFenceCreateInfo fenceCreateInfo = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 											  .flags = VK_FENCE_CREATE_SIGNALED_BIT };
 
 		VkSemaphoreCreateInfo semaphoreCreateInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -178,6 +167,6 @@ namespace vanadium::graphics {
 			verifyResult(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_swapchainImageSemaphores[i]));
 
 			verifyResult(vkCreateCommandPool(m_device, &poolCreateInfo, nullptr, &m_frameCommandPools[i]));
-		}
+		}*/
 	}
 } // namespace vanadium::graphics

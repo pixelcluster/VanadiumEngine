@@ -4,7 +4,7 @@
 #include <modules/gpu/VGPUModule.hpp>
 #include <framegraph_nodes/PlanetRenderNode.hpp>
 #include <modules/window/VWindowModule.hpp>
-#include <modules/gpu/transfer/VGPUTransferManager.hpp>
+#include <graphics/util/GPUTransferManager.hpp>
 #include <glm/glm.hpp>
 #include <numbers>
 
@@ -55,11 +55,11 @@ class DataGeneratorModule : public VModule {
 	VertexData* m_pointBuffer;
 	uint32_t* m_indexBuffer;
 
-	VBufferResourceHandle m_vertexBufferHandle;
-	VBufferResourceHandle m_indexBufferHandle;
-	VImageResourceHandle m_texHandle;
-	VImageResourceHandle m_seaMaskTexHandle;
-	VGPUTransferHandle m_sceneDataTransfer;
+	BufferResourceHandle m_vertexBufferHandle;
+	BufferResourceHandle m_indexBufferHandle;
+	ImageResourceHandle m_texHandle;
+	ImageResourceHandle m_seaMaskTexHandle;
+	GPUTransferHandle m_sceneDataTransfer;
 
 	VkDescriptorSetLayout m_sceneDataSetLayout;
 	VkDescriptorSetLayout m_textureSetLayout;

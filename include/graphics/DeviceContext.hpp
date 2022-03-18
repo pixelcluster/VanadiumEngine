@@ -1,7 +1,8 @@
+#pragma once
 #define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
-
+#include <graphics/WindowSurface.hpp>
 #include <string_view>
+#include <vulkan/vulkan.h>
 
 namespace vanadium::graphics {
 
@@ -22,6 +23,11 @@ namespace vanadium::graphics {
 		VkInstance instance() { return m_instance; }
 		VkPhysicalDevice physicalDevice() { return m_physicalDevice; }
 		VkDevice device() { return m_device; }
+
+		uint32_t graphicsQueueFamilyIndex() const { return m_graphicsQueueFamilyIndex; }
+		VkQueue graphicsQueue() { return m_graphicsQueue; }
+
+		DeviceCapabilities deviceCapabilities() const { return m_capabilities; }
 
 	  private:
 		VkInstance m_instance;

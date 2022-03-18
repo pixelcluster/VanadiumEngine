@@ -1,9 +1,9 @@
 #include <framegraph_nodes/ScatteringLUTNode.hpp>
 #include <helper/WholeFileReader.hpp>
-#include <modules/gpu/helper/ErrorHelper.hpp>
+#include <graphics/helper/ErrorHelper.hpp>
 #include <volk.h>
 
-void ScatteringLUTNode::create(VFramegraphContext* context) {
+void ScatteringLUTNode::create(FramegraphContext* context) {
 	VkImageSubresourceRange lutSubresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 													.baseMipLevel = 0,
 													.levelCount = 1,
@@ -25,7 +25,7 @@ void ScatteringLUTNode::create(VFramegraphContext* context) {
 		  .usageFlags = VK_IMAGE_USAGE_STORAGE_BIT,
 		  .subresourceRange = lutSubresourceRange,
 		  .writes = true,
-		  .viewInfo = VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+		  .viewInfo = ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
 											  .components = { .r = VK_COMPONENT_SWIZZLE_IDENTITY,
 															  .g = VK_COMPONENT_SWIZZLE_IDENTITY,
 															  .b = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -48,7 +48,7 @@ void ScatteringLUTNode::create(VFramegraphContext* context) {
 		  .usageFlags = VK_IMAGE_USAGE_STORAGE_BIT,
 		  .subresourceRange = lutSubresourceRange,
 		  .writes = true,
-		  .viewInfo = VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+		  .viewInfo = ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
 											  .components = { .r = VK_COMPONENT_SWIZZLE_IDENTITY,
 															  .g = VK_COMPONENT_SWIZZLE_IDENTITY,
 															  .b = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -71,7 +71,7 @@ void ScatteringLUTNode::create(VFramegraphContext* context) {
 		  .usageFlags = VK_IMAGE_USAGE_STORAGE_BIT,
 		  .subresourceRange = lutSubresourceRange,
 		  .writes = true,
-		  .viewInfo = VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_3D,
+		  .viewInfo = ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_3D,
 											  .components = { .r = VK_COMPONENT_SWIZZLE_IDENTITY,
 															  .g = VK_COMPONENT_SWIZZLE_IDENTITY,
 															  .b = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -94,7 +94,7 @@ void ScatteringLUTNode::create(VFramegraphContext* context) {
 		  .usageFlags = VK_IMAGE_USAGE_STORAGE_BIT,
 		  .subresourceRange = lutSubresourceRange,
 		  .writes = true,
-		  .viewInfo = VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_3D,
+		  .viewInfo = ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_3D,
 											  .components = { .r = VK_COMPONENT_SWIZZLE_IDENTITY,
 															  .g = VK_COMPONENT_SWIZZLE_IDENTITY,
 															  .b = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -149,17 +149,17 @@ void ScatteringLUTNode::create(VFramegraphContext* context) {
 										  &transmittancePipelineCreateInfo, nullptr,
 										  &m_transmittanceComputationPipeline));
 
-	VDescriptorSetAllocationInfo transmittanceSetAllocationInfo = {
+	DescriptorSetAllocationInfo transmittanceSetAllocationInfo = {
 		.typeInfos = { { .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .count = 1 } }, .layout = m_pipelineOutputLayout
 	};
-	VDescriptorSetAllocation transmittanceSetAllocation =
+	DescriptorSetAllocation transmittanceSetAllocation =
 		context->descriptorSetAllocator()->allocateDescriptorSets({ transmittanceSetAllocationInfo })[0];
 	m_transmittanceComputationOutputSet = transmittanceSetAllocation.set;
 
 	vkDestroyShaderModule(context->gpuContext()->device(), transmittanceComputeShaderModule, nullptr);
 }
 
-void ScatteringLUTNode::initResources(VFramegraphContext* context) {
+void ScatteringLUTNode::initResources(FramegraphContext* context) {
 	VkImageView transmittanceImageView = context->imageView(this, m_transmittanceLUTHandle);
 
 	VkDescriptorImageInfo transmittanceImageInfo = { .imageView = transmittanceImageView,
@@ -174,8 +174,8 @@ void ScatteringLUTNode::initResources(VFramegraphContext* context) {
 	vkUpdateDescriptorSets(context->gpuContext()->device(), 1, &transmittanceImageWrite, 0, nullptr);
 }
 
-void ScatteringLUTNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-									   const VFramegraphNodeContext& nodeContext) {
+void ScatteringLUTNode::recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+									   const FramegraphNodeContext& nodeContext) {
 	TransmittanceComputeData transmittanceData = {
 		.lutSize = glm::ivec4(256, 64, 1, 1),
 		.betaExtinctionZeroMie = glm::vec4(0.004440f),
@@ -200,7 +200,7 @@ void ScatteringLUTNode::recordCommands(VFramegraphContext* context, VkCommandBuf
 	vkCmdDispatch(targetCommandBuffer, 32, 8, 1);
 }
 
-void ScatteringLUTNode::destroy(VFramegraphContext* context) {
+void ScatteringLUTNode::destroy(FramegraphContext* context) {
 	vkDestroyPipeline(context->gpuContext()->device(), m_transmittanceComputationPipeline, nullptr);
 	vkDestroyPipelineLayout(context->gpuContext()->device(), m_transmittanceComputationPipelineLayout, nullptr);
 	vkDestroyDescriptorSetLayout(context->gpuContext()->device(), m_pipelineOutputLayout, nullptr);

@@ -1,5 +1,6 @@
+#pragma once
+#include <optional>
 #include <windowing/WindowInterface.hpp>
-
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
@@ -12,7 +13,7 @@ namespace vanadium::graphics {
 		void create(VkInstance instance);
 
 		bool supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex);
-		void createSwapchain(VkPhysicalDevice physicalDevice, VkDevice device);
+		void createSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkImageUsageFlags usageFlags);
 
 		void destroy(VkDevice device, VkInstance instance);
 
@@ -20,10 +21,19 @@ namespace vanadium::graphics {
 		bool swapchainDirtyFlag() const { return m_swapchainDirtyFlag; }
 		bool canRender() const { return m_canRender; }
 
-        void setSuggestedSize(uint32_t suggestedWidth, uint32_t suggestedHeight);
+		std::vector<VkImage> swapchainImages(VkDevice device);
+		VkFormat swapchainImageFormat() { return VK_FORMAT_B8G8R8A8_SRGB; }
 
-        //returns whether the swapchain data was changed
-        bool refreshSwapchain();
+		uint32_t imageWidth() const { return m_actualWidth; }
+		uint32_t imageHeight() const { return m_actualHeight; }
+
+		void setSuggestedSize(uint32_t suggestedWidth, uint32_t suggestedHeight);
+
+		// returns whether the swapchain data was changed
+		bool refreshSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkImageUsageFlags usageFlags);
+
+		uint32_t tryAcquire(VkDevice device, VkSemaphore dstSemaphore);
+		void tryPresent(VkQueue queue, VkSemaphore waitSemaphore, uint32_t imageIndex);
 
 	  private:
 		windowing::WindowInterface& m_interface;
@@ -32,10 +42,13 @@ namespace vanadium::graphics {
 		bool m_swapchainDirtyFlag = true;
 		bool m_canRender = false;
 
-        uint32_t m_suggestedWidth = 0, m_suggestedHeight = 0;
+		uint32_t m_suggestedWidth = 0, m_suggestedHeight = 0;
+		uint32_t m_actualWidth = 0, m_actualHeight = 0;
 
-		VkSurfaceKHR m_surface;
-		VkSwapchainKHR m_swapchain;
+		std::optional<uint32_t> m_lastFailedPresentIndex;
+
+		VkSurfaceKHR m_surface = VK_NULL_HANDLE;
+		VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
 	};
 
 } // namespace vanadium::graphics

@@ -2,8 +2,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <numbers>
 
-#include <modules/gpu/helper/ErrorHelper.hpp>
-#include <modules/gpu/helper/TextureImageLoader.hpp>
+#include <graphics/helper/ErrorHelper.hpp>
+#include <graphics/helper/TextureImageLoader.hpp>
 #include <volk.h>
 
 DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, PlanetRenderNode* renderNode,
@@ -165,14 +165,14 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, PlanetRenderNode
 											 &m_textureSetLayout));
 
 	VkImageView view = m_gpuModule->resourceAllocator().requestImageView(
-		m_texHandle, VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+		m_texHandle, ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
 											 .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 																   .baseMipLevel = 0,
 																   .levelCount = VK_REMAINING_MIP_LEVELS,
 																   .baseArrayLayer = 0,
 																   .layerCount = 1 } });
 	VkImageView seaMaskView = m_gpuModule->resourceAllocator().requestImageView(
-		m_seaMaskTexHandle, VImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+		m_seaMaskTexHandle, ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
 													.subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 																		  .baseMipLevel = 0,
 																		  .levelCount = VK_REMAINING_MIP_LEVELS,

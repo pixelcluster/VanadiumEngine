@@ -2,12 +2,12 @@
 #include <framegraph_nodes/PlanetRenderNode.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <helper/WholeFileReader.hpp>
-#include <modules/gpu/helper/ErrorHelper.hpp>
+#include <graphics/helper/ErrorHelper.hpp>
 #include <volk.h>
 
 PlanetRenderNode::PlanetRenderNode() {}
 
-void PlanetRenderNode::create(VFramegraphContext* context) {
+void PlanetRenderNode::create(FramegraphContext* context) {
 	VkAttachmentDescription description = { .format = VK_FORMAT_B8G8R8A8_SRGB,
 											.samples = VK_SAMPLE_COUNT_1_BIT,
 											.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -31,7 +31,7 @@ void PlanetRenderNode::create(VFramegraphContext* context) {
 	verifyResult(vkCreateRenderPass(context->gpuContext()->device(), &renderPassCreateInfo, nullptr, &m_renderPass));
 }
 
-void PlanetRenderNode::setupResources(VFramegraphContext* context) {
+void PlanetRenderNode::setupResources(FramegraphContext* context) {
 	VkDescriptorSetLayout layouts[2] = { m_uboSetLayout, m_texSetLayout };
 
 	VkPipelineLayoutCreateInfo layoutCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -163,7 +163,7 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 	vkDestroyShaderModule(context->gpuContext()->device(), vertexShaderModule, nullptr);
 	vkDestroyShaderModule(context->gpuContext()->device(), fragmentShaderModule, nullptr);
 
-	VFramegraphNodeImageUsage usage = {
+	FramegraphNodeImageUsage usage = {
 		.pipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 		.accessTypes = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 		.startLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -177,7 +177,7 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 			.layerCount = 1
 		},
 		.writes = true,
-		.viewInfo = VImageResourceViewInfo {
+		.viewInfo = ImageResourceViewInfo {
 			.viewType = VK_IMAGE_VIEW_TYPE_2D, 
 			.components = {
 				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -198,11 +198,11 @@ void PlanetRenderNode::setupResources(VFramegraphContext* context) {
 
 }
 
-void PlanetRenderNode::initResources(VFramegraphContext* context) {
+void PlanetRenderNode::initResources(FramegraphContext* context) {
 }
 
-void PlanetRenderNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-									  const VFramegraphNodeContext& nodeContext) {
+void PlanetRenderNode::recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+									  const FramegraphNodeContext& nodeContext) {
 	VkClearValue value = { .color = { .float32 = { 0.0f, 0.0f, 0.0f } } };
 
 	VkRenderPassBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -240,7 +240,7 @@ void PlanetRenderNode::recordCommands(VFramegraphContext* context, VkCommandBuff
 	vkCmdEndRenderPass(targetCommandBuffer);
 }
 
-void PlanetRenderNode::setupObjects(VBufferResourceHandle vertexDataBuffer, VBufferResourceHandle indexDataBuffer,
+void PlanetRenderNode::setupObjects(BufferResourceHandle vertexDataBuffer, BufferResourceHandle indexDataBuffer,
 									VkDescriptorSetLayout sceneDataLayout, VkDescriptorSet sceneDataSet,
 									VkDescriptorSetLayout texSetLayout, VkDescriptorSet texSet, uint32_t indexCount) {
 	m_vertexData = vertexDataBuffer;
@@ -254,7 +254,7 @@ void PlanetRenderNode::setupObjects(VBufferResourceHandle vertexDataBuffer, VBuf
 	
 }
 
-void PlanetRenderNode::handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height) {
+void PlanetRenderNode::handleWindowResize(FramegraphContext* context, uint32_t width, uint32_t height) {
 	for (auto& framebuffer : m_framebuffers) {
 		vkDestroyFramebuffer(context->gpuContext()->device(), framebuffer, nullptr);
 	}
@@ -262,11 +262,11 @@ void PlanetRenderNode::handleWindowResize(VFramegraphContext* context, uint32_t 
 
 	uint32_t index = 0;
 	for (auto& framebuffer : m_framebuffers) {
-		VkImageView swapchainImageView = context->swapchainImageView(this, index);
+		VkImageView targetImageView = context->targetImageView(this, index);
 		VkFramebufferCreateInfo framebufferCreateInfo = { .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 														  .renderPass = m_renderPass,
 														  .attachmentCount = 1,
-														  .pAttachments = &swapchainImageView,
+														  .pAttachments = &targetImageView,
 														  .width = width,
 														  .height = height,
 														  .layers = 1 };
@@ -279,7 +279,7 @@ void PlanetRenderNode::handleWindowResize(VFramegraphContext* context, uint32_t 
 	m_height = height;
 }
 
-void PlanetRenderNode::destroy(VFramegraphContext* context) {
+void PlanetRenderNode::destroy(FramegraphContext* context) {
 	for (auto& framebuffer : m_framebuffers) {
 		vkDestroyFramebuffer(context->gpuContext()->device(), framebuffer, nullptr);
 	}

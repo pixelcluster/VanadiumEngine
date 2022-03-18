@@ -40,8 +40,8 @@ namespace vanadium::graphics {
 		void* data = malloc(totalDataSize);
 		assertFatal(data, "Failed to allocate data for asset library!\n");
 
-		return { .meshCount = meshCount,
-				 .imageCount = imageCount,
+		return { .imageCount = imageCount,
+				 .meshCount = meshCount,
 				 .binaryDataSize = totalDataSize,
 				 .meshBinaryDataStart = data,
 				 .imageBinaryDataStart = offsetVoidPtr(data, meshBinaryDataSize),
@@ -52,7 +52,7 @@ namespace vanadium::graphics {
 		uint32_t dataSize = readFromFile<uint32_t>(headerInfo.dataStream);
 		uint64_t dataOffset = readFromFile<uint64_t>(headerInfo.dataStream);
 
-		m_meshes.push_back({ .dataSize = dataSize, .data = offsetVoidPtr(headerInfo.meshBinaryDataStart, dataOffset) });
+		m_meshes.push_back({ .data = offsetVoidPtr(headerInfo.meshBinaryDataStart, dataOffset), .dataSize = dataSize });
 	}
 
 	void AssetLibrary::addImage(BinaryHeaderInfo& headerInfo) {

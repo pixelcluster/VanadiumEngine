@@ -14,7 +14,7 @@ class VertexBufferUpdateModule : public VModule {
 
 	virtual void onDependentModuleDeactivate(VEngine& engine, VModule* moduleToDestroy) override;
 
-	VBufferResourceHandle vertexBufferHandle() const {
+	BufferResourceHandle vertexBufferHandle() const {
 		return m_gpuModule->transferManager().dstBufferHandle(m_vertexDataTransfer);
 	}
   private:
@@ -23,5 +23,5 @@ class VertexBufferUpdateModule : public VModule {
 
 	double m_timeCounter = 0.0f;
 
-	VGPUTransferHandle m_vertexDataTransfer;
+	GPUTransferHandle m_vertexDataTransfer;
 };

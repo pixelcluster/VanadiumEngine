@@ -2,32 +2,32 @@
 
 #include <PlanetObject.hpp>
 #include <glm/glm.hpp>
-#include <modules/gpu/framegraph/VFramegraphNode.hpp>
+#include <graphics/framegraph/FramegraphNode.hpp>
 
-class PlanetRenderNode : public VFramegraphNode {
+class PlanetRenderNode : public FramegraphNode {
   public:
 	PlanetRenderNode();
 
-	void create(VFramegraphContext* context);
+	void create(FramegraphContext* context);
 
-	void setupObjects(VBufferResourceHandle vertexDataBuffer, VBufferResourceHandle indexDataBuffer,
+	void setupObjects(BufferResourceHandle vertexDataBuffer, BufferResourceHandle indexDataBuffer,
 					  VkDescriptorSetLayout sceneDataLayout, VkDescriptorSet sceneDataSet,
 					  VkDescriptorSetLayout texSetLayout, VkDescriptorSet texSet, uint32_t indexCount);
 
-	void setupResources(VFramegraphContext* context);
+	void setupResources(FramegraphContext* context);
 
-	void initResources(VFramegraphContext* context);
+	void initResources(FramegraphContext* context);
 
-	void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-						const VFramegraphNodeContext& nodeContext);
+	void recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+						const FramegraphNodeContext& nodeContext);
 
-	void handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height);
+	void handleWindowResize(FramegraphContext* context, uint32_t width, uint32_t height);
 
-	void destroy(VFramegraphContext* context);
+	void destroy(FramegraphContext* context);
 
   private:
-	VBufferResourceHandle m_vertexData;
-	VBufferResourceHandle m_indexData;
+	BufferResourceHandle m_vertexData;
+	BufferResourceHandle m_indexData;
 
 	uint32_t m_indexCount;
 

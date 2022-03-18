@@ -1,21 +1,21 @@
 #pragma once
 
-#include <modules/gpu/framegraph/VFramegraphNode.hpp>
+#include <graphics/framegraph/FramegraphNode.hpp>
 
-class SwapchainClearNode : public VFramegraphNode {
+class SwapchainClearNode : public FramegraphNode {
   public:
 	SwapchainClearNode() { m_name = "Swapchain clearing"; }
 
-	void create(VFramegraphContext* context) override {}
+	void create(FramegraphContext* context) override {}
 
-	void setupResources(VFramegraphContext* context) override;
+	void setupResources(FramegraphContext* context) override;
 
-	void initResources(VFramegraphContext* context) override {}
+	void initResources(FramegraphContext* context) override {}
 
-	void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-						const VFramegraphNodeContext& nodeContext) override;
+	void recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+						const FramegraphNodeContext& nodeContext) override;
 
-	void destroy(VFramegraphContext* context) override {}
+	void destroy(FramegraphContext* context) override {}
 
   private:
 };

@@ -1,27 +1,27 @@
 #pragma once
 
-#include <modules/gpu/framegraph/VFramegraphNode.hpp>
-#include <modules/gpu/transfer/VGPUTransferManager.hpp>
+#include <graphics/framegraph/FramegraphNode.hpp>
+#include <graphics/util/GPUTransferManager.hpp>
 
-class HelloTriangleNode : public VFramegraphNode {
+class HelloTriangleNode : public FramegraphNode {
   public:
-	HelloTriangleNode(VBufferResourceHandle vertexDataHandle);
+	HelloTriangleNode(BufferResourceHandle vertexDataHandle);
 
-	void create(VFramegraphContext* context) override {}
+	void create(FramegraphContext* context) override {}
 
-	void setupResources(VFramegraphContext* context) override;
+	void setupResources(FramegraphContext* context) override;
 
-	void initResources(VFramegraphContext* context) override {}
+	void initResources(FramegraphContext* context) override {}
 
-	void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-						const VFramegraphNodeContext& nodeContext) override;
+	void recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+						const FramegraphNodeContext& nodeContext) override;
 
-	void handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height) override;
+	void handleWindowResize(FramegraphContext* context, uint32_t width, uint32_t height) override;
 
-	void destroy(VFramegraphContext* context) override;
+	void destroy(FramegraphContext* context) override;
 
   private:
-	VBufferResourceHandle m_vertexData;
+	BufferResourceHandle m_vertexData;
 	VkPipeline m_graphicsPipeline;
 	VkPipelineLayout m_pipelineLayout;
 	VkRenderPass m_renderPass;

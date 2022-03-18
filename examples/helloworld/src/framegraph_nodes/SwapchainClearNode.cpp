@@ -1,7 +1,7 @@
 #include <framegraph_nodes/SwapchainClearNode.hpp>
 #include <volk.h>
 
-void SwapchainClearNode::setupResources(VFramegraphContext* context) {
+void SwapchainClearNode::setupResources(FramegraphContext* context) {
 	context->declareReferencedSwapchainImage(this, { .pipelineStages = VK_PIPELINE_STAGE_TRANSFER_BIT,
 													 .accessTypes = VK_ACCESS_TRANSFER_WRITE_BIT,
 													 .startLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -15,8 +15,8 @@ void SwapchainClearNode::setupResources(VFramegraphContext* context) {
 													 .writes = true });
 }
 
-void SwapchainClearNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-										const VFramegraphNodeContext& nodeContext) {
+void SwapchainClearNode::recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+										const FramegraphNodeContext& nodeContext) {
 	VkClearColorValue clearValue = { .float32 = { 0.2f, 0.2f, 0.2f, 1.0f } };
 
 	VkImageSubresourceRange resourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -25,6 +25,6 @@ void SwapchainClearNode::recordCommands(VFramegraphContext* context, VkCommandBu
 											  .baseArrayLayer = 0,
 											  .layerCount = 1 };
 
-	vkCmdClearColorImage(targetCommandBuffer, nodeContext.swapchainImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+	vkCmdClearColorImage(targetCommandBuffer, nodeContext.targetImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 						 &clearValue, 1, &resourceRange);
 }

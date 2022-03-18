@@ -1,14 +1,14 @@
 #include <framegraph_nodes/HelloTriangleNode.hpp>
-#include <modules/gpu/helper/ErrorHelper.hpp>
+#include <graphics/helper/ErrorHelper.hpp>
 #include <volk.h>
 
 #include <helper/WholeFileReader.hpp>
 
-HelloTriangleNode::HelloTriangleNode(VBufferResourceHandle vertexDataHandle) : m_vertexData(vertexDataHandle) {
+HelloTriangleNode::HelloTriangleNode(BufferResourceHandle vertexDataHandle) : m_vertexData(vertexDataHandle) {
 	m_name = "Triangle drawing";
 }
 
-void HelloTriangleNode::setupResources(VFramegraphContext* context) {
+void HelloTriangleNode::setupResources(FramegraphContext* context) {
 	VkAttachmentDescription description = { .format = VK_FORMAT_B8G8R8A8_SRGB,
 											.samples = VK_SAMPLE_COUNT_1_BIT,
 											.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -155,7 +155,7 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 	verifyResult(vkCreateGraphicsPipelines(context->gpuContext()->device(), VK_NULL_HANDLE, 1, &pipelineCreateInfo,
 										   nullptr, &m_graphicsPipeline));
 
-	VFramegraphNodeImageUsage usage = {
+	FramegraphNodeImageUsage usage = {
 		.pipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 		.accessTypes = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 		.startLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -169,7 +169,7 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 			.layerCount = 1
 		},
 		.writes = true,
-		.viewInfo = VImageResourceViewInfo {
+		.viewInfo = ImageResourceViewInfo {
 			.viewType = VK_IMAGE_VIEW_TYPE_2D, 
 			.components = {
 				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -188,7 +188,7 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 	};
 	context->declareReferencedSwapchainImage(this, usage);
 	context->declareImportedBuffer(this, m_vertexData,
-								   VFramegraphNodeBufferUsage{ .pipelineStages = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+								   FramegraphNodeBufferUsage{ .pipelineStages = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
 															   .accessTypes = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 															   .offset = 0,
 															   .size = VK_WHOLE_SIZE,
@@ -198,8 +198,8 @@ void HelloTriangleNode::setupResources(VFramegraphContext* context) {
 	vkDestroyShaderModule(context->gpuContext()->device(), fragmentShaderModule, nullptr);
 }
 
-void HelloTriangleNode::recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-									   const VFramegraphNodeContext& nodeContext) {
+void HelloTriangleNode::recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+									   const FramegraphNodeContext& nodeContext) {
 	VkClearValue value = { .color = { .float32 = { 0.2f, 0.2f, 0.2f } } };
 
 	VkRenderPassBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -227,7 +227,7 @@ void HelloTriangleNode::recordCommands(VFramegraphContext* context, VkCommandBuf
 	vkCmdEndRenderPass(targetCommandBuffer);
 }
 
-void HelloTriangleNode::handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height) {
+void HelloTriangleNode::handleWindowResize(FramegraphContext* context, uint32_t width, uint32_t height) {
 	for (auto& framebuffer : m_framebuffers) {
 		vkDestroyFramebuffer(context->gpuContext()->device(), framebuffer, nullptr);
 	}
@@ -235,11 +235,11 @@ void HelloTriangleNode::handleWindowResize(VFramegraphContext* context, uint32_t
 
 	uint32_t index = 0;
 	for (auto& framebuffer : m_framebuffers) {
-		VkImageView swapchainImageView = context->swapchainImageView(this, index);
+		VkImageView targetImageView = context->targetImageView(this, index);
 		VkFramebufferCreateInfo framebufferCreateInfo = { .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 														  .renderPass = m_renderPass,
 														  .attachmentCount = 1,
-														  .pAttachments = &swapchainImageView,
+														  .pAttachments = &targetImageView,
 														  .width = width,
 														  .height = height,
 														  .layers = 1 };
@@ -252,7 +252,7 @@ void HelloTriangleNode::handleWindowResize(VFramegraphContext* context, uint32_t
 	m_height = height;
 }
 
-void HelloTriangleNode::destroy(VFramegraphContext* context) {
+void HelloTriangleNode::destroy(FramegraphContext* context) {
 	for (auto& framebuffer : m_framebuffers) {
 		vkDestroyFramebuffer(context->gpuContext()->device(), framebuffer, nullptr);
 	}

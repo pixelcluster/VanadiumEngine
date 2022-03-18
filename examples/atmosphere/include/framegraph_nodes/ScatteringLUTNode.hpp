@@ -1,6 +1,6 @@
 #pragma once
 
-#include <modules/gpu/framegraph/VFramegraphNode.hpp>
+#include <graphics/framegraph/FramegraphNode.hpp>
 #include <glm/glm.hpp>
 
 struct TransmittanceComputeData {
@@ -18,33 +18,33 @@ struct TransmittanceComputeData {
 	float groundRadius;
 };
 
-class ScatteringLUTNode : public VFramegraphNode {
+class ScatteringLUTNode : public FramegraphNode {
   public:
 	ScatteringLUTNode() { m_name = "Scattering LUT \"pre\"computation"; }
 
-	virtual void create(VFramegraphContext* context);
+	virtual void create(FramegraphContext* context);
 
-	virtual void setupResources(VFramegraphContext* context) {}
+	virtual void setupResources(FramegraphContext* context) {}
 
-	virtual void initResources(VFramegraphContext* context);
+	virtual void initResources(FramegraphContext* context);
 
-	virtual void recordCommands(VFramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-								const VFramegraphNodeContext& nodeContext);
+	virtual void recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+								const FramegraphNodeContext& nodeContext);
 
-	virtual void handleWindowResize(VFramegraphContext* context, uint32_t width, uint32_t height) {}
+	virtual void handleWindowResize(FramegraphContext* context, uint32_t width, uint32_t height) {}
 
-	virtual void destroy(VFramegraphContext* context);
+	virtual void destroy(FramegraphContext* context);
 
-	VFramegraphImageHandle transmittanceLUTHandle() { return m_transmittanceLUTHandle; }
-	VFramegraphImageHandle skyViewLUTHandle() { return m_skyViewLUTHandle; }
-	VFramegraphImageHandle aerialPerspectiveLUTHandle() { return m_aerialPerspectiveLUTHandle; }
-	VFramegraphImageHandle multiscatterLUTHandle() { return m_multiscatterLUTHandle; }
+	FramegraphImageHandle transmittanceLUTHandle() { return m_transmittanceLUTHandle; }
+	FramegraphImageHandle skyViewLUTHandle() { return m_skyViewLUTHandle; }
+	FramegraphImageHandle aerialPerspectiveLUTHandle() { return m_aerialPerspectiveLUTHandle; }
+	FramegraphImageHandle multiscatterLUTHandle() { return m_multiscatterLUTHandle; }
 
   private:
-	VFramegraphImageHandle m_transmittanceLUTHandle;
-	VFramegraphImageHandle m_skyViewLUTHandle;
-	VFramegraphImageHandle m_aerialPerspectiveLUTHandle;
-	VFramegraphImageHandle m_multiscatterLUTHandle;
+	FramegraphImageHandle m_transmittanceLUTHandle;
+	FramegraphImageHandle m_skyViewLUTHandle;
+	FramegraphImageHandle m_aerialPerspectiveLUTHandle;
+	FramegraphImageHandle m_multiscatterLUTHandle;
 
 	VkPipeline m_transmittanceComputationPipeline;
 

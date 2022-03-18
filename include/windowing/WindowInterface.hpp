@@ -1,3 +1,8 @@
+#pragma once
+//needed because this header is included as part of PCH, and other parts of this project need GLFW with Vulkan
+#define VK_NO_PROTOTYPES
+#include <vulkan/vulkan.h>
+
 #include <GLFW/glfw3.h>
 #include <robin_hood.h>
 #include <vector>
@@ -104,6 +109,10 @@ namespace vanadium::windowing {
 		uint32_t keyCode;
 		uint32_t modifierMask;
 		KeyStateFlags keyStateMask;
+
+		bool operator==(const KeyListenerData& other) const {
+			return keyCode == other.keyCode && modifierMask == other.modifierMask && keyStateMask == other.keyStateMask;
+		}
 	};
 
 	using SizeEventCallback = void (*)(uint32_t width, uint32_t height, void* userData);
@@ -111,6 +120,11 @@ namespace vanadium::windowing {
 		SizeEventCallback eventCallback;
 		ListenerDestroyCallback listenerDestroyCallback;
 		void* userData;
+
+		bool operator==(const SizeListenerParams& other) const {
+			return eventCallback == other.eventCallback && listenerDestroyCallback == other.listenerDestroyCallback &&
+				   userData == other.userData;
+		}
 	};
 
 	void emptyListenerDestroyCallback(void*) {}
@@ -119,7 +133,7 @@ namespace vanadium::windowing {
 
 namespace robin_hood {
 	template <> struct hash<vanadium::windowing::KeyListenerData> {
-		size_t operator()(const vanadium::windowing::KeyListenerData& data) {
+		size_t operator()(const vanadium::windowing::KeyListenerData& data) const {
 			return hash<uint32_t>()(data.keyCode) ^
 				   hash<uint32_t>()(data.modifierMask) * hash<vanadium::windowing::KeyStateFlags>()(data.keyStateMask);
 		}

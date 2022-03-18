@@ -1,5 +1,7 @@
+#pragma once
 #include <Debug.hpp>
 #include <cstdio>
+#include <cstdlib>
 
 namespace vanadium {
 	template <typename... Ts> void logInfo(const char* message, Ts... values) {
