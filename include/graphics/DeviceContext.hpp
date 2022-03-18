@@ -6,7 +6,7 @@
 namespace vanadium::graphics {
 
 	constexpr uint32_t frameInFlightCount = 3U;
-	
+
 	struct DeviceCapabilities {
 		bool memoryBudget;
 		bool memoryPriority;
@@ -18,6 +18,10 @@ namespace vanadium::graphics {
 		DeviceContext(const DeviceContext&) = delete;
 		DeviceContext(DeviceContext&&) = delete;
 		~DeviceContext();
+
+		VkInstance instance() { return m_instance; }
+		VkPhysicalDevice physicalDevice() { return m_physicalDevice; }
+		VkDevice device() { return m_device; }
 
 	  private:
 		VkInstance m_instance;
