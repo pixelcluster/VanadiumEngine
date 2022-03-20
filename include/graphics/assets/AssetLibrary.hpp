@@ -3,6 +3,8 @@
 #include <vector>
 #include <fstream>
 
+#include <Log.hpp>
+
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 

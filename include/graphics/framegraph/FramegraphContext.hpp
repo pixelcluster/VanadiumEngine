@@ -7,73 +7,23 @@
 #include <graphics/util/GPUTransferManager.hpp>
 #include <robin_hood.h>
 
+#include <graphics/framegraph/QueueBarrierGenerator.hpp>
+
 namespace vanadium::graphics {
 
 	class FramegraphNode;
 
 	struct FramegraphNodeBufferUsage {
-		VkPipelineStageFlags pipelineStages;
-		VkAccessFlags accessTypes;
-
-		VkDeviceSize offset;
-		VkDeviceSize size;
+		std::vector<NodeBufferSubresourceAccess> subresourceAccesses;
 		bool writes;
 		VkBufferUsageFlags usageFlags;
 	};
 
-	struct FramegraphBufferBarrier {
-		size_t nodeIndex;
-		VkPipelineStageFlags srcStages;
-		VkPipelineStageFlags dstStages;
-		VkBufferMemoryBarrier barrier;
-	};
-
-	struct FramegraphNodeBufferAccess {
-		size_t usingNodeIndex;
-
-		VkPipelineStageFlags stageFlags;
-		VkAccessFlags accessFlags;
-
-		VkDeviceSize offset;
-		VkDeviceSize size;
-		std::optional<FramegraphBufferBarrier> barrier;
-	};
-	inline bool operator<(const FramegraphNodeBufferAccess& one, const FramegraphNodeBufferAccess& other) {
-		return one.usingNodeIndex < other.usingNodeIndex;
-	};
-
 	struct FramegraphNodeImageUsage {
-		VkPipelineStageFlags pipelineStages;
-		VkAccessFlags accessTypes;
-		VkImageLayout startLayout;
-		VkImageLayout finishLayout;
+		std::vector<NodeImageSubresourceAccess> subresourceAccesses;
 		VkImageUsageFlags usageFlags;
-		VkImageSubresourceRange subresourceRange;
 		bool writes;
-		std::optional<ImageResourceViewInfo> viewInfo;
-	};
-
-	struct FramegraphImageBarrier {
-		size_t nodeIndex;
-		VkPipelineStageFlags srcStages;
-		VkPipelineStageFlags dstStages;
-		VkImageMemoryBarrier barrier;
-	};
-
-	struct FramegraphNodeImageAccess {
-		size_t usingNodeIndex;
-
-		VkPipelineStageFlags stageFlags;
-		VkAccessFlags accessFlags;
-		VkImageLayout startLayout;
-		VkImageLayout finishLayout;
-
-		VkImageSubresourceRange subresourceRange;
-
-		std::optional<FramegraphImageBarrier> barrier;
-	};
-	inline bool operator<(const FramegraphNodeImageAccess& one, const FramegraphNodeImageAccess& other) {
-		return one.usingNodeIndex < other.usingNodeIndex;
+		std::vector<ImageResourceViewInfo> viewInfos;
 	};
 
 	struct FramegraphBufferCreationParameters {
@@ -86,11 +36,9 @@ namespace vanadium::graphics {
 		BufferResourceHandle resourceHandle;
 
 		VkBufferUsageFlags usageFlags;
-		std::vector<FramegraphNodeBufferAccess> modifications;
-		std::vector<FramegraphNodeBufferAccess> reads;
 	};
 
-	using FramegraphBufferHandle = SlotmapHandle<FramegraphBufferResource>;
+	using FramegraphBufferHandle = SlotmapHandle;
 
 	struct FramegraphImageCreationParameters {
 		VkImageCreateFlags flags;
@@ -107,45 +55,24 @@ namespace vanadium::graphics {
 		FramegraphImageCreationParameters creationParameters;
 		VkImageUsageFlags usage;
 		ImageResourceHandle resourceHandle;
-
-		std::vector<FramegraphNodeImageAccess> modifications;
-		std::vector<FramegraphNodeImageAccess> reads;
 	};
 
-	using FramegraphImageHandle = SlotmapHandle<FramegraphImageResource>;
+	using FramegraphImageHandle = SlotmapHandle;
 
 	struct FramegraphNodeInfo {
 		FramegraphNode* node;
 
-		robin_hood::unordered_map<FramegraphImageHandle, ImageResourceViewInfo> resourceViewInfos;
-		std::optional<ImageResourceViewInfo> swapchainResourceViewInfo;
-	};
-
-	struct FramegraphBarrierStages {
-		VkPipelineStageFlags src;
-		VkPipelineStageFlags dst;
-	};
-
-	struct FramegraphBufferAccessMatch {
-		size_t matchIndex;
-		bool isPartial;
-		size_t offset;
-		size_t size;
-	};
-
-	struct FramegraphImageAccessMatch {
-		size_t matchIndex;
-		bool isPartial;
-		VkImageSubresourceRange range;
+		robin_hood::unordered_map<FramegraphImageHandle, std::vector<ImageResourceViewInfo>> resourceViewInfos;
+		std::vector<ImageResourceViewInfo> swapchainResourceViewInfos;
 	};
 
 	struct FramegraphNodeContext {
 		uint32_t frameIndex;
-		
-		RenderTargetSurface* targetSurface;
-		VkImageView targetImageView;
 
-		robin_hood::unordered_map<FramegraphImageHandle, VkImageView> resourceImageViews;
+		RenderTargetSurface* targetSurface;
+		std::vector<VkImageView> targetImageViews;
+
+		robin_hood::unordered_map<FramegraphImageHandle, std::vector<VkImageView>> resourceImageViews;
 	};
 
 	class FramegraphContext {
@@ -153,7 +80,8 @@ namespace vanadium::graphics {
 		FramegraphContext() {}
 
 		void create(DeviceContext* context, GPUResourceAllocator* resourceAllocator,
-					GPUDescriptorSetAllocator* descriptorSetAllocator, GPUTransferManager* transferManager, RenderTargetSurface* targetSurface);
+					GPUDescriptorSetAllocator* descriptorSetAllocator, GPUTransferManager* transferManager,
+					RenderTargetSurface* targetSurface);
 
 		template <std::derived_from<FramegraphNode> T, typename... Args>
 		requires(std::constructible_from<T, Args...>) T* appendNode(Args... constructorArgs);
@@ -197,13 +125,13 @@ namespace vanadium::graphics {
 		VkBuffer nativeBufferHandle(FramegraphBufferHandle handle);
 		VkImage nativeImageHandle(FramegraphImageHandle handle);
 
-		VkImageView imageView(FramegraphNode* node, FramegraphImageHandle handle);
+		VkImageView imageView(FramegraphNode* node, FramegraphImageHandle handle, size_t index);
 		VkImageView targetImageView(FramegraphNode* node, uint32_t index);
 
 		VkBufferUsageFlags bufferUsageFlags(FramegraphBufferHandle handle);
 		VkImageUsageFlags imageUsageFlags(FramegraphImageHandle handle);
 
-		VkImageUsageFlags swapchainImageUsageFlags() const { return m_swapchainImageUsageFlags; }
+		VkImageUsageFlags swapchainImageUsageFlags() const { return m_targetImageUsageFlags; }
 
 		VkCommandBuffer recordFrame(uint32_t frameIndex);
 
@@ -215,38 +143,16 @@ namespace vanadium::graphics {
 		void createBuffer(FramegraphBufferHandle handle);
 		void createImage(FramegraphImageHandle handle);
 
-		void addUsage(FramegraphBufferHandle handle, size_t nodeIndex,
-					  std::vector<FramegraphNodeBufferAccess>& modifications,
-					  std::vector<FramegraphNodeBufferAccess>& reads, const FramegraphNodeBufferUsage& usage);
-		void addUsage(FramegraphImageHandle handle, size_t nodeIndex,
-					  std::vector<FramegraphNodeImageAccess>& modifications,
-					  std::vector<FramegraphNodeImageAccess>& reads, const FramegraphNodeImageUsage& usage);
-		void addUsage(size_t nodeIndex, std::vector<FramegraphNodeImageAccess>& modifications,
-					  std::vector<FramegraphNodeImageAccess>& reads, const FramegraphNodeImageUsage& usage);
-
 		void updateDependencyInfo();
 		void updateBarriers();
-
-		void emitBarriersForRead(VkBuffer buffer, std::vector<FramegraphNodeBufferAccess>& modifications,
-								 const FramegraphNodeBufferAccess& read);
-		void emitBarriersForRead(VkImage image, std::vector<FramegraphNodeImageAccess>& modifications,
-								 const FramegraphNodeImageAccess& read);
-
-		std::optional<FramegraphBufferAccessMatch> findLastModification(
-			std::vector<FramegraphNodeBufferAccess>& modifications, const FramegraphNodeBufferAccess& read);
-		std::optional<FramegraphImageAccessMatch> findLastModification(
-			std::vector<FramegraphNodeImageAccess>& modifications, const FramegraphNodeImageAccess& read);
-
-		void emitBarrier(VkBuffer buffer, FramegraphNodeBufferAccess& modification,
-						 const FramegraphNodeBufferAccess& read, const FramegraphBufferAccessMatch& match);
-		void emitBarrier(VkImage image, FramegraphNodeImageAccess& modification, const FramegraphNodeImageAccess& read,
-						 const FramegraphImageAccessMatch& match);
 
 		DeviceContext* m_gpuContext;
 		GPUResourceAllocator* m_resourceAllocator;
 		GPUDescriptorSetAllocator* m_descriptorSetAllocator;
 		GPUTransferManager* m_transferManager;
 		RenderTargetSurface* m_targetSurface;
+
+		QueueBarrierGenerator m_barrierGenerator;
 
 		VkCommandPool m_frameCommandPools[frameInFlightCount];
 		VkCommandBuffer m_frameCommandBuffers[frameInFlightCount];
@@ -261,20 +167,7 @@ namespace vanadium::graphics {
 
 		bool m_firstFrameFlag = true;
 
-		std::vector<VkImageMemoryBarrier> m_initImageMemoryBarriers;
-		FramegraphBarrierStages m_initBarrierStages = {};
-
-		std::vector<VkImageMemoryBarrier> m_frameStartImageMemoryBarriers;
-		std::vector<VkBufferMemoryBarrier> m_frameStartBufferMemoryBarriers;
-		FramegraphBarrierStages m_frameStartBarrierStages = {};
-
-		std::vector<std::vector<VkBufferMemoryBarrier>> m_nodeBufferMemoryBarriers;
-		std::vector<std::vector<VkImageMemoryBarrier>> m_nodeImageMemoryBarriers;
-		std::vector<FramegraphBarrierStages> m_nodeBarrierStages;
-
-		std::vector<FramegraphNodeImageAccess> m_swapchainImageModifications;
-		std::vector<FramegraphNodeImageAccess> m_swapchainImageReads;
-		VkImageUsageFlags m_swapchainImageUsageFlags = 0;
+		VkImageUsageFlags m_targetImageUsageFlags = 0;
 	};
 
 	template <std::derived_from<FramegraphNode> T, typename... Args>

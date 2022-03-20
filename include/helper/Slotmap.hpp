@@ -7,18 +7,8 @@
 
 namespace vanadium {
 
-	template <typename T> struct SlotmapHandle {
-		size_t value;
-		bool operator==(const SlotmapHandle<T>& other) const { return value == other.value; }
-	};
-} // namespace vanadium
-namespace std {
-	template <typename T> struct hash<vanadium::SlotmapHandle<T>> {
-		size_t operator()(const vanadium::SlotmapHandle<T>& handle) const { return std::hash<size_t>()(handle.value); }
-	};
-} // namespace std
+	using SlotmapHandle = size_t;
 
-namespace vanadium {
 	/**
 	 *  \brief A slotmap memory structure whose elements can be accessed by unique identifiers.
 	 */
@@ -162,7 +152,7 @@ namespace vanadium {
 		 * \param newElement The element that should be added to the slotmap.
 		 * \returns The handle of the new element.
 		 */
-		inline SlotmapHandle<T> addElement(const T& newElement);
+		inline SlotmapHandle addElement(const T& newElement);
 
 		/**
 		 * \brief Adds an element to the slotmap.
@@ -170,7 +160,7 @@ namespace vanadium {
 		 * \param newElement The element that should be added to the slotmap.
 		 * \returns The handle of the new element.
 		 */
-		inline SlotmapHandle<T> addElement(T&& newElement);
+		inline SlotmapHandle addElement(T&& newElement);
 
 		/**
 		 * \brief Gets the element that belongs to the specified handle.
@@ -178,7 +168,7 @@ namespace vanadium {
 		 * \param handle The specified handle.
 		 * \returns The element belonging to the specified handle. If "handle" is invalid, an exception will thrown.
 		 */
-		inline T& elementAt(SlotmapHandle<T> handle);
+		inline T& elementAt(SlotmapHandle handle);
 
 		/**
 		 * \brief Gets the element that belongs to the specified handle.
@@ -186,7 +176,7 @@ namespace vanadium {
 		 * \param handle The specified handle.
 		 * \returns The element belonging to the specified handle. If "handle" is invalid, an exception will thrown.
 		 */
-		inline const T& elementAt(SlotmapHandle<T> handle) const;
+		inline const T& elementAt(SlotmapHandle handle) const;
 
 		/**
 		 * \brief Removes the element specified by its handle.
@@ -195,11 +185,11 @@ namespace vanadium {
 		 *
 		 * \param handle The handle of the element to remove.
 		 */
-		inline void removeElement(SlotmapHandle<T> handle);
+		inline void removeElement(SlotmapHandle handle);
 
-		inline T& operator[](SlotmapHandle<T> handle);
+		inline T& operator[](SlotmapHandle handle);
 
-		inline const T& operator[](SlotmapHandle<T> handle) const;
+		inline const T& operator[](SlotmapHandle handle) const;
 
 		/**
 		 * \brief Wipes all elements of the slotmap.
@@ -236,17 +226,17 @@ namespace vanadium {
 		/**
 		 * \returns An iterator of the element with the specified handle.
 		 */
-		inline iterator find(SlotmapHandle<T> handle);
+		inline iterator find(SlotmapHandle handle);
 
 		/**
 		 * \returns An iterator of the element with the specified handle.
 		 */
-		inline const_iterator find(SlotmapHandle<T> handle) const;
+		inline const_iterator find(SlotmapHandle handle) const;
 
 		/**
 		 * \returns The handle of the specified iterator.
 		 */
-		inline SlotmapHandle<T> handle(const iterator& handleIterator);
+		inline SlotmapHandle handle(const iterator& handleIterator);
 
 	  private:
 		// All elements.
@@ -257,7 +247,7 @@ namespace vanadium {
 		size_t freeKeyTail = 0;
 	};
 
-	template <typename T> inline SlotmapHandle<T> Slotmap<T>::addElement(const T& newElement) {
+	template <typename T> inline SlotmapHandle Slotmap<T>::addElement(const T& newElement) {
 		if (keys.size() == 0)
 			keys.push_back(0);
 		elements.push_back(newElement);
@@ -277,10 +267,10 @@ namespace vanadium {
 		size_t returnIndex = freeKeyHead;
 		freeKeyHead = nextFreeIndex;
 
-		return { returnIndex };
+		return returnIndex;
 	}
 
-	template <typename T> inline SlotmapHandle<T> Slotmap<T>::addElement(T&& newElement) {
+	template <typename T> inline SlotmapHandle Slotmap<T>::addElement(T&& newElement) {
 		if (keys.size() == 0)
 			keys.push_back(0);
 		elements.push_back(std::forward<T>(newElement));
@@ -300,25 +290,25 @@ namespace vanadium {
 		size_t returnIndex = freeKeyHead;
 		freeKeyHead = nextFreeIndex;
 
-		return { returnIndex };
+		return returnIndex;
 	}
 
-	template <typename T> inline T& Slotmap<T>::elementAt(SlotmapHandle<T> handle) {
-		assert(keys.size() > handle.value);
-		assert(eraseMap[keys[handle.value]] == handle.value);
-		return elements[keys[handle.value]];
+	template <typename T> inline T& Slotmap<T>::elementAt(SlotmapHandle handle) {
+		assert(keys.size() > handle);
+		assert(eraseMap[keys[handle]] == handle);
+		return elements[keys[handle]];
 	}
 
-	template <typename T> inline const T& Slotmap<T>::elementAt(SlotmapHandle<T> handle) const {
-		assert(keys.size() > handle.value);
-		assert(eraseMap[keys[handle.value]] == handle.value);
-		return elements[keys[handle.value]];
+	template <typename T> inline const T& Slotmap<T>::elementAt(SlotmapHandle handle) const {
+		assert(keys.size() > handle);
+		assert(eraseMap[keys[handle]] == handle);
+		return elements[keys[handle]];
 	}
 
-	template <typename T> inline void Slotmap<T>::removeElement(SlotmapHandle<T> handle) {
-		assert(keys.size() > handle.value);
+	template <typename T> inline void Slotmap<T>::removeElement(SlotmapHandle handle) {
+		assert(keys.size() > handle);
 
-		size_t eraseElementIndex = keys[handle.value];
+		size_t eraseElementIndex = keys[handle];
 
 		// Move last element in, update erase table
 		elements[eraseElementIndex] = std::move(elements[elements.size() - 1]);
@@ -332,14 +322,14 @@ namespace vanadium {
 		eraseMap.erase(eraseMap.begin() + (eraseMap.size() - 1));
 
 		// Update free list nodes
-		keys[freeKeyTail] = handle.value;
-		keys[handle.value] = handle.value;
-		freeKeyTail = handle.value;
+		keys[freeKeyTail] = handle;
+		keys[handle] = handle;
+		freeKeyTail = handle;
 	}
 
-	template <typename T> inline T& Slotmap<T>::operator[](SlotmapHandle<T> handle) { return elementAt(handle); }
+	template <typename T> inline T& Slotmap<T>::operator[](SlotmapHandle handle) { return elementAt(handle); }
 
-	template <typename T> inline const T& Slotmap<T>::operator[](SlotmapHandle<T> handle) const {
+	template <typename T> inline const T& Slotmap<T>::operator[](SlotmapHandle handle) const {
 		return elementAt(handle);
 	}
 
@@ -347,9 +337,7 @@ namespace vanadium {
 
 	template <typename T> inline size_t Slotmap<T>::size() const { return elements.size(); }
 
-	template <typename T> inline typename Slotmap<T>::iterator Slotmap<T>::begin() {
-		return iterator(elements.data());
-	}
+	template <typename T> inline typename Slotmap<T>::iterator Slotmap<T>::begin() { return iterator(elements.data()); }
 
 	template <typename T> inline typename Slotmap<T>::iterator Slotmap<T>::end() {
 		return iterator(elements.data() + elements.size());
@@ -363,19 +351,19 @@ namespace vanadium {
 		return const_iterator(elements.data() + elements.size());
 	}
 
-	template <typename T> inline typename Slotmap<T>::iterator Slotmap<T>::find(SlotmapHandle<T> handle) {
-		if (handle.value >= keys.size())
+	template <typename T> inline typename Slotmap<T>::iterator Slotmap<T>::find(SlotmapHandle handle) {
+		if (handle >= keys.size())
 			return iterator(elements.data() + elements.size());
-		return iterator(elements.data() + keys[handle.value]);
+		return iterator(elements.data() + keys[handle]);
 	}
 
-	template <typename T> inline typename Slotmap<T>::const_iterator Slotmap<T>::find(SlotmapHandle<T> handle) const {
-		if (handle.value >= keys.size())
+	template <typename T> inline typename Slotmap<T>::const_iterator Slotmap<T>::find(SlotmapHandle handle) const {
+		if (handle >= keys.size())
 			return const_iterator(elements.data() + elements.size());
-		return const_iterator(elements.data() + keys[handle.value]);
+		return const_iterator(elements.data() + keys[handle]);
 	}
 
-	template <typename T> inline SlotmapHandle<T> Slotmap<T>::handle(const Slotmap<T>::iterator& handleIterator) {
+	template <typename T> inline SlotmapHandle Slotmap<T>::handle(const Slotmap<T>::iterator& handleIterator) {
 		return { eraseMap[static_cast<T*>(handleIterator) - elements.data()] };
 	}
 

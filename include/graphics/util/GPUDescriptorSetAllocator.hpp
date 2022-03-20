@@ -23,8 +23,8 @@ namespace vanadium::graphics {
 		size_t count;
 	};
 
-	using DescriptorPoolHandle = SlotmapHandle<DescriptorPoolInfo>;
-	using DescriptorSizeClassHandle = SlotmapHandle<DescriptorSetSizeClass>;
+	using DescriptorPoolHandle = SlotmapHandle;
+	using DescriptorSizeClassHandle = SlotmapHandle;
 
 	struct DescriptorSetAllocationInfo {
 		std::vector<DescriptorTypeInfo> typeInfos;

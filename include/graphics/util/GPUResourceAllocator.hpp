@@ -1,9 +1,9 @@
 #pragma once
 
 #include <array>
-#include <helper/Slotmap.hpp>
-#include <helper/MemoryLiterals.hpp>
 #include <graphics/DeviceContext.hpp>
+#include <helper/MemoryLiterals.hpp>
+#include <helper/Slotmap.hpp>
 
 namespace vanadium::graphics {
 
@@ -19,6 +19,8 @@ namespace vanadium::graphics {
 	};
 
 	struct MemoryBlock {
+		bool m_isManuallyAllocated = false;
+
 		std::vector<MemoryRange> freeBlocksSizeSorted;
 		std::vector<MemoryRange> freeBlocksOffsetSorted;
 
@@ -31,19 +33,21 @@ namespace vanadium::graphics {
 		void* mappedPointer;
 	};
 
+	using BlockHandle = SlotmapHandle;
+
 	struct MemoryType {
 		VkMemoryPropertyFlags properties;
 		uint32_t heapIndex;
 
-		std::vector<MemoryBlock> blocks;
-		std::vector<MemoryBlock> imageBlocks;
+		Slotmap<MemoryBlock> blocks;
+		Slotmap<MemoryBlock> imageBlocks;
 	};
 
 	struct BufferAllocation {
 		bool isMultipleBuffered = false;
 
 		uint32_t typeIndex;
-		size_t blockIndex;
+		BlockHandle blockHandle;
 		MemoryRange bufferContentRange;
 		MemoryRange allocationRange;
 
@@ -61,7 +65,7 @@ namespace vanadium::graphics {
 	struct AllocationResult {
 		MemoryRange allocationRange;
 		MemoryRange usableRange;
-		size_t blockIndex;
+		BlockHandle blockHandle;
 	};
 
 	inline bool operator==(const ImageResourceViewInfo& one, const ImageResourceViewInfo& other) {
@@ -107,13 +111,13 @@ namespace vanadium::graphics {
 		robin_hood::unordered_map<ImageResourceViewInfo, VkImageView> views;
 
 		uint32_t typeIndex;
-		size_t blockIndex;
+		BlockHandle blockHandle;
 		VkDeviceSize alignmentMargin;
 		MemoryRange allocationRange;
 		VkImage image;
 	};
-	using BufferResourceHandle = SlotmapHandle<BufferAllocation>;
-	using ImageResourceHandle = SlotmapHandle<ImageAllocation>;
+	using BufferResourceHandle = SlotmapHandle;
+	using ImageResourceHandle = SlotmapHandle;
 
 	class GPUResourceAllocator {
 	  public:
@@ -125,11 +129,13 @@ namespace vanadium::graphics {
 
 		void create(DeviceContext* gpuContext);
 
+		BlockHandle createBlock(MemoryCapabilities required, MemoryCapabilities preferred);
+
 		BufferResourceHandle createBuffer(const VkBufferCreateInfo& bufferCreateInfo, MemoryCapabilities required,
-										   MemoryCapabilities preferred, bool createMapped);
+										  MemoryCapabilities preferred, bool createMapped);
 		BufferResourceHandle createPerFrameBuffer(const VkBufferCreateInfo& bufferCreateInfo,
-												   MemoryCapabilities required, MemoryCapabilities preferred,
-												   bool createMapped);
+												  MemoryCapabilities required, MemoryCapabilities preferred,
+												  bool createMapped);
 
 		MemoryCapabilities bufferMemoryCapabilities(BufferResourceHandle handle);
 		VkDeviceMemory nativeMemoryHandle(BufferResourceHandle handle);
@@ -141,7 +147,7 @@ namespace vanadium::graphics {
 		void destroyBuffer(BufferResourceHandle handle);
 
 		ImageResourceHandle createImage(const VkImageCreateInfo& imageCreateInfo, MemoryCapabilities required,
-										 MemoryCapabilities preferred);
+										MemoryCapabilities preferred);
 		VkImage nativeImageHandle(ImageResourceHandle handle);
 		const ImageResourceInfo& imageResourceInfo(ImageResourceHandle handle);
 		VkImageView requestImageView(ImageResourceHandle handle, const ImageResourceViewInfo& info);
@@ -165,7 +171,7 @@ namespace vanadium::graphics {
 		std::optional<AllocationResult> allocate(uint32_t typeIndex, VkDeviceSize alignment, VkDeviceSize size,
 												 bool createMapped);
 		std::optional<AllocationResult> allocateImage(uint32_t typeIndex, VkDeviceSize alignment, VkDeviceSize size);
-		std::optional<AllocationResult> allocateInBlock(uint32_t typeIndex, size_t blockIndex, MemoryBlock& block,
+		std::optional<AllocationResult> allocateInBlock(uint32_t typeIndex, BlockHandle blockHandle, MemoryBlock& block,
 														VkDeviceSize alignment, VkDeviceSize size, bool createMapped);
 		void freeInBlock(MemoryBlock& block, VkDeviceSize offset, VkDeviceSize size);
 		void mergeFreeAreas(MemoryBlock& block);
@@ -194,4 +200,4 @@ namespace vanadium::graphics {
 		std::vector<std::vector<ImageAllocation>> m_imageFreeList;
 	};
 
-} // namespace vanadium
+} // namespace vanadium::graphics

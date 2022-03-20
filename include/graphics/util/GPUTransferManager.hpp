@@ -27,7 +27,7 @@ namespace vanadium::graphics {
 		VkImageLayout dstUsageLayout;
 	};
 
-	using GPUTransferHandle = SlotmapHandle<GPUTransfer>;
+	using GPUTransferHandle = SlotmapHandle;
 
 	class GPUTransferManager {
 	  public:
