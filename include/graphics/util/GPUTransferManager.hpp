@@ -16,7 +16,7 @@ namespace vanadium::graphics {
 		VkAccessFlags dstUsageAccessFlags;
 	};
 
-	struct VGPUImageTransfer {
+	struct GPUImageTransfer {
 		BufferResourceHandle stagingBuffer;
 		ImageResourceHandle dstImage;
 		VkDeviceSize stagingBufferSize;
@@ -28,6 +28,9 @@ namespace vanadium::graphics {
 	};
 
 	using GPUTransferHandle = SlotmapHandle;
+
+	using AsyncBufferTransferHandle = SlotmapHandle;
+	using AsyncImageTransferHandle = SlotmapHandle;
 
 	class GPUTransferManager {
 	  public:
@@ -64,6 +67,6 @@ namespace vanadium::graphics {
 
 		Slotmap<GPUTransfer> m_continuousTransfers;
 		std::vector<GPUTransfer> m_oneTimeTransfers;
-		std::vector<VGPUImageTransfer> m_imageTransfers;
+		std::vector<GPUImageTransfer> m_imageTransfers;
 	};
 } // namespace vanadium::graphics

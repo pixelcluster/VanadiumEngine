@@ -119,7 +119,7 @@ void PlanetRenderNode::setupResources(FramegraphContext* context) {
 	verifyResult(
 		vkCreateShaderModule(context->gpuContext()->device(), &shaderModuleCreateInfo, nullptr, &vertexShaderModule));
 
-	free(shaderData);
+	delete[] reinterpret_cast<char*>(shaderData);
 
 	shaderData = reinterpret_cast<uint32_t*>(readFile("./shaders/planet-frag.spv", &shaderSize));
 	shaderModuleCreateInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -129,7 +129,7 @@ void PlanetRenderNode::setupResources(FramegraphContext* context) {
 	verifyResult(
 		vkCreateShaderModule(context->gpuContext()->device(), &shaderModuleCreateInfo, nullptr, &fragmentShaderModule));
 
-	free(shaderData);
+	delete[] reinterpret_cast<char*>(shaderData);
 
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[] = {
 		{ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,

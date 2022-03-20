@@ -7,6 +7,7 @@
 #include <optional>
 #include <vector>
 #include <volk.h>
+#include <Log.hpp>
 
 const char* platformSurfaceExtensionName() {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
@@ -77,32 +78,52 @@ namespace vanadium::graphics {
 			vkCreateDebugUtilsMessengerEXT(m_instance, &debugUtilsMessengerCreateInfo, nullptr, &m_debugMessenger);
 		}
 
-		windowSurface.create(m_instance);
+		windowSurface.create(m_instance, frameInFlightCount);
 
 		std::vector<VkPhysicalDevice> physicalDevices =
 			enumerate<VkInstance, VkPhysicalDevice>(m_instance, vkEnumeratePhysicalDevices);
 
 		std::optional<VkPhysicalDevice> chosenDevice = std::nullopt;
-		uint32_t chosenQueueFamilyIndex = -1;
+		uint32_t chosenGraphicsQueueFamilyIndex = -1U;
+
+		uint32_t chosenTransferQueueFamilyIndex = -1U;
 		for (auto& device : physicalDevices) {
 			uint32_t propertyCount = 0;
 			vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, nullptr);
 			auto queueFamilyProperties = std::vector<VkQueueFamilyProperties>(propertyCount);
 			vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, queueFamilyProperties.data());
 
+			uint32_t unrelatedGraphicsFlags = -1U;
+			uint32_t unrelatedTransferFlags = -1U;
+
 			uint32_t queueFamilyIndex = 0;
 			for (auto& properties : queueFamilyProperties) {
+				uint32_t currentUnrelatedGraphicsFlags =
+					std::popcount(properties.queueFlags & ~(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT));
+				uint32_t currentUnrelatedTransferFlags =
+					std::popcount(properties.queueFlags & ~(VK_QUEUE_TRANSFER_BIT));
+
 				if ((properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-					windowSurface.supportsPresent(device, queueFamilyIndex)) {
-					chosenDevice = device;
-					chosenQueueFamilyIndex = queueFamilyIndex;
-					break;
+					windowSurface.supportsPresent(device, queueFamilyIndex) &&
+					currentUnrelatedGraphicsFlags < unrelatedGraphicsFlags) {
+					chosenGraphicsQueueFamilyIndex = queueFamilyIndex;
+					unrelatedGraphicsFlags = currentUnrelatedGraphicsFlags;
+				}
+				if ((properties.queueFlags & VK_QUEUE_TRANSFER_BIT) &&
+					currentUnrelatedTransferFlags < unrelatedTransferFlags) {
+					chosenTransferQueueFamilyIndex = queueFamilyIndex;
+					unrelatedTransferFlags = currentUnrelatedTransferFlags;
 				}
 
 				++queueFamilyIndex;
 			}
+			if (chosenGraphicsQueueFamilyIndex != -1U && chosenTransferQueueFamilyIndex != -1U) {
+				if (queueFamilyProperties[chosenTransferQueueFamilyIndex].queueFlags &
+					(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
+						logWarning("DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.");
+				}
 
-			if (chosenDevice.has_value()) {
+				chosenDevice = device;
 				break;
 			}
 		}
@@ -112,8 +133,6 @@ namespace vanadium::graphics {
 		}
 
 		m_physicalDevice = chosenDevice.value();
-
-		windowSurface.create(m_instance);
 
 		std::vector<const char*> deviceExtensionNames = { "VK_KHR_swapchain" };
 
@@ -132,15 +151,20 @@ namespace vanadium::graphics {
 			}
 		}
 
-		float priority = 1.0f;
-		VkDeviceQueueCreateInfo queueCreateInfo = { .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-													.queueFamilyIndex = chosenQueueFamilyIndex,
-													.queueCount = 1,
-													.pQueuePriorities = &priority };
+		float graphicsPriority = 1.0f;
+		float transferPriority = 0.2f;
+		VkDeviceQueueCreateInfo queueCreateInfos[2] = { { .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+														  .queueFamilyIndex = chosenGraphicsQueueFamilyIndex,
+														  .queueCount = 1,
+														  .pQueuePriorities = &graphicsPriority },
+														{ .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+														  .queueFamilyIndex = chosenTransferQueueFamilyIndex,
+														  .queueCount = 1,
+														  .pQueuePriorities = &transferPriority } };
 
 		VkDeviceCreateInfo deviceCreateInfo = { .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-												.queueCreateInfoCount = 1,
-												.pQueueCreateInfos = &queueCreateInfo,
+												.queueCreateInfoCount = 2,
+												.pQueueCreateInfos = queueCreateInfos,
 												.enabledExtensionCount =
 													static_cast<uint32_t>(deviceExtensionNames.size()),
 												.ppEnabledExtensionNames = deviceExtensionNames.data() };
@@ -150,23 +174,9 @@ namespace vanadium::graphics {
 
 		m_physicalDevice = chosenDevice.value();
 
-		vkGetDeviceQueue(m_device, chosenQueueFamilyIndex, 0, &m_graphicsQueue);
-
-		m_graphicsQueueFamilyIndex = chosenQueueFamilyIndex;
-
-		/*VkFenceCreateInfo fenceCreateInfo = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-											  .flags = VK_FENCE_CREATE_SIGNALED_BIT };
-
-		VkSemaphoreCreateInfo semaphoreCreateInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-
-		VkCommandPoolCreateInfo poolCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-												   .queueFamilyIndex = m_graphicsQueueFamilyIndex };
-
-		for (size_t i = 0; i < frameInFlightCount; ++i) {
-			verifyResult(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameCompletionFences[i]));
-			verifyResult(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_swapchainImageSemaphores[i]));
-
-			verifyResult(vkCreateCommandPool(m_device, &poolCreateInfo, nullptr, &m_frameCommandPools[i]));
-		}*/
+		vkGetDeviceQueue(m_device, chosenGraphicsQueueFamilyIndex, 0, &m_graphicsQueue);
+		m_graphicsQueueFamilyIndex = chosenGraphicsQueueFamilyIndex;
+		vkGetDeviceQueue(m_device, chosenTransferQueueFamilyIndex, 0, &m_asyncTransferQueue);
+		m_asyncTransferQueueFamilyIndex = chosenTransferQueueFamilyIndex;
 	}
 } // namespace vanadium::graphics

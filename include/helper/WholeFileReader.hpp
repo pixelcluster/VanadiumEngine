@@ -16,7 +16,7 @@ inline void* readFile(const char* name, size_t* fileSize) {
 	stream.clear();
 	stream.seekg(0, std::ios_base::beg);
 
-	void* data = malloc(*fileSize);
+	char* data = new char[*fileSize];
 	stream.read(reinterpret_cast<char*>(data), *fileSize);
 	return data;
 }

@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
 	Json::Reader reader;
 	reader.parse(data, data + fileSize, rootValue);
 
-	free(data);
+	delete[] data;
 
 	if (!rootValue["archetype"].isObject()) {
 		std::cout << "Error: JSON archetype is invalid." << std::endl;
@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
 			dstFileSize += instance.serializedSize();
 		}
 
-		void* dstData = malloc(dstFileSize);
+		void* dstData = new char[dstFileSize];
 		void* nextData = dstData;
 		uint32_t version = 1;
 		std::memcpy(nextData, &version, sizeof(uint32_t));
@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
 
 		outStream.write(reinterpret_cast<char*>(dstData), dstFileSize);
 
-		free(dstData);
+		delete[] reinterpret_cast<char*>(dstData);
 	}
 
 	remove_all(tempDirPath);

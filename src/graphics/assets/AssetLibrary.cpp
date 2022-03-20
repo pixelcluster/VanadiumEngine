@@ -37,7 +37,7 @@ namespace vanadium::graphics {
 		uint64_t imageBinaryDataSize = readFromFile<uint32_t>(inFileStream);
 
 		uint64_t totalDataSize = meshBinaryDataSize + imageBinaryDataSize;
-		void* data = malloc(totalDataSize);
+		void* data = new char[totalDataSize];
 		assertFatal(data, "Failed to allocate data for asset library!\n");
 
 		return { .imageCount = imageCount,

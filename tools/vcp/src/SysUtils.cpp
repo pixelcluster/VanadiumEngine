@@ -12,8 +12,8 @@ SubprocessID startSubprocess(const char* processName, const std::vector<const ch
 		totalArgsSize += strlen(arg) + 1;
 	}
 
-	char* argData = reinterpret_cast<char*>(malloc(totalArgsSize));
-	char** argArray = reinterpret_cast<char**>(malloc((arguments.size() + 2) * sizeof(char*)));
+	char* argData = new char[totalArgsSize];
+	char** argArray = new char*[arguments.size() + 2];
 
 	argArray[0] = argData;
 	argArray[arguments.size() + 1] = nullptr;
@@ -41,8 +41,8 @@ SubprocessID startSubprocess(const char* processName, const std::vector<const ch
 			std::exit(EXIT_FAILURE);
 			break;
 		default:
-			free(argData);
-			free(argArray);
+			delete[] argData;
+			delete[] argArray;
 			return { childPID };
 	}
 	return { -1 }; // unreachable but silences compiler warning
@@ -63,7 +63,7 @@ SubprocessID startSubprocess(const char* processName, const std::vector<const ch
 	}
 	//terminator byte
 	commandLineLength++;
-	char* commandLine = reinterpret_cast<char*>(malloc(commandLineLength));
+	char* commandLine = new char[commandLineLength];
 
 	size_t commandLineOffset = 0;
 	size_t currentArgLength = strlen(processName);
@@ -85,11 +85,11 @@ SubprocessID startSubprocess(const char* processName, const std::vector<const ch
 	if (!CreateProcessA(nullptr, commandLine, nullptr, nullptr, FALSE, NORMAL_PRIORITY_CLASS, nullptr, nullptr,
 						&startupInfo, &processInfo)) {
 		std::cout << "Error: Failed to open subprocess, exiting!" << std::endl;
-		free(commandLine);
+		delete[] commandLine;
 		std::exit(EXIT_FAILURE);
 	}
 
-	free(commandLine);
+	delete[] commandLine;
 	return { .processHandle = processInfo.hProcess, .threadHandle = processInfo.hThread };
 }
 

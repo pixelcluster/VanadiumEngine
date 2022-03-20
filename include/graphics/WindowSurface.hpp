@@ -10,7 +10,7 @@ namespace vanadium::graphics {
 		WindowSurface(windowing::WindowInterface& interface);
 		~WindowSurface();
 
-		void create(VkInstance instance);
+		void create(VkInstance instance, size_t frameInFlightCount);
 
 		bool supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex);
 		void createSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkImageUsageFlags usageFlags);
@@ -32,8 +32,11 @@ namespace vanadium::graphics {
 		// returns whether the swapchain data was changed
 		bool refreshSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkImageUsageFlags usageFlags);
 
-		uint32_t tryAcquire(VkDevice device, VkSemaphore dstSemaphore);
-		void tryPresent(VkQueue queue, VkSemaphore waitSemaphore, uint32_t imageIndex);
+		uint32_t tryAcquire(VkDevice device, uint32_t frameIndex);
+		void tryPresent(VkQueue queue, uint32_t imageIndex, uint32_t frameIndex);
+
+		VkSemaphore acquireSemaphore(uint32_t frameIndex) const { return m_acquireSemaphores[frameIndex]; }
+		VkSemaphore presentSemaphore(uint32_t frameIndex) const { return m_presentSemaphores[frameIndex]; }
 
 	  private:
 		windowing::WindowInterface& m_interface;
@@ -46,6 +49,10 @@ namespace vanadium::graphics {
 		uint32_t m_actualWidth = 0, m_actualHeight = 0;
 
 		std::optional<uint32_t> m_lastFailedPresentIndex;
+
+		size_t m_frameInFlightCount;
+		std::vector<VkSemaphore> m_acquireSemaphores;
+		std::vector<VkSemaphore> m_presentSemaphores;
 
 		VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 		VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;

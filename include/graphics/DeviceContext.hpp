@@ -27,6 +27,9 @@ namespace vanadium::graphics {
 		uint32_t graphicsQueueFamilyIndex() const { return m_graphicsQueueFamilyIndex; }
 		VkQueue graphicsQueue() { return m_graphicsQueue; }
 
+		uint32_t asyncTransferQueueFamilyIndex() const { return m_asyncTransferQueueFamilyIndex; }
+		VkQueue asyncTransferQueue() { return m_asyncTransferQueue; }
+
 		DeviceCapabilities deviceCapabilities() const { return m_capabilities; }
 
 	  private:
@@ -36,6 +39,9 @@ namespace vanadium::graphics {
 
 		uint32_t m_graphicsQueueFamilyIndex;
 		VkQueue m_graphicsQueue;
+
+		uint32_t m_asyncTransferQueueFamilyIndex;
+		VkQueue m_asyncTransferQueue;
 
 		VkDebugUtilsMessengerEXT m_debugMessenger;
 

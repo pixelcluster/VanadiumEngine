@@ -10,8 +10,8 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, PlanetRenderNode
 										 VWindowModule* windowModule) {
 	m_gpuModule = gpuModule;
 	m_windowModule = windowModule;
-	m_pointBuffer = reinterpret_cast<VertexData*>(malloc(sizeof(VertexData) * totalPointCount));
-	m_indexBuffer = reinterpret_cast<uint32_t*>(malloc(sizeof(uint32_t) * totalIndexCount));
+	m_pointBuffer = new VertexData[totalPointCount];
+	m_indexBuffer = new uint32_t[totalIndexCount];
 
 	m_pointBuffer[0].pos = glm::vec3(0.0f, 1.0f, 0.0f); // singularity point on top of sphere
 	m_pointBuffer[0].texCoord = glm::vec2(0.5f, 0.0f);
@@ -283,6 +283,6 @@ void DataGeneratorModule::onDeactivate(VEngine& engine) {
 }
 
 void DataGeneratorModule::onDestroy(VEngine& engine) {
-	free(m_pointBuffer);
-	free(m_indexBuffer);
+	delete[] m_pointBuffer;
+	delete[] m_indexBuffer;
 }

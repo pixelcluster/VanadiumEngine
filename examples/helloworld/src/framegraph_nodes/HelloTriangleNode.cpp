@@ -114,7 +114,7 @@ void HelloTriangleNode::setupResources(FramegraphContext* context) {
 	verifyResult(
 		vkCreateShaderModule(context->gpuContext()->device(), &shaderModuleCreateInfo, nullptr, &vertexShaderModule));
 
-	free(shaderData);
+	delete[] reinterpret_cast<char*>(shaderData);
 
 	shaderData = reinterpret_cast<uint32_t*>(readFile("./shaders/triangle-frag.spv", &shaderSize));
 	shaderModuleCreateInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -124,8 +124,7 @@ void HelloTriangleNode::setupResources(FramegraphContext* context) {
 	verifyResult(
 		vkCreateShaderModule(context->gpuContext()->device(), &shaderModuleCreateInfo, nullptr, &fragmentShaderModule));
 
-	free(shaderData);
-
+	delete[] reinterpret_cast<char*>(shaderData);
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[] = {
 		{ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 		  .stage = VK_SHADER_STAGE_VERTEX_BIT,

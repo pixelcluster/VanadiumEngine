@@ -23,8 +23,9 @@ namespace vanadium::graphics {
 									.userData = this });
 	}
 
-	void WindowSurface::create(VkInstance instance) {
+	void WindowSurface::create(VkInstance instance, size_t frameInFlightCount) {
 		verifyResult(glfwCreateWindowSurface(instance, m_interface.internalHandle(), nullptr, &m_surface));
+		m_frameInFlightCount = frameInFlightCount;
 	}
 
 	bool WindowSurface::supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex) {
@@ -36,6 +37,19 @@ namespace vanadium::graphics {
 
 	void WindowSurface::createSwapchain(VkPhysicalDevice physicalDevice, VkDevice device,
 										VkImageUsageFlags usageFlags) {
+		if (m_acquireSemaphores.empty()) {
+			m_acquireSemaphores.resize(m_frameInFlightCount);
+			m_presentSemaphores.resize(m_frameInFlightCount);
+
+			VkSemaphoreCreateInfo info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+
+			for (size_t i = 0; i < m_acquireSemaphores.size(); ++i) {
+				verifyResult(vkCreateSemaphore(device, &info, nullptr, &m_acquireSemaphores[i]));
+			}
+			for (size_t i = 0; i < m_presentSemaphores.size(); ++i) {
+				verifyResult(vkCreateSemaphore(device, &info, nullptr, &m_presentSemaphores[i]));
+			}
+		}
 		std::vector<VkSurfaceFormatKHR> surfaceFormats = enumerate<VkPhysicalDevice, VkSurfaceFormatKHR, VkSurfaceKHR>(
 			physicalDevice, m_surface, vkGetPhysicalDeviceSurfaceFormatsKHR);
 
@@ -58,7 +72,6 @@ namespace vanadium::graphics {
 			m_canRender = false;
 			return;
 		}
-
 		uint32_t imageCount = std::max(3U, surfaceCapabilities.minImageCount);
 		if (surfaceCapabilities.maxImageCount) {
 			imageCount = std::min(imageCount, surfaceCapabilities.maxImageCount);
@@ -105,15 +118,15 @@ namespace vanadium::graphics {
 		return false;
 	}
 
-	uint32_t WindowSurface::tryAcquire(VkDevice device, VkSemaphore dstSemaphore) {
+	uint32_t WindowSurface::tryAcquire(VkDevice device, uint32_t frameIndex) {
 		if (m_lastFailedPresentIndex.has_value()) {
 			uint32_t result = m_lastFailedPresentIndex.value();
 			m_lastFailedPresentIndex = std::nullopt;
 			return result;
 		}
 		uint32_t imageIndex;
-		VkResult result =
-			vkAcquireNextImageKHR(device, m_swapchain, UINT64_MAX, dstSemaphore, VK_NULL_HANDLE, &imageIndex);
+		VkResult result = vkAcquireNextImageKHR(device, m_swapchain, UINT64_MAX, m_acquireSemaphores[frameIndex],
+												VK_NULL_HANDLE, &imageIndex);
 		switch (result) {
 			case VK_ERROR_OUT_OF_DATE_KHR:
 				m_canRender = false;
@@ -130,11 +143,11 @@ namespace vanadium::graphics {
 		return imageIndex;
 	}
 
-	void WindowSurface::tryPresent(VkQueue queue, VkSemaphore waitSemaphore, uint32_t imageIndex) {
+	void WindowSurface::tryPresent(VkQueue queue, uint32_t imageIndex, uint32_t frameIndex) {
 		VkResult result;
 		VkPresentInfoKHR presentInfo = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 										 .waitSemaphoreCount = 1,
-										 .pWaitSemaphores = &waitSemaphore,
+										 .pWaitSemaphores = &m_presentSemaphores[frameIndex],
 										 .swapchainCount = 1,
 										 .pSwapchains = &m_swapchain,
 										 .pImageIndices = &imageIndex,

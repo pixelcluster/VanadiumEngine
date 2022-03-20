@@ -53,18 +53,44 @@ namespace vanadium::graphics {
 		m_context = gpuContext;
 	}
 
+	BlockHandle GPUResourceAllocator::createBufferBlock(size_t size, MemoryCapabilities required,
+														MemoryCapabilities preferred, bool createMapped) {
+		VkMemoryPropertyFlags requiredFlags = (required.deviceLocal ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0) |
+											  (required.hostCoherent ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0) |
+											  ((required.hostVisible) ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0);
+		VkMemoryPropertyFlags preferredFlags = (preferred.deviceLocal ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0) |
+											   (preferred.hostCoherent ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0) |
+											   (preferred.hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0);
+
+		uint32_t typeIndex =
+			bestTypeIndex(requiredFlags, preferredFlags, { .size = 0, .memoryTypeBits = 0xFFFFFF }, false);
+		return allocateCustomBlock(typeIndex, size, createMapped, false);
+	}
+
+	BlockHandle GPUResourceAllocator::createImageBlock(size_t size, MemoryCapabilities required,
+													   MemoryCapabilities preferred) {
+		VkMemoryPropertyFlags requiredFlags = (required.deviceLocal ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0) |
+											  (required.hostCoherent ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0) |
+											  ((required.hostVisible) ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0);
+		VkMemoryPropertyFlags preferredFlags = (preferred.deviceLocal ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0) |
+											   (preferred.hostCoherent ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0) |
+											   (preferred.hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0);
+
+		uint32_t typeIndex =
+			bestTypeIndex(requiredFlags, preferredFlags, { .size = 0, .memoryTypeBits = 0xFFFFFF }, false);
+		return allocateCustomBlock(typeIndex, size, false, true);
+	}
+
 	BufferResourceHandle GPUResourceAllocator::createBuffer(const VkBufferCreateInfo& bufferCreateInfo,
 															MemoryCapabilities required, MemoryCapabilities preferred,
 															bool createMapped) {
-
-		// clang-format off
-	VkMemoryPropertyFlags requiredFlags = (required.deviceLocal  ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT  : 0) | 
-										  (required.hostCoherent ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0) |
-						((required.hostVisible || createMapped)  ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT  : 0);
-	VkMemoryPropertyFlags preferredFlags = (preferred.deviceLocal  ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT  : 0) | 
-										   (preferred.hostCoherent ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0) |
-										   (preferred.hostVisible  ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT  : 0);
-		// clang-format on
+		VkMemoryPropertyFlags requiredFlags =
+			(required.deviceLocal ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0) |
+			(required.hostCoherent ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0) |
+			((required.hostVisible || createMapped) ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0);
+		VkMemoryPropertyFlags preferredFlags = (preferred.deviceLocal ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0) |
+											   (preferred.hostCoherent ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0) |
+											   (preferred.hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0);
 
 		VkBuffer buffer;
 		verifyResult(vkCreateBuffer(m_context->device(), &bufferCreateInfo, nullptr, &buffer));
@@ -104,9 +130,9 @@ namespace vanadium::graphics {
 										.blockHandle = result.value().blockHandle,
 										.bufferContentRange = result.value().usableRange,
 										.allocationRange = result.value().allocationRange };
-		vkBindBufferMemory(m_context->device(), buffer,
+		verifyResult(vkBindBufferMemory(m_context->device(), buffer,
 						   m_memoryTypes[typeIndex].blocks[result.value().blockHandle].memoryHandle,
-						   result.value().usableRange.offset);
+						   result.value().usableRange.offset));
 		for (size_t i = 0; i < frameInFlightCount; ++i) {
 			allocation.buffers[i] = buffer;
 			if (createMapped) {
@@ -181,9 +207,9 @@ namespace vanadium::graphics {
 			verifyResult(vkCreateBuffer(m_context->device(), &bufferCreateInfo, nullptr, &allocation.buffers[i]));
 		}
 		for (size_t i = 0; i < frameInFlightCount; ++i) {
-			vkBindBufferMemory(m_context->device(), allocation.buffers[i],
+			verifyResult(vkBindBufferMemory(m_context->device(), allocation.buffers[i],
 							   m_memoryTypes[typeIndex].blocks[result.value().blockHandle].memoryHandle,
-							   result.value().usableRange.offset + i * alignedSize);
+							   result.value().usableRange.offset + i * alignedSize));
 			if (createMapped) {
 				auto bufferStartPointer =
 					reinterpret_cast<uintptr_t>(
@@ -194,6 +220,41 @@ namespace vanadium::graphics {
 		}
 
 		return m_buffers.addElement(allocation);
+	}
+
+	BufferResourceHandle GPUResourceAllocator::createBuffer(const VkBufferCreateInfo& bufferCreateInfo,
+															BlockHandle block, bool createMapped) {
+		if (createMapped && !m_customBufferBlocks[block].mappedPointer) {
+			return ~0U;
+		}
+
+		VkBuffer buffer;
+		verifyResult(vkCreateBuffer(m_context->device(), &bufferCreateInfo, nullptr, &buffer));
+
+		VkMemoryRequirements requirements;
+		vkGetBufferMemoryRequirements(m_context->device(), buffer, &requirements);
+
+		auto result = allocateInBlock(block, m_customBufferBlocks[block], requirements.alignment, requirements.size,
+									  createMapped);
+		if (!result.has_value()) {
+			return ~0U;
+		} else {
+			BufferAllocation allocation = { .isMultipleBuffered = false,
+											.typeIndex = ~0U,
+											.blockHandle = result.value().blockHandle,
+											.bufferContentRange = result.value().usableRange,
+											.allocationRange = result.value().allocationRange };
+			verifyResult(vkBindBufferMemory(m_context->device(), buffer, m_customBufferBlocks[block].memoryHandle,
+							   result.value().usableRange.offset));
+			for (size_t i = 0; i < frameInFlightCount; ++i) {
+				allocation.buffers[i] = buffer;
+				if (createMapped) {
+					auto bufferStartPointer = reinterpret_cast<uintptr_t>(m_customBufferBlocks[block].mappedPointer) +
+											  result.value().usableRange.offset;
+					allocation.mappedData[i] = reinterpret_cast<void*>(bufferStartPointer);
+				}
+			}
+		}
 	}
 
 	MemoryCapabilities GPUResourceAllocator::bufferMemoryCapabilities(BufferResourceHandle handle) {
@@ -278,6 +339,34 @@ namespace vanadium::graphics {
 		return m_images.addElement(allocation);
 	}
 
+	ImageResourceHandle GPUResourceAllocator::createImage(const VkImageCreateInfo& imageCreateInfo, BlockHandle block) {
+		VkImage image;
+		verifyResult(vkCreateImage(m_context->device(), &imageCreateInfo, nullptr, &image));
+
+		VkMemoryRequirements requirements;
+		vkGetImageMemoryRequirements(m_context->device(), image, &requirements);
+
+		auto result =
+			allocateInBlock(block, m_customImageBlocks[block], requirements.alignment, requirements.size, false);
+		if (!result.has_value()) {
+			return ~0U;
+		} else {
+			ImageAllocation allocation = {
+				.resourceInfo = { .format = imageCreateInfo.format,
+								  .dimensions = imageCreateInfo.extent,
+								  .mipLevelCount = imageCreateInfo.mipLevels,
+								  .arrayLayerCount = imageCreateInfo.arrayLayers },
+				.typeIndex = ~0U,
+				.blockHandle = result.value().blockHandle,
+				.allocationRange = result.value().allocationRange,
+			};
+			allocation.image = image;
+			vkBindImageMemory(m_context->device(), image, m_customImageBlocks[block].memoryHandle,
+							  result.value().usableRange.offset);
+			return m_images.addElement(allocation);
+		}
+	}
+
 	VkImage GPUResourceAllocator::nativeImageHandle(ImageResourceHandle handle) { return m_images[handle].image; }
 
 	const ImageResourceInfo& GPUResourceAllocator::imageResourceInfo(ImageResourceHandle handle) {
@@ -309,6 +398,15 @@ namespace vanadium::graphics {
 		m_images.removeElement(handle);
 	}
 
+	void GPUResourceAllocator::destroyBufferBlock(BlockHandle handle) {
+		m_blockFreeList[m_currentFrameIndex].push_back(m_customBufferBlocks[handle]);
+		m_customBufferBlocks.removeElement(handle);
+	}
+	void GPUResourceAllocator::destroyImageBlock(BlockHandle handle) {
+		m_blockFreeList[m_currentFrameIndex].push_back(m_customImageBlocks[handle]);
+		m_customImageBlocks.removeElement(handle);
+	}
+
 	void GPUResourceAllocator::destroy() {
 		// work around iterator invalidation
 		while (m_buffers.size()) {
@@ -330,6 +428,13 @@ namespace vanadium::graphics {
 			for (auto& block : type.imageBlocks) {
 				vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
 			}
+		}
+
+		for (auto& block : m_customBufferBlocks) {
+			vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
+		}
+		for (auto& block : m_customImageBlocks) {
+			vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
 		}
 	}
 
@@ -365,8 +470,13 @@ namespace vanadium::graphics {
 				vkDestroyBuffer(m_context->device(), allocation.buffers[0], nullptr);
 			}
 
-			freeInBlock(m_memoryTypes[allocation.typeIndex].blocks[allocation.blockHandle],
-						allocation.allocationRange.offset, allocation.allocationRange.size);
+			if (allocation.typeIndex != ~0U) {
+				freeInBlock(m_memoryTypes[allocation.typeIndex].blocks[allocation.blockHandle],
+							allocation.allocationRange.offset, allocation.allocationRange.size);
+			} else {
+				freeInBlock(m_customBufferBlocks[allocation.blockHandle], allocation.allocationRange.offset,
+							allocation.allocationRange.size);
+			}
 		}
 		m_bufferFreeList[m_currentFrameIndex].clear();
 
@@ -376,44 +486,52 @@ namespace vanadium::graphics {
 			}
 			vkDestroyImage(m_context->device(), allocation.image, nullptr);
 
-			freeInBlock(m_memoryTypes[allocation.typeIndex].imageBlocks[allocation.blockHandle],
-						allocation.allocationRange.offset - allocation.alignmentMargin,
-						allocation.allocationRange.size + allocation.alignmentMargin);
+			if (allocation.typeIndex != ~0U) {
+				freeInBlock(m_memoryTypes[allocation.typeIndex].imageBlocks[allocation.blockHandle],
+							allocation.allocationRange.offset - allocation.alignmentMargin,
+							allocation.allocationRange.size + allocation.alignmentMargin);
+			} else {
+				freeInBlock(m_customImageBlocks[allocation.blockHandle], allocation.allocationRange.offset,
+							allocation.allocationRange.size);
+			}
 		}
 		m_imageFreeList[m_currentFrameIndex].clear();
 
-		for(auto& type : m_memoryTypes) {
+		for (auto& type : m_memoryTypes) {
 			size_t freeBlockCount = 0;
 
-			blockFreeStart:
-			for(auto& block : type.blocks) {
-				if(block.maxAllocatableSize == block.originalSize) {
-					if(block.originalSize > m_blockSize) {
+		blockFreeStart:
+			for (auto& block : type.blocks) {
+				if (block.maxAllocatableSize == block.originalSize) {
+					if (block.originalSize > m_blockSize) {
 						vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
-						//no way to handle iterator invalidation gracefully, restart loop
+						// no way to handle iterator invalidation gracefully, restart loop
 						goto blockFreeStart;
-					}
-					else if(++freeBlockCount > 1) {
+					} else if (++freeBlockCount > 1) {
 						vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
 						goto blockFreeStart;
 					}
 				}
 			}
-			imageBlockFreeStart:
-			for(auto& block : type.imageBlocks) {
-				if(block.maxAllocatableSize == block.originalSize) {
-					if(block.originalSize > m_blockSize) {
+		imageBlockFreeStart:
+			for (auto& block : type.imageBlocks) {
+				if (block.maxAllocatableSize == block.originalSize) {
+					if (block.originalSize > m_blockSize) {
 						vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
-						//no way to handle iterator invalidation gracefully, restart loop
+						// no way to handle iterator invalidation gracefully, restart loop
 						goto imageBlockFreeStart;
-					}
-					else if(++freeBlockCount > 1) {
+					} else if (++freeBlockCount > 1) {
 						vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
 						goto imageBlockFreeStart;
 					}
 				}
 			}
 		}
+
+		for (auto& block : m_blockFreeList[m_currentFrameIndex]) {
+			vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
+		}
+		m_blockFreeList[m_currentFrameIndex].clear();
 	}
 
 	uint32_t GPUResourceAllocator::bestTypeIndex(VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
@@ -433,7 +551,8 @@ namespace vanadium::graphics {
 			size_t numUnrelatedCapabilities = std::popcount((~preferred) & type.properties);
 			if (numMatchingCapabilities > bestNumMatchingCapabilities ||
 				(numMatchingCapabilities == bestNumMatchingCapabilities &&
-				 numUnrelatedCapabilities < bestNumUnrelatedCapabilities)) {
+				 numUnrelatedCapabilities < bestNumUnrelatedCapabilities) &&
+					((1U << typeIndex) & requirements.memoryTypeBits)) {
 				if (!isTypeBigEnough(typeIndex, requirements.size, createMapped)) {
 					++typeIndex;
 					continue;
@@ -698,6 +817,53 @@ namespace vanadium::graphics {
 			m_memoryTypes[typeIndex].imageBlocks.addElement(block);
 		else
 			m_memoryTypes[typeIndex].blocks.addElement(block);
+
+		if (m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] < size)
+			m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] = size;
+
+		m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] -= size;
+
+		return true;
+	}
+
+	bool GPUResourceAllocator::allocateCustomBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped,
+												   bool createImageBlock) {
+		VkDeviceMemory newMemory;
+		VkMemoryAllocateInfo info = { .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+									  .allocationSize = size,
+									  .memoryTypeIndex = typeIndex };
+
+		VkResult result = vkAllocateMemory(m_context->device(), &info, nullptr, &newMemory);
+
+		if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+			m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] = size - 1;
+			return false;
+		}
+		verifyResult(result);
+
+		MemoryCapabilities capabilities = {
+			.deviceLocal = static_cast<bool>(m_memoryTypes[typeIndex].properties & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+			.hostVisible = static_cast<bool>(m_memoryTypes[typeIndex].properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT),
+			.hostCoherent =
+				static_cast<bool>(m_memoryTypes[typeIndex].properties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+		};
+
+		void* mappedPointer = nullptr;
+		if (createMapped) {
+			verifyResult(vkMapMemory(m_context->device(), newMemory, 0, size, 0, &mappedPointer));
+		}
+
+		MemoryBlock block = { .freeBlocksSizeSorted = { { .offset = 0, .size = size } },
+							  .freeBlocksOffsetSorted = { { .offset = 0, .size = size } },
+							  .capabilities = capabilities,
+							  .maxAllocatableSize = size,
+							  .originalSize = size,
+							  .memoryHandle = newMemory,
+							  .mappedPointer = mappedPointer };
+		if (createImageBlock)
+			m_customImageBlocks.addElement(block);
+		else
+			m_customBufferBlocks.addElement(block);
 
 		if (m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] < size)
 			m_heapBudgets[m_memoryTypes[typeIndex].heapIndex] = size;
