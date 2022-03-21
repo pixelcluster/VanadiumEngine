@@ -178,5 +178,7 @@ namespace vanadium::graphics {
 		m_graphicsQueueFamilyIndex = chosenGraphicsQueueFamilyIndex;
 		vkGetDeviceQueue(m_device, chosenTransferQueueFamilyIndex, 0, &m_asyncTransferQueue);
 		m_asyncTransferQueueFamilyIndex = chosenTransferQueueFamilyIndex;
+
+		vkGetPhysicalDeviceProperties(m_physicalDevice, &m_properties);
 	}
 } // namespace vanadium::graphics

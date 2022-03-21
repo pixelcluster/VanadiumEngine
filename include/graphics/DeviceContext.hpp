@@ -31,10 +31,12 @@ namespace vanadium::graphics {
 		VkQueue asyncTransferQueue() { return m_asyncTransferQueue; }
 
 		DeviceCapabilities deviceCapabilities() const { return m_capabilities; }
+		const VkPhysicalDeviceProperties& properties() const { return m_properties; }
 
 	  private:
 		VkInstance m_instance;
 		VkPhysicalDevice m_physicalDevice;
+		VkPhysicalDeviceProperties m_properties;
 		VkDevice m_device;
 
 		uint32_t m_graphicsQueueFamilyIndex;

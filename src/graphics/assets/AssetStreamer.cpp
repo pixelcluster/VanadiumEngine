@@ -16,6 +16,7 @@ namespace vanadium::graphics {
 	}
 
 	bool AssetStreamer::declareMeshUsage(uint32_t id, bool createTransfer) {
+		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
 		if(m_bufferResourceStates[id].isLoaded) {
 			return true;
 		}

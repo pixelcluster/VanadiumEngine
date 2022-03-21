@@ -2,8 +2,10 @@
 
 #include <array>
 #include <graphics/DeviceContext.hpp>
+#include <graphics/util/RangeAllocator.hpp>
 #include <helper/MemoryLiterals.hpp>
 #include <helper/Slotmap.hpp>
+#include <shared_mutex>
 
 namespace vanadium::graphics {
 
@@ -11,11 +13,6 @@ namespace vanadium::graphics {
 		bool deviceLocal;
 		bool hostVisible;
 		bool hostCoherent;
-	};
-
-	struct MemoryRange {
-		VkDeviceSize offset;
-		VkDeviceSize size;
 	};
 
 	struct MemoryBlock {
@@ -127,24 +124,29 @@ namespace vanadium::graphics {
 
 		void create(DeviceContext* gpuContext);
 
-		BlockHandle createBufferBlock(size_t size, MemoryCapabilities required, MemoryCapabilities preferred, bool createMapped);
+		BlockHandle createBufferBlock(size_t size, MemoryCapabilities required, MemoryCapabilities preferred,
+									  bool createMapped);
 		BlockHandle createImageBlock(size_t size, MemoryCapabilities required, MemoryCapabilities preferred);
 
+		// createMapped doesn't force mapping, specify hostVisible in required capabilities to require mappable
+		// allocations
 		BufferResourceHandle createBuffer(const VkBufferCreateInfo& bufferCreateInfo, MemoryCapabilities required,
 										  MemoryCapabilities preferred, bool createMapped);
+		// createMapped doesn't force mapping, specify hostVisible in required capabilities to require mappable
+		// allocations
 		BufferResourceHandle createPerFrameBuffer(const VkBufferCreateInfo& bufferCreateInfo,
 												  MemoryCapabilities required, MemoryCapabilities preferred,
 												  bool createMapped);
-		BufferResourceHandle createBuffer(const VkBufferCreateInfo& bufferCreateInfo, BlockHandle block, bool createMapped);
+		BufferResourceHandle createBuffer(const VkBufferCreateInfo& bufferCreateInfo, BlockHandle block,
+										  bool createMapped);
 
 		MemoryCapabilities bufferMemoryCapabilities(BufferResourceHandle handle);
 		VkDeviceMemory nativeMemoryHandle(BufferResourceHandle handle);
 		MemoryRange allocationRange(BufferResourceHandle handle);
-		VkBuffer nativeBufferHandle(BufferResourceHandle handle) {
-			return m_buffers[handle].buffers[m_currentFrameIndex];
-		}
+		VkBuffer nativeBufferHandle(BufferResourceHandle handle);
 		void* mappedBufferData(BufferResourceHandle handle);
 		void destroyBuffer(BufferResourceHandle handle);
+		void destroyBufferImmediately(BufferResourceHandle handle);
 
 		ImageResourceHandle createImage(const VkImageCreateInfo& imageCreateInfo, MemoryCapabilities required,
 										MemoryCapabilities preferred);
@@ -153,9 +155,11 @@ namespace vanadium::graphics {
 		const ImageResourceInfo& imageResourceInfo(ImageResourceHandle handle);
 		VkImageView requestImageView(ImageResourceHandle handle, const ImageResourceViewInfo& info);
 		void destroyImage(ImageResourceHandle handle);
+		void destroyImageImmediately(ImageResourceHandle handle);
 
 		void destroyBufferBlock(BlockHandle handle);
 		void destroyImageBlock(BlockHandle handle);
+		// not threadsafe
 		void destroy();
 
 		void setFrameIndex(uint32_t frameIndex);
@@ -165,6 +169,9 @@ namespace vanadium::graphics {
 		static constexpr VkDeviceSize m_blockSize = 32_MiB;
 		static constexpr VkDeviceSize m_bufferBlockFreeThreshold = 64_MiB;
 		static constexpr VkDeviceSize m_imageBlockFreeThreshold = 128_MiB;
+
+		void destroyBufferImmediatelyUnsynchronized(const BufferAllocation& handle);
+		void destroyImageImmediatelyUnsynchronized(const ImageAllocation& handle);
 
 		void flushFreeList();
 
@@ -179,16 +186,9 @@ namespace vanadium::graphics {
 		std::optional<AllocationResult> allocateInBlock(BlockHandle blockHandle, MemoryBlock& block,
 														VkDeviceSize alignment, VkDeviceSize size, bool createMapped);
 		void freeInBlock(MemoryBlock& block, VkDeviceSize offset, VkDeviceSize size);
-		void mergeFreeAreas(MemoryBlock& block);
 
 		bool allocateBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped, bool createImageBlock);
 		bool allocateCustomBlock(uint32_t typeIndex, VkDeviceSize size, bool createMapped, bool createImageBlock);
-
-		void reorderOffsetArea(MemoryBlock& block, size_t index);
-		void reorderSizeArea(MemoryBlock& block, size_t index);
-
-		VkDeviceSize roundUpAligned(VkDeviceSize n, VkDeviceSize alignment);
-		VkDeviceSize alignmentMargin(VkDeviceSize n, VkDeviceSize alignment);
 
 		DeviceContext* m_context = nullptr;
 
@@ -208,6 +208,8 @@ namespace vanadium::graphics {
 		std::vector<std::vector<BufferAllocation>> m_bufferFreeList;
 		std::vector<std::vector<ImageAllocation>> m_imageFreeList;
 		std::vector<std::vector<MemoryBlock>> m_blockFreeList;
+
+		std::shared_mutex m_accessMutex;
 	};
 
 } // namespace vanadium::graphics

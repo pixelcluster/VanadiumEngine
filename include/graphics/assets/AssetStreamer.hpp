@@ -5,6 +5,7 @@
 #include <robin_hood.h>
 
 #include <helper/MemoryLiterals.hpp>
+#include <shared_mutex>
 
 namespace vanadium::graphics {
 	struct BufferResourceState
@@ -43,6 +44,8 @@ namespace vanadium::graphics {
 
 		BlockHandle m_bufferStreamPool;
 		BlockHandle m_imageStreamPool;
+
+		std::shared_mutex m_accessMutex;
 	};
 
 } // namespace vanadium::graphics

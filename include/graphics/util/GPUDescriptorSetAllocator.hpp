@@ -68,6 +68,8 @@ namespace vanadium::graphics {
 		Slotmap<DescriptorSetSizeClass> m_sizeClasses;
 
 		std::vector<std::vector<VkDescriptorPool>> m_poolFreeLists;
+
+		std::shared_mutex m_accessMutex;
 	};
 
 } // namespace vanadium::graphics

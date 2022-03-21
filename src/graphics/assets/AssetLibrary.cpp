@@ -69,14 +69,14 @@ namespace vanadium::graphics {
 							 .dataStart = offsetVoidPtr(headerInfo.imageBinaryDataStart, dataOffset) });
 	}
 
-	const LibraryImage& AssetLibrary::image(uint64_t id) {
+	LibraryImage AssetLibrary::image(uint64_t id) const {
 		if (id < m_images.size())
 			return m_images[id];
 		else
 			return {};
 	}
 
-	const LibraryMesh& AssetLibrary::mesh(uint64_t id) {
+	LibraryMesh AssetLibrary::mesh(uint64_t id) const {
 		if (id < m_meshes.size())
 			return m_meshes[id];
 		else

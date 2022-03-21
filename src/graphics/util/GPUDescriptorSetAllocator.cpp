@@ -20,6 +20,7 @@ namespace vanadium::graphics {
 
 	std::vector<DescriptorSetAllocation> GPUDescriptorSetAllocator::allocateDescriptorSets(
 		const std::vector<DescriptorSetAllocationInfo>& infos) {
+		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
 		auto allocations = std::vector<DescriptorSetAllocation>(infos.size());
 
 		std::vector<DescriptorAllocationBatch> allocatedBatches;
@@ -108,6 +109,7 @@ namespace vanadium::graphics {
 
 	void GPUDescriptorSetAllocator::freeDescriptorSet(const DescriptorSetAllocation& allocation,
 													   const DescriptorSetAllocationInfo& info) {
+		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
 		auto& pool = m_sizeClasses[allocation.sizeClassHandle].pools[allocation.poolHandle];
 		if (++pool.m_freedSets == m_setsPerPool) {
 			m_poolFreeLists[m_currentFrameIndex].push_back(pool.pool);
@@ -123,6 +125,7 @@ namespace vanadium::graphics {
 	}
 
 	void GPUDescriptorSetAllocator::setCurrentFrameIndex(uint32_t newFrameIndex) {
+		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
 		m_currentFrameIndex = newFrameIndex;
 		flushFreeList();
 	}
