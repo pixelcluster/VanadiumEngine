@@ -3,8 +3,8 @@
 #include <graphics/DeviceContext.hpp>
 #include <graphics/util/GPUResourceAllocator.hpp>
 #include <graphics/util/RangeAllocator.hpp>
-#include <helper/Slotmap.hpp>
 #include <helper/MemoryLiterals.hpp>
+#include <helper/Slotmap.hpp>
 #include <shared_mutex>
 
 namespace vanadium::graphics {
@@ -13,7 +13,7 @@ namespace vanadium::graphics {
 		BufferResourceHandle buffer;
 		VkDeviceSize maxAllocatableSize;
 		VkDeviceSize originalSize;
-		
+
 		std::vector<MemoryRange> freeRangesOffsetSorted;
 		std::vector<MemoryRange> freeRangesSizeSorted;
 	};
@@ -48,18 +48,42 @@ namespace vanadium::graphics {
 
 	using GPUTransferHandle = SlotmapHandle;
 
-	struct AsyncBufferTransfer
-	{
+	struct AsyncTransferCommandPool {
+		uint32_t refCount = 0;
+		VkCommandPool pool;
+		VkCommandBuffer buffer;
+		VkFence fence;
+	};
+
+	using AsyncTransferCommandPoolHandle = SlotmapHandle;
+
+	struct AsyncBufferTransfer {
 		StagingBufferAllocation stagingBufferAllocation;
 		BufferResourceHandle dstBufferHandle;
 
 		VkBufferCopy copy;
 		VkBufferMemoryBarrier transferBarrier;
+		VkBufferMemoryBarrier acquireBarrier;
 		VkPipelineStageFlags dstStageFlags;
-		VkEvent finishedEvent;
+
+		AsyncTransferCommandPoolHandle containingCommandPool;
 	};
 
 	using AsyncBufferTransferHandle = SlotmapHandle;
+
+	struct AsyncImageTransfer {
+		StagingBufferAllocation stagingBufferAllocation;
+		ImageResourceHandle dstImageHandle;
+
+		VkBufferImageCopy copy;
+		VkImageMemoryBarrier layoutTransitionBarrier;
+		VkImageMemoryBarrier transferBarrier;
+		VkImageMemoryBarrier acquireBarrier;
+		VkPipelineStageFlags dstStageFlags;
+
+		AsyncTransferCommandPoolHandle containingCommandPool;
+	};
+
 	using AsyncImageTransferHandle = SlotmapHandle;
 
 	class GPUTransferManager {
@@ -76,7 +100,7 @@ namespace vanadium::graphics {
 															VkAccessFlags usageAccessFlags);
 
 		AsyncImageTransferHandle createAsyncImageTransfer(void* data, size_t size, ImageResourceHandle dstImage,
-														  uint32_t mipLevel, uint32_t arrayLayer, VkOffset3D offset, VkExtent3D extent,
+														  const VkBufferImageCopy& copy, VkImageLayout dstImageLayout,
 														  VkPipelineStageFlags usageStageFlags,
 														  VkAccessFlags usageAccessFlags);
 
@@ -105,11 +129,13 @@ namespace vanadium::graphics {
 		StagingBufferAllocation allocateStagingBufferArea(VkDeviceSize size);
 
 	  private:
-
 		constexpr static size_t m_minStagingBlockSize = 32_MiB;
 
 		DeviceContext* m_context;
 		GPUResourceAllocator* m_resourceAllocator;
+
+		Slotmap<AsyncTransferCommandPool> m_asyncTransferCommandPools;
+		std::vector<AsyncTransferCommandPool> m_freeAsyncTransferCommandPools;
 
 		VkDeviceSize m_nonCoherentAtomSize;
 
@@ -121,11 +147,15 @@ namespace vanadium::graphics {
 		std::vector<GPUImageTransfer> m_imageTransfers;
 
 		Slotmap<AsyncBufferTransfer> m_asyncBufferTransfers;
+		Slotmap<AsyncImageTransfer> m_asyncImageTransfers;
+
+		std::vector<AsyncBufferTransferHandle> m_bufferHandlesToInitiate;
+		std::vector<AsyncImageTransferHandle> m_imageHandlesToInitiate;
 
 		Slotmap<StagingBuffer> m_stagingBuffers;
 
 		std::vector<std::vector<StagingBufferAllocation>> m_stagingBufferAllocationFreeList;
-		
+
 		std::shared_mutex m_accessMutex;
 	};
 } // namespace vanadium::graphics

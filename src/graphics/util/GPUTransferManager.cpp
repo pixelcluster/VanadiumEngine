@@ -66,22 +66,85 @@ namespace vanadium::graphics {
 			.copy = { .srcOffset = transfer.stagingBufferAllocation.allocationResult.usableRange.offset,
 					  .dstOffset = offset,
 					  .size = size },
-			.transferBarrier = {
-				.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-				.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-				.dstAccessMask = usageAccessFlags,
-				.srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
-				.dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
-				.buffer = m_resourceAllocator->nativeBufferHandle(dstBuffer),
-				.offset = offset,
-				.size = size
-			}
-		};
+			.transferBarrier = { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+								 .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+								 .dstAccessMask = 0,
+								 .srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
+								 .dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
+								 .buffer = m_resourceAllocator->nativeBufferHandle(dstBuffer),
+								 .offset = offset,
+								 .size = size },
 
-		VkEventCreateInfo eventCreateInfo = { .sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO };
-		vkCreateEvent(m_context->device(), &eventCreateInfo, nullptr, &transfer.finishedEvent);
+			.acquireBarrier = { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+								.srcAccessMask = 0,
+								.dstAccessMask = usageAccessFlags,
+								.srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
+								.dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
+								.buffer = m_resourceAllocator->nativeBufferHandle(dstBuffer),
+								.offset = offset,
+								.size = size },
+			.dstStageFlags = usageStageFlags
+		};
+		std::memcpy(
+			reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_resourceAllocator->mappedBufferData(
+										m_stagingBuffers[transfer.stagingBufferAllocation.bufferHandle].buffer)) +
+									transfer.stagingBufferAllocation.allocationResult.usableRange.offset),
+			data, size);
 
 		return m_asyncBufferTransfers.addElement(transfer);
+	}
+
+	AsyncImageTransferHandle GPUTransferManager::createAsyncImageTransfer(
+		void* data, size_t size, ImageResourceHandle dstImage, const VkBufferImageCopy& copy,
+		VkImageLayout dstImageLayout, VkPipelineStageFlags usageStageFlags, VkAccessFlags usageAccessFlags) {
+		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
+		AsyncImageTransfer transfer = {
+			.stagingBufferAllocation = allocateStagingBufferArea(size),
+			.dstImageHandle = dstImage,
+			.copy = copy,
+			.layoutTransitionBarrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+										 .srcAccessMask = 0,
+										 .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+										 .srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
+										 .dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
+										 .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+										 .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+										 .image = m_resourceAllocator->nativeImageHandle(dstImage),
+										 .subresourceRange = { .aspectMask = copy.imageSubresource.aspectMask,
+															   .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
+															   .layerCount = copy.imageSubresource.layerCount,
+															   .baseMipLevel = copy.imageSubresource.mipLevel,
+															   .levelCount = 1 } },
+			.transferBarrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+								 .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+								 .dstAccessMask = 0,
+								 .srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
+								 .dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
+								 .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+								 .newLayout = dstImageLayout,
+								 .image = m_resourceAllocator->nativeImageHandle(dstImage),
+								 .subresourceRange = { .aspectMask = copy.imageSubresource.aspectMask,
+													   .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
+													   .layerCount = copy.imageSubresource.layerCount,
+													   .baseMipLevel = copy.imageSubresource.mipLevel,
+													   .levelCount = 1 } },
+			.acquireBarrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+								.srcAccessMask = 0,
+								.dstAccessMask = usageAccessFlags,
+								.srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
+								.dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
+								.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+								.newLayout = dstImageLayout,
+								.image = m_resourceAllocator->nativeImageHandle(dstImage),
+								.subresourceRange = { .aspectMask = copy.imageSubresource.aspectMask,
+													  .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
+													  .layerCount = copy.imageSubresource.layerCount,
+													  .baseMipLevel = copy.imageSubresource.mipLevel,
+													  .levelCount = 1 } },
+			.dstStageFlags = usageStageFlags
+		};
+
+		return m_asyncImageTransfers.addElement(transfer);
 	}
 
 	void GPUTransferManager::submitOneTimeTransfer(VkDeviceSize transferBufferSize, BufferResourceHandle handle,
@@ -139,6 +202,87 @@ namespace vanadium::graphics {
 	void GPUTransferManager::updateTransferData(GPUTransferHandle transferHandle, uint32_t frameIndex,
 												const void* data) {
 		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
+
+		if (!m_bufferHandlesToInitiate.empty() || !m_imageHandlesToInitiate.empty()) {
+			AsyncTransferCommandPoolHandle poolHandle;
+			if (m_freeAsyncTransferCommandPools.empty()) {
+				AsyncTransferCommandPool newPool = {};
+				VkCommandPoolCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+													   .queueFamilyIndex = m_context->asyncTransferQueueFamilyIndex() };
+				verifyResult(vkCreateCommandPool(m_context->device(), &createInfo, nullptr, &newPool.pool));
+
+				VkCommandBufferAllocateInfo allocateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+															 .commandPool = newPool.pool,
+															 .commandBufferCount = 1,
+															 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY };
+				verifyResult(vkAllocateCommandBuffers(m_context->device(), &allocateInfo, &newPool.buffer));
+
+				VkFenceCreateInfo fenceCreateInfo = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+				verifyResult(vkCreateFence(m_context->device(), &fenceCreateInfo, nullptr, &newPool.fence));
+
+				poolHandle = m_asyncTransferCommandPools.addElement(newPool);
+			} else {
+				vkResetFences(m_context->device(), 1, &m_freeAsyncTransferCommandPools.back().fence);
+				poolHandle = m_asyncTransferCommandPools.addElement(m_freeAsyncTransferCommandPools.back());
+				m_freeAsyncTransferCommandPools.pop_back();
+			}
+			m_asyncTransferCommandPools[poolHandle].refCount =
+				m_bufferHandlesToInitiate.size() + m_imageHandlesToInitiate.size();
+			VkCommandBufferBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+												   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
+			vkBeginCommandBuffer(m_asyncTransferCommandPools[poolHandle].buffer, &beginInfo);
+
+			std::vector<VkImageMemoryBarrier> imageLayoutTransitionBarriers;
+			imageLayoutTransitionBarriers.reserve(m_imageHandlesToInitiate.size());
+
+			for (auto& handle : m_imageHandlesToInitiate) {
+				auto& transfer = m_asyncImageTransfers[handle];
+				imageLayoutTransitionBarriers.push_back(transfer.layoutTransitionBarrier);
+			}
+			vkCmdPipelineBarrier(m_asyncTransferCommandPools[poolHandle].buffer, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+								 0, nullptr, 0, nullptr, static_cast<uint32_t>(imageLayoutTransitionBarriers.size()),
+								 imageLayoutTransitionBarriers.data());
+
+			std::vector<VkBufferMemoryBarrier> releaseBarriers;
+			releaseBarriers.reserve(m_bufferHandlesToInitiate.size());
+			for (auto& handle : m_bufferHandlesToInitiate) {
+				auto& transfer = m_asyncBufferTransfers[handle];
+
+				transfer.containingCommandPool = poolHandle;
+				vkCmdCopyBuffer(m_asyncTransferCommandPools[poolHandle].buffer,
+								m_resourceAllocator->nativeBufferHandle(
+									m_stagingBuffers[transfer.stagingBufferAllocation.bufferHandle].buffer),
+								m_resourceAllocator->nativeBufferHandle(transfer.dstBufferHandle), 1, &transfer.copy);
+				releaseBarriers.push_back(transfer.transferBarrier);
+			}
+
+			std::vector<VkImageMemoryBarrier> imageReleaseBarriers;
+			imageReleaseBarriers.reserve(m_imageHandlesToInitiate.size());
+			for (auto& handle : m_imageHandlesToInitiate) {
+				auto& transfer = m_asyncImageTransfers[handle];
+
+				transfer.containingCommandPool = poolHandle;
+				vkCmdCopyBufferToImage(m_asyncTransferCommandPools[poolHandle].buffer,
+									   m_resourceAllocator->nativeBufferHandle(
+										   m_stagingBuffers[transfer.stagingBufferAllocation.bufferHandle].buffer),
+									   m_resourceAllocator->nativeImageHandle(transfer.dstImageHandle),
+									   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &transfer.copy);
+				imageReleaseBarriers.push_back(transfer.transferBarrier);
+			}
+
+			vkCmdPipelineBarrier(m_asyncTransferCommandPools[poolHandle].buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0,
+								 0, nullptr, static_cast<uint32_t>(releaseBarriers.size()), releaseBarriers.data(),
+								 static_cast<uint32_t>(imageReleaseBarriers.size()), imageReleaseBarriers.data());
+			verifyResult(vkEndCommandBuffer(m_asyncTransferCommandPools[poolHandle].buffer));
+
+			VkSubmitInfo transferSubmitInfo = {
+				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+				.commandBufferCount = 1,
+				.pCommandBuffers = &m_asyncTransferCommandPools[poolHandle].buffer
+			};
+			verifyResult(vkQueueSubmit(m_context->asyncTransferQueue(), 1, &transferSubmitInfo, m_asyncTransferCommandPools[poolHandle].fence));
+		}
+
 		auto& transfer = m_continuousTransfers[transferHandle][frameIndex];
 
 		BufferResourceHandle dstWriteBuffer;
