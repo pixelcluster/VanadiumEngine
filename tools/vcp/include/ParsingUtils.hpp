@@ -25,5 +25,3 @@ inline std::vector<std::string> splitString(const std::string& list, char separa
 inline void* offsetVoidPtr(void* old, size_t byteCount) {
 	return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(old) + byteCount);
 }
-
-enum class PipelineType { Graphics, Compute };

@@ -1,5 +1,11 @@
 #pragma once
 
+#include <string_view>
+#include <variant>
+#define VK_NO_PROTOTYPES
+#include <vulkan/vulkan.h>
+#include <spirv_reflect.h>
+
 #include <PipelineStructs.hpp>
 
 #include <ParsingUtils.hpp>
@@ -11,6 +17,16 @@
 #include <spirv_reflect.h>
 
 #include <json/json.h>
+
+struct ShaderSourceFile {
+	VkShaderStageFlagBits stage;
+	std::string path;
+};
+
+struct ReflectedShader {
+	VkShaderStageFlagBits stage;
+	SpvReflectShaderModule shader;
+};
 
 class PipelineArchetypeRecord {
   public:
@@ -38,6 +54,6 @@ class PipelineArchetypeRecord {
 	std::vector<CompiledShader> m_compiledShaders;
 
 	std::vector<uint32_t> m_setBindingOffsets;
-	std::vector<DescriptorSetLayoutInfo> m_bindings;
+	std::vector<DescriptorBindingLayoutInfo> m_bindings;
 	std::vector<VkPushConstantRange> m_pushConstantRanges;
 };

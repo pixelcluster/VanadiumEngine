@@ -1,10 +1,18 @@
 #pragma once 
 
+#include <vector>
+#include <variant>
+#define VK_NO_PROTOTYPES
+#include <vulkan/vulkan.h>
+#include <spirv_reflect.h>
+
 #include <json/json.h>
 #include <PipelineStructs.hpp>
 
 #include <ParsingUtils.hpp>
 #include <spirv_reflect.h>
+
+#include <PipelineArchetypeRecord.hpp> //for ReflectedShader
 
 class PipelineInstanceRecord {
   public:

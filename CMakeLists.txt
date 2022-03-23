@@ -59,7 +59,7 @@ add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS})
 
 target_precompile_headers(VanadiumEngine PRIVATE "include/Engine.hpp")
 
-target_include_directories(VanadiumEngine PUBLIC "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb")
+target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb")
 target_link_libraries(VanadiumEngine volk::volk glfw robin_hood)
 
 add_subdirectory(examples)

@@ -1,10 +1,11 @@
 #pragma once
 
-#include <string_view>
-#include <variant>
-#define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
-#include <spirv_reflect.h>
+// This header doesn't ship its includes, so that it can also be #include-d inside a namespace.
+// This header needs:
+// #include <vector>
+// #include <variant>
+// #define VK_NO_PROTOTYPES
+// #include <vulkan/vulkan.h>
 
 struct InstanceVertexInputConfig {
 	std::vector<VkVertexInputAttributeDescription> attributes;
@@ -56,24 +57,16 @@ struct InstanceSpecializationConfig {
 
 using InstanceColorAttachmentBlendConfig = VkPipelineColorBlendAttachmentState;
 
-struct ShaderSourceFile {
-	VkShaderStageFlagBits stage;
-	std::string path;
+struct DescriptorBindingLayoutInfo {
+	uint32_t setIndex;
+	VkDescriptorSetLayoutBinding binding;
+	bool usesImmutableSamplers;
 };
+
+enum class PipelineType { Graphics, Compute };
 
 struct CompiledShader {
 	VkShaderStageFlagBits stage;
 	void* data;
 	size_t dataSize;
-};
-
-struct ReflectedShader {
-	VkShaderStageFlagBits stage;
-	SpvReflectShaderModule shader;
-};
-
-struct DescriptorSetLayoutInfo {
-	uint32_t setIndex;
-	VkDescriptorSetLayoutBinding binding;
-	bool usesImmutableSamplers;
 };

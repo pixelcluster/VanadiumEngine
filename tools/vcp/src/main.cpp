@@ -17,7 +17,7 @@
 
 struct Options {
 	std::string outFile;
-	std::string fileName;
+	std::vector<std::string> fileNames;
 	std::string projectDir;
 	std::string compilerCommand = "glslc";
 	std::vector<std::string> additionalCommandArgs;
@@ -38,7 +38,7 @@ size_t parseOption(int argc, char** argv, size_t index, Options& options) {
 	if (argv[index] == std::string_view("--working-dir")) {
 		if (checkOption(argc, argv, index, "--working-dir")) {
 			options.projectDir = argv[index + 1];
-			if(options.projectDir.back() != '/')
+			if (options.projectDir.back() != '/')
 				options.projectDir.push_back('/');
 			return index + 1;
 		}
@@ -69,10 +69,8 @@ Options parseArguments(int argc, char** argv) {
 		if (*argv[i] == '-') {
 			i = parseOption(argc, argv, i, options);
 			continue;
-		} else if (!options.fileName.empty()) {
-			std::cout << "Warning: The input filename was specified more than once. The last name will be chosen.\n";
 		}
-		options.fileName = argv[i];
+		options.fileNames.push_back(argv[i]);
 	}
 	return options;
 }
@@ -89,32 +87,6 @@ int main(int argc, char** argv) {
 	if (!options.projectDir.empty())
 		current_path(options.projectDir);
 
-	path filePath = absolute(options.fileName);
-
-	size_t fileSize;
-	char* data = reinterpret_cast<char*>(readFile(options.fileName.c_str(), &fileSize));
-	if (!data) {
-		std::cout << "Error: Pipeline file not found in the working directory." << std::endl;
-		return EXIT_FAILURE;
-	}
-
-
-	Json::Value rootValue;
-
-	Json::Reader reader;
-	reader.parse(data, data + fileSize, rootValue);
-
-	delete[] data;
-
-	if (!rootValue["archetype"].isObject()) {
-		std::cout << "Error: JSON archetype is invalid." << std::endl;
-		return EXIT_FAILURE;
-	}
-	if (!rootValue["instances"].isArray()) {
-		std::cout << "Error: JSON instance array is invalid." << std::endl;
-		return EXIT_FAILURE;
-	}
-
 	path tempDirPath = path(options.projectDir + "/temp");
 	std::error_code error;
 	if (!create_directory(tempDirPath, error)) {
@@ -123,39 +95,102 @@ int main(int argc, char** argv) {
 		return EXIT_FAILURE;
 	}
 
-	PipelineArchetypeRecord archetypeRecord =
-		PipelineArchetypeRecord(filePath.string(), options.projectDir, rootValue["archetype"]);
-	if (!archetypeRecord.isValid()) {
+	std::ofstream outStream = std::ofstream(options.outFile, std::ios::trunc);
+	if (!outStream.is_open()) {
+		std::cout << "Error: Output file could not be opened for writing." << std::endl;
 		remove_all(tempDirPath);
 		return EXIT_FAILURE;
 	}
-	archetypeRecord.compileShaders(tempDirPath.string(), options.compilerCommand, options.additionalCommandArgs);
 
-	std::vector<PipelineInstanceRecord> instanceRecords;
-	instanceRecords.reserve(rootValue["instances"].size());
-	for (auto& instance : rootValue["instances"]) {
-		instanceRecords.push_back(PipelineInstanceRecord(archetypeRecord.type(), filePath.string(), instance));
+	uint32_t version = 1;
+	outStream.write(reinterpret_cast<char*>(&version), sizeof(uint32_t));
+	uint32_t pipelineCount = static_cast<uint32_t>(options.fileNames.size());
+	outStream.write(reinterpret_cast<char*>(&pipelineCount), sizeof(uint32_t));
+
+	std::streampos currentPipelineOffsetEntry = outStream.tellp();
+	for (size_t i = 0; i < options.fileNames.size(); ++i) {
+		uint64_t offsetPlaceholder = 5;
+		outStream.write(reinterpret_cast<char*>(&offsetPlaceholder), sizeof(uint64_t));
 	}
 
-	auto shaders = archetypeRecord.retrieveCompileResults(filePath.string(), tempDirPath.string());
-	archetypeRecord.verifyArchetype(filePath.string(), shaders);
+	uint64_t currentFileOffset = sizeof(uint32_t) * 2 + sizeof(uint64_t) * options.fileNames.size();
+	for (auto& name : options.fileNames) {
+		std::streampos curPos = outStream.tellp();
 
-	bool isValid = archetypeRecord.isValid();
+		outStream.seekp(currentPipelineOffsetEntry);
+		outStream.write(reinterpret_cast<char*>(&currentFileOffset), sizeof(uint64_t));
+		currentPipelineOffsetEntry = outStream.tellp();
 
-	for (auto& instance : instanceRecords) {
-		instance.verifyInstance(filePath.string(), shaders);
-		isValid &= instance.isValid();
-	}
+		outStream.seekp(curPos);
 
-	if (isValid) {
-		std::ofstream outStream = std::ofstream(options.outFile, std::ios::trunc);
-		if (!outStream.is_open()) {
-			std::cout << "Error: Output file could not be opened for writing." << std::endl;
+		currentFileOffset += sizeof(uint64_t);
+
+		path filePath = absolute(name);
+
+		size_t fileSize;
+		char* data = reinterpret_cast<char*>(readFile(name.c_str(), &fileSize));
+		if (!data) {
+			std::cout << "Error: Pipeline file not found in the working directory." << std::endl;
+			outStream.close();
+			remove(options.outFile);
 			remove_all(tempDirPath);
 			return EXIT_FAILURE;
 		}
 
-		size_t dstFileSize = sizeof(uint32_t);
+		Json::Value rootValue;
+
+		Json::Reader reader;
+		reader.parse(data, data + fileSize, rootValue);
+
+		delete[] data;
+
+		if (!rootValue["archetype"].isObject()) {
+			std::cout << "Error: JSON archetype is invalid." << std::endl;
+			outStream.close();
+			remove(options.outFile);
+			remove_all(tempDirPath);
+			return EXIT_FAILURE;
+		}
+		if (!rootValue["instances"].isArray()) {
+			std::cout << "Error: JSON instance array is invalid." << std::endl;
+			outStream.close();
+			remove(options.outFile);
+			remove_all(tempDirPath);
+			return EXIT_FAILURE;
+		}
+
+		PipelineArchetypeRecord archetypeRecord =
+			PipelineArchetypeRecord(filePath.string(), options.projectDir, rootValue["archetype"]);
+		if (!archetypeRecord.isValid()) {
+			outStream.close();
+			remove(options.outFile);
+			remove_all(tempDirPath);
+			return EXIT_FAILURE;
+		}
+		archetypeRecord.compileShaders(tempDirPath.string(), options.compilerCommand, options.additionalCommandArgs);
+
+		std::vector<PipelineInstanceRecord> instanceRecords;
+		instanceRecords.reserve(rootValue["instances"].size());
+		for (auto& instance : rootValue["instances"]) {
+			instanceRecords.push_back(PipelineInstanceRecord(archetypeRecord.type(), filePath.string(), instance));
+		}
+
+		auto shaders = archetypeRecord.retrieveCompileResults(filePath.string(), tempDirPath.string());
+		archetypeRecord.verifyArchetype(filePath.string(), shaders);
+
+		bool isValid = archetypeRecord.isValid();
+
+		for (auto& instance : instanceRecords) {
+			instance.verifyInstance(filePath.string(), shaders);
+			isValid &= instance.isValid();
+		}
+		if (!isValid) {
+			outStream.close();
+			remove(options.outFile);
+			remove_all(tempDirPath);
+			return EXIT_FAILURE;
+		}
+		size_t dstFileSize = 0;
 		// number of instances/offsets of instances
 		dstFileSize += sizeof(uint32_t);
 		dstFileSize += instanceRecords.size() * sizeof(uint32_t);
@@ -170,7 +205,7 @@ int main(int argc, char** argv) {
 
 		void* dstData = new char[dstFileSize];
 		void* nextData = dstData;
-		uint32_t version = 1;
+		uint32_t version = 2;
 		std::memcpy(nextData, &version, sizeof(uint32_t));
 		nextData = offsetVoidPtr(nextData, sizeof(uint32_t));
 
@@ -190,10 +225,12 @@ int main(int argc, char** argv) {
 
 		outStream.write(reinterpret_cast<char*>(dstData), dstFileSize);
 
+		currentFileOffset += dstFileSize;
+
 		delete[] reinterpret_cast<char*>(dstData);
 	}
 
 	remove_all(tempDirPath);
 
-	return isValid ? 0 : EXIT_FAILURE;
+	return 0;
 }

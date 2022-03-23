@@ -79,15 +79,15 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				if (!(bindingNode["binding"].isUInt() && bindingNode["type"].isString() &&
 					  bindingNode["count"].isUInt() && bindingNode["stages"].isString() &&
 					  (bindingNode["immutable-samplers"].isBool() || bindingNode["immutable-samplers"].isNull()))) {
-					std::cout << srcPath << ": Error: Invalid descriptor binding at index " << bindingIndex << " for set "
-							  << setIndex << "." << std::endl;
+					std::cout << srcPath << ": Error: Invalid descriptor binding at index " << bindingIndex
+							  << " for set " << setIndex << "." << std::endl;
 					return;
 				}
 
 				auto typeIterator = VkDescriptorTypeFromString.find(bindingNode["type"].asString());
 				if (typeIterator == VkDescriptorTypeFromString.end()) {
-					std::cout << srcPath << ": Error: Invalid descriptor type at binding index " << bindingIndex << " for set "
-							  << setIndex << "." << std::endl;
+					std::cout << srcPath << ": Error: Invalid descriptor type at binding index " << bindingIndex
+							  << " for set " << setIndex << "." << std::endl;
 					return;
 				}
 
@@ -96,15 +96,15 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				for (auto& flag : stageFlagsString) {
 					auto flagIterator = VkShaderStageFlagBitsFromString.find(flag);
 					if (flagIterator == VkShaderStageFlagBitsFromString.end()) {
-						std::cout << srcPath << ": Warning: Invalid shader stage flag bits at binding index " << bindingIndex
-								  << " for set " << setIndex << ", ignoring bit." << std::endl;
+						std::cout << srcPath << ": Warning: Invalid shader stage flag bits at binding index "
+								  << bindingIndex << " for set " << setIndex << ", ignoring bit." << std::endl;
 					} else {
 						shaderStageFlags |= flagIterator->second;
 					}
 				}
 				if (!shaderStageFlags) {
-					std::cout << srcPath << ": Error: Invalid stage flags at binding index " << bindingIndex << " for set "
-							  << setIndex << "." << std::endl;
+					std::cout << srcPath << ": Error: Invalid stage flags at binding index " << bindingIndex
+							  << " for set " << setIndex << "." << std::endl;
 					return;
 				}
 
@@ -153,8 +153,8 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 			}
 
 			if (!shaderStageFlags) {
-				std::cout << srcPath << ": Error: Invalid stage flags at push constant index " << m_pushConstantRanges.size()
-						  << ".\n";
+				std::cout << srcPath << ": Error: Invalid stage flags at push constant index "
+						  << m_pushConstantRanges.size() << ".\n";
 				continue;
 			}
 
@@ -182,6 +182,8 @@ void PipelineArchetypeRecord::compileShaders(const std::string& tempDir, const s
 				break;
 			case VK_SHADER_STAGE_COMPUTE_BIT:
 				dstFile = tempDir + "/comp.bin";
+				break;
+			default:
 				break;
 		}
 
@@ -214,6 +216,8 @@ std::vector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(con
 				break;
 			case VK_SHADER_STAGE_COMPUTE_BIT:
 				srcFile = tempDir + "/comp.bin";
+				break;
+			default:
 				break;
 		}
 
@@ -252,11 +256,12 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 					return isFullyInRange(constant->absolute_offset, constant->size, range.offset, range.size);
 				});
 			if (rangeIterator == m_pushConstantRanges.end()) {
-				std::cout << srcPath << ": Error: Unbound push constant range at offset " << constant->absolute_offset << ".\n";
+				std::cout << srcPath << ": Error: Unbound push constant range at offset " << constant->absolute_offset
+						  << ".\n";
 				m_isValid = false;
 			} else if (!(rangeIterator->stageFlags & shader.stage)) {
-				std::cout << srcPath << ": Error: Wrong usage flag for push constant range at offset " << constant->absolute_offset
-						  << ".\n";
+				std::cout << srcPath << ": Error: Wrong usage flag for push constant range at offset "
+						  << constant->absolute_offset << ".\n";
 				m_isValid = false;
 			}
 		}
@@ -283,11 +288,13 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 				}
 
 				auto& binding = set->bindings[i];
-				auto pipelineBindingIterator = std::find_if(m_bindings.begin(), m_bindings.end(), [setIndex, i](const auto& info) {
+				auto pipelineBindingIterator =
+					std::find_if(m_bindings.begin(), m_bindings.end(), [setIndex, i](const auto& info) {
 						return info.setIndex == setIndex && info.binding.binding == i;
 					});
 				if (pipelineBindingIterator == m_bindings.end()) {
-					std::cout << srcPath << ": Error: Unbound descriptor at set " << setIndex << ", binding" << i << ".\n";
+					std::cout << srcPath << ": Error: Unbound descriptor at set " << setIndex << ", binding" << i
+							  << ".\n";
 					m_isValid = false;
 					continue;
 				}
@@ -295,15 +302,18 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 				auto& pipelineBinding = *pipelineBindingIterator;
 
 				if (static_cast<VkDescriptorType>(binding->descriptor_type) != pipelineBinding.binding.descriptorType) {
-					std::cout << srcPath << ": Error: Descriptor type mismatch at set " << setIndex << ", binding" << i << ".\n";
+					std::cout << srcPath << ": Error: Descriptor type mismatch at set " << setIndex << ", binding" << i
+							  << ".\n";
 					m_isValid = false;
 				}
 				if (binding->count != pipelineBinding.binding.descriptorCount) {
-					std::cout << srcPath << ": Error: Descriptor count mismatch at set " << setIndex << ", binding" << i << ".\n";
+					std::cout << srcPath << ": Error: Descriptor count mismatch at set " << setIndex << ", binding" << i
+							  << ".\n";
 					m_isValid = false;
 				}
 				if (!(pipelineBinding.binding.stageFlags & shader.stage)) {
-					std::cout << srcPath << ": Error: Missing usage flags for descriptor at set " << setIndex << ", binding" << i << ".\n";
+					std::cout << srcPath << ": Error: Missing usage flags for descriptor at set " << setIndex
+							  << ", binding" << i << ".\n";
 					m_isValid = false;
 				}
 			}
