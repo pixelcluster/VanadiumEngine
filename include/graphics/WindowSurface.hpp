@@ -35,8 +35,8 @@ namespace vanadium::graphics {
 		uint32_t tryAcquire(VkDevice device, uint32_t frameIndex);
 		void tryPresent(VkQueue queue, uint32_t imageIndex, uint32_t frameIndex);
 
-		VkSemaphore acquireSemaphore(uint32_t frameIndex) const { return m_acquireSemaphores[frameIndex]; }
-		VkSemaphore presentSemaphore(uint32_t frameIndex) const { return m_presentSemaphores[frameIndex]; }
+		const VkSemaphore& acquireSemaphore(uint32_t frameIndex) const { return m_acquireSemaphores[frameIndex]; }
+		const VkSemaphore& presentSemaphore(uint32_t frameIndex) const { return m_presentSemaphores[frameIndex]; }
 
 	  private:
 		windowing::WindowInterface& m_interface;

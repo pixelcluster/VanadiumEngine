@@ -66,7 +66,7 @@ namespace vanadium::graphics {
 		VkBufferMemoryBarrier acquireBarrier;
 		VkPipelineStageFlags dstStageFlags;
 
-		AsyncTransferCommandPoolHandle containingCommandPool;
+		AsyncTransferCommandPoolHandle containingCommandPool = ~0U;
 	};
 
 	using AsyncBufferTransferHandle = SlotmapHandle;
@@ -81,7 +81,7 @@ namespace vanadium::graphics {
 		VkImageMemoryBarrier acquireBarrier;
 		VkPipelineStageFlags dstStageFlags;
 
-		AsyncTransferCommandPoolHandle containingCommandPool;
+		AsyncTransferCommandPoolHandle containingCommandPool = ~0U;
 	};
 
 	using AsyncImageTransferHandle = SlotmapHandle;
@@ -123,8 +123,8 @@ namespace vanadium::graphics {
 		bool isBufferTransferFinished(AsyncBufferTransferHandle transferHandle);
 		bool isImageTransferFinished(AsyncImageTransferHandle transferHandle);
 
-		void destroyAsyncBufferTransfer(AsyncBufferTransferHandle transferHandle);
-		void destroyAsyncImageTransfer(AsyncImageTransferHandle transferHandle);
+		void finalizeAsyncBufferTransfer(AsyncBufferTransferHandle transferHandle);
+		void finalizeAsyncImageTransfer(AsyncImageTransferHandle transferHandle);
 
 		StagingBufferAllocation allocateStagingBufferArea(VkDeviceSize size);
 
@@ -151,6 +151,9 @@ namespace vanadium::graphics {
 
 		std::vector<AsyncBufferTransferHandle> m_bufferHandlesToInitiate;
 		std::vector<AsyncImageTransferHandle> m_imageHandlesToInitiate;
+
+		std::vector<VkBufferMemoryBarrier> m_bufferFinalizationBarriers;
+		std::vector<VkImageMemoryBarrier> m_imageFinalizationBarriers;
 
 		Slotmap<StagingBuffer> m_stagingBuffers;
 

@@ -13,9 +13,13 @@ namespace vanadium::graphics
     public:
         GraphicsSubsystem(const std::string_view& appName, uint32_t appVersion, windowing::WindowInterface& interface, bool initFramegraph);
 
+        //returns if rendering is possible, if false, waitEvents should be called
+        bool tickFrame();
+
         ~GraphicsSubsystem();
     private:
         bool m_hasFramegraph;
+        uint32_t frameIndex = 0;
 
         WindowSurface m_surface;
         DeviceContext m_deviceContext;

@@ -131,7 +131,7 @@ namespace vanadium::graphics {
 		VkBufferUsageFlags bufferUsageFlags(FramegraphBufferHandle handle);
 		VkImageUsageFlags imageUsageFlags(FramegraphImageHandle handle);
 
-		VkImageUsageFlags swapchainImageUsageFlags() const { return m_targetImageUsageFlags; }
+		VkImageUsageFlags targetImageUsageFlags() const { return m_targetImageUsageFlags; }
 
 		VkCommandBuffer recordFrame(uint32_t frameIndex);
 

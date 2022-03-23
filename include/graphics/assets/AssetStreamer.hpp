@@ -8,18 +8,23 @@
 #include <shared_mutex>
 
 namespace vanadium::graphics {
+
+	enum class ResourceResidency {
+		Unloaded, Loading, Loaded
+	};
+
 	struct BufferResourceState
 	{
-		bool isLoaded = false;
-		bool isLoading = false;
+		ResourceResidency residency;
 		BufferResourceHandle loadedHandle;
+		AsyncBufferTransferHandle loadingTransferHandle; 
 	};
 	
 	struct ImageResourceState
 	{
-		bool isLoaded = false;
-		bool isLoading = false;
+		ResourceResidency residency;
 		ImageResourceHandle loadedHandle;
+		AsyncImageTransferHandle loadingTransferHandle; 
 	};
 	
 

@@ -9,6 +9,12 @@
 
 namespace vanadium::windowing {
 
+	struct WindowingSettingOverride {
+		uint32_t width;
+		uint32_t height;
+		bool createFullScreen;
+	};
+
 	using KeyStateFlags = uint8_t;
 
 	enum class KeyState { Pressed = 2, Held = 4, Released = 1 };
@@ -143,7 +149,7 @@ namespace robin_hood {
 namespace vanadium::windowing {
 	class WindowInterface {
 	  public:
-		WindowInterface(bool createFullscreen, uint32_t width, uint32_t height, const char* name);
+		WindowInterface(const std::optional<WindowingSettingOverride>& override, const char* name);
 		// creates window with width/height of primary monitor
 		WindowInterface(const char* name);
 		WindowInterface(const WindowInterface&) = delete;
@@ -153,6 +159,7 @@ namespace vanadium::windowing {
 		~WindowInterface();
 
 		void pollEvents();
+		void waitEvents();
 
 		void addKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
 							const KeyListenerParams& params);

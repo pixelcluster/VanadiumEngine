@@ -33,6 +33,8 @@ namespace vanadium::graphics {
 		DeviceCapabilities deviceCapabilities() const { return m_capabilities; }
 		const VkPhysicalDeviceProperties& properties() const { return m_properties; }
 
+		const VkFence& frameCompletionFence(uint32_t frameIndex) { return m_frameCompletionFences[frameIndex]; }
+
 	  private:
 		VkInstance m_instance;
 		VkPhysicalDevice m_physicalDevice;
@@ -48,5 +50,7 @@ namespace vanadium::graphics {
 		VkDebugUtilsMessengerEXT m_debugMessenger;
 
 		DeviceCapabilities m_capabilities;
+
+		std::vector<VkFence> m_frameCompletionFences;
 	};
 } // namespace vanadium::graphics
