@@ -25,14 +25,19 @@ namespace vanadium::windowing {
 			interface->invokeKeyListeners(static_cast<uint32_t>(key), static_cast<KeyModifierFlags>(mods), state);
 	}
 
-	WindowInterface::WindowInterface(bool createFullscreen, uint32_t width, uint32_t height, const char* name) {
+	WindowInterface::WindowInterface(const std::optional<WindowingSettingOverride>& override, const char* name) {
+		WindowingSettingOverride value = override.value_or(WindowingSettingOverride {
+			.width = 640,
+			.height = 480,
+			.createFullScreen = false
+		});
 		if (!glfwWindowCount) {
 			assertFatal(!glfwInit(), "GLFW initialization failed!\n");
 		}
 
-		GLFWmonitor* monitor = createFullscreen ? glfwGetPrimaryMonitor() : nullptr;
+		GLFWmonitor* monitor = value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		m_window = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), name, monitor, nullptr);
+		m_window = glfwCreateWindow(static_cast<int>(value.width), static_cast<int>(value.height), name, monitor, nullptr);
 
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetKeyCallback(m_window, keyCallback);
@@ -50,6 +55,8 @@ namespace vanadium::windowing {
 	}
 
 	void WindowInterface::pollEvents() { glfwPollEvents(); }
+
+	void WindowInterface::waitEvents() { glfwWaitEvents(); }
 
 	void WindowInterface::addKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
 										 const KeyListenerParams& params) {

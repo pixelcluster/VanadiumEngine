@@ -39,10 +39,10 @@ namespace vanadium::graphics {
 		std::vector<GPUTransfer> transfers;
 		transfers.reserve(frameInFlightCount);
 		for (size_t i = 0; i < frameInFlightCount; ++i) {
-			GPUTransfer transfer = { .bufferSize = transferBufferSize,
+			GPUTransfer transfer = { .dstBuffer = dstBuffer,
+									 .bufferSize = transferBufferSize,
 									 .dstUsageStageFlags = usageStageFlags,
-									 .dstUsageAccessFlags = usageAccessFlags,
-									 .dstBuffer = dstBuffer };
+									 .dstUsageAccessFlags = usageAccessFlags };
 
 			if (!m_resourceAllocator->bufferMemoryCapabilities(transfer.dstBuffer).hostVisible) {
 				transfer.needsStagingBuffer = true;
@@ -105,42 +105,45 @@ namespace vanadium::graphics {
 			.layoutTransitionBarrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 										 .srcAccessMask = 0,
 										 .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-										 .srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
-										 .dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
 										 .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 										 .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+										 .srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
+										 .dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
 										 .image = m_resourceAllocator->nativeImageHandle(dstImage),
 										 .subresourceRange = { .aspectMask = copy.imageSubresource.aspectMask,
+															   .baseMipLevel = copy.imageSubresource.mipLevel,
+															   .levelCount = 1,
 															   .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
 															   .layerCount = copy.imageSubresource.layerCount,
-															   .baseMipLevel = copy.imageSubresource.mipLevel,
-															   .levelCount = 1 } },
+															   } },
 			.transferBarrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 								 .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 								 .dstAccessMask = 0,
-								 .srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
-								 .dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
 								 .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 								 .newLayout = dstImageLayout,
+								 .srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
+								 .dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
 								 .image = m_resourceAllocator->nativeImageHandle(dstImage),
 								 .subresourceRange = { .aspectMask = copy.imageSubresource.aspectMask,
-													   .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
-													   .layerCount = copy.imageSubresource.layerCount,
 													   .baseMipLevel = copy.imageSubresource.mipLevel,
-													   .levelCount = 1 } },
+													   .levelCount = 1,
+													   .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
+													   .layerCount = copy.imageSubresource.layerCount
+													   } },
 			.acquireBarrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 								.srcAccessMask = 0,
 								.dstAccessMask = usageAccessFlags,
-								.srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
-								.dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
 								.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 								.newLayout = dstImageLayout,
+								.srcQueueFamilyIndex = m_context->asyncTransferQueueFamilyIndex(),
+								.dstQueueFamilyIndex = m_context->graphicsQueueFamilyIndex(),
 								.image = m_resourceAllocator->nativeImageHandle(dstImage),
 								.subresourceRange = { .aspectMask = copy.imageSubresource.aspectMask,
+													  .baseMipLevel = copy.imageSubresource.mipLevel,
+													  .levelCount = 1,
 													  .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
 													  .layerCount = copy.imageSubresource.layerCount,
-													  .baseMipLevel = copy.imageSubresource.mipLevel,
-													  .levelCount = 1 } },
+													  } },
 			.dstStageFlags = usageStageFlags
 		};
 
@@ -213,8 +216,8 @@ namespace vanadium::graphics {
 
 				VkCommandBufferAllocateInfo allocateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 															 .commandPool = newPool.pool,
-															 .commandBufferCount = 1,
-															 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY };
+															 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+															 .commandBufferCount = 1 };
 				verifyResult(vkAllocateCommandBuffers(m_context->device(), &allocateInfo, &newPool.buffer));
 
 				VkFenceCreateInfo fenceCreateInfo = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
@@ -275,12 +278,11 @@ namespace vanadium::graphics {
 								 static_cast<uint32_t>(imageReleaseBarriers.size()), imageReleaseBarriers.data());
 			verifyResult(vkEndCommandBuffer(m_asyncTransferCommandPools[poolHandle].buffer));
 
-			VkSubmitInfo transferSubmitInfo = {
-				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-				.commandBufferCount = 1,
-				.pCommandBuffers = &m_asyncTransferCommandPools[poolHandle].buffer
-			};
-			verifyResult(vkQueueSubmit(m_context->asyncTransferQueue(), 1, &transferSubmitInfo, m_asyncTransferCommandPools[poolHandle].fence));
+			VkSubmitInfo transferSubmitInfo = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+												.commandBufferCount = 1,
+												.pCommandBuffers = &m_asyncTransferCommandPools[poolHandle].buffer };
+			verifyResult(vkQueueSubmit(m_context->asyncTransferQueue(), 1, &transferSubmitInfo,
+									   m_asyncTransferCommandPools[poolHandle].fence));
 		}
 
 		auto& transfer = m_continuousTransfers[transferHandle][frameIndex];
@@ -506,10 +508,10 @@ namespace vanadium::graphics {
 												   .sharingMode = VK_SHARING_MODE_EXCLUSIVE };
 		StagingBuffer newBuffer = { .buffer = m_resourceAllocator->createBuffer(
 										newBufferCreateInfo, { .hostVisible = true }, { .hostCoherent = true }, true),
-									.freeRangesOffsetSorted = { { .offset = 0, .size = newBufferCreateInfo.size } },
-									.freeRangesSizeSorted = { { .offset = 0, .size = newBufferCreateInfo.size } },
 									.maxAllocatableSize = newBufferCreateInfo.size,
-									.originalSize = newBufferCreateInfo.size };
+									.originalSize = newBufferCreateInfo.size,
+									.freeRangesOffsetSorted = { { .offset = 0, .size = newBufferCreateInfo.size } },
+									.freeRangesSizeSorted = { { .offset = 0, .size = newBufferCreateInfo.size } } };
 
 		bool isCoherent = m_resourceAllocator->bufferMemoryCapabilities(newBuffer.buffer).hostCoherent;
 		return { .bufferHandle = m_stagingBuffers.addElement(newBuffer),
@@ -532,5 +534,63 @@ namespace vanadium::graphics {
 			}
 			++blockIterator;
 		}
+	}
+
+	bool GPUTransferManager::isBufferTransferFinished(AsyncBufferTransferHandle handle) {
+		auto lock = SharedLockGuard(m_accessMutex);
+		auto& transfer = m_asyncBufferTransfers[handle];
+
+		if (transfer.containingCommandPool == ~0U) {
+			return false;
+		}
+		VkResult status =
+			vkGetFenceStatus(m_context->device(), m_asyncTransferCommandPools[transfer.containingCommandPool].fence);
+
+		switch (status) {
+			case VK_SUCCESS:
+				return true;
+				break;
+			case VK_NOT_READY:
+				return false;
+			default:
+				verifyResult(status);
+				return false;
+				break;
+		}
+	}
+
+	bool GPUTransferManager::isImageTransferFinished(AsyncImageTransferHandle handle) {
+		auto lock = SharedLockGuard(m_accessMutex);
+		auto& transfer = m_asyncImageTransfers[handle];
+
+		if (transfer.containingCommandPool == ~0U) {
+			return false;
+		}
+		VkResult status =
+			vkGetFenceStatus(m_context->device(), m_asyncTransferCommandPools[transfer.containingCommandPool].fence);
+
+		switch (status) {
+			case VK_SUCCESS:
+				return true;
+				break;
+			case VK_NOT_READY:
+				return false;
+			default:
+				verifyResult(status);
+				return false;
+				break;
+		}
+	}
+
+	void GPUTransferManager::finalizeAsyncBufferTransfer(AsyncBufferTransferHandle handle) {
+		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
+		m_bufferFinalizationBarriers.push_back(m_asyncBufferTransfers[handle].acquireBarrier);
+		m_asyncBufferTransfers.removeElement(handle);
+	}
+
+	void GPUTransferManager::finalizeAsyncImageTransfer(AsyncImageTransferHandle handle) {
+		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
+		m_imageFinalizationBarriers.push_back(m_asyncImageTransfers[handle].acquireBarrier);
+		m_asyncImageTransfers.removeElement(handle);
 	}
 } // namespace vanadium::graphics

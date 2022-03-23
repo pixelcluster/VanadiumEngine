@@ -180,5 +180,14 @@ namespace vanadium::graphics {
 		m_asyncTransferQueueFamilyIndex = chosenTransferQueueFamilyIndex;
 
 		vkGetPhysicalDeviceProperties(m_physicalDevice, &m_properties);
+
+		m_frameCompletionFences.resize(frameInFlightCount);
+		VkFenceCreateInfo fenceCreateInfo = {
+			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+			.flags = VK_FENCE_CREATE_SIGNALED_BIT
+		};
+		for(uint32_t i = 0; i < frameInFlightCount; ++i) {
+			verifyResult(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameCompletionFences[i]));
+		}
 	}
 } // namespace vanadium::graphics
