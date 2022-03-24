@@ -42,11 +42,13 @@ namespace vanadium::graphics {
 
 	class PipelineLibrary {
 	  public:
-		PipelineLibrary();
+		PipelineLibrary() {}
 
 		void create(DeviceContext* deviceContext);
 
 	  private:
+		DeviceContext* m_deviceContext;
+
 		std::vector<PipelineLibraryArchetype> m_archetypes;
 		std::vector<PipelineLibraryInstance> m_instances;
 
