@@ -16,6 +16,7 @@
 
 class PipelineInstanceRecord {
   public:
+  PipelineInstanceRecord();
 	PipelineInstanceRecord(PipelineType type, const std::string_view& srcPath, const Json::Value& instanceNode);
 
 	size_t serializedSize() const;

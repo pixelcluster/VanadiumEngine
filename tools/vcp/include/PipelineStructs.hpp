@@ -58,9 +58,14 @@ struct InstanceSpecializationConfig {
 using InstanceColorAttachmentBlendConfig = VkPipelineColorBlendAttachmentState;
 
 struct DescriptorBindingLayoutInfo {
-	uint32_t setIndex;
 	VkDescriptorSetLayoutBinding binding;
 	bool usesImmutableSamplers;
+
+	bool operator==(const DescriptorBindingLayoutInfo& other) const {
+		return binding.binding == other.binding.binding && binding.descriptorCount == other.binding.descriptorCount &&
+			   binding.descriptorType == other.binding.descriptorType &&
+			   binding.stageFlags == other.binding.stageFlags && usesImmutableSamplers == other.usesImmutableSamplers;
+	}
 };
 
 enum class PipelineType { Graphics, Compute };

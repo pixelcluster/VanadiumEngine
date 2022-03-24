@@ -3,6 +3,7 @@
 #include <PipelineArchetypeRecord.hpp>
 #include <helper/WholeFileReader.hpp>
 #include <iostream>
+#include <optional>
 
 // returns true if [offset1;size1] is inside [offset2;size2]
 bool isFullyInRange(uint32_t offset1, uint32_t size1, uint32_t offset2, uint32_t size2) {
@@ -10,6 +11,7 @@ bool isFullyInRange(uint32_t offset1, uint32_t size1, uint32_t offset2, uint32_t
 }
 
 PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath, const std::string& projectDir,
+												 std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
 												 const Json::Value& archetypeRoot) {
 	if (!archetypeRoot.isObject()) {
 		std::cout << srcPath << ": Error: Archetype node is invalid." << std::endl;
@@ -66,14 +68,15 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 	}
 	uint32_t setIndex = 0;
 
-	m_setBindingOffsets.reserve(archetypeRoot["sets"].size());
+	auto bindingLayoutInfos = std::vector<std::vector<DescriptorBindingLayoutInfo>>(archetypeRoot["sets"].size());
+	m_setLayoutIndices.reserve(archetypeRoot["sets"].size());
 
 	for (auto& set : archetypeRoot["sets"]) {
 		if (!set["bindings"].isArray()) {
 			std::cout << srcPath << ": Error: Invalid descriptor bindings for set " << setIndex << "." << std::endl;
 			return;
 		} else {
-			m_setBindingOffsets.push_back(static_cast<uint32_t>(m_bindings.size()));
+			bindingLayoutInfos.reserve(set["bindings"].size());
 			uint32_t bindingIndex = 0;
 			for (auto& bindingNode : set["bindings"]) {
 				if (!(bindingNode["binding"].isUInt() && bindingNode["type"].isString() &&
@@ -118,11 +121,39 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 														 .descriptorCount = bindingNode["count"].asUInt(),
 														 .stageFlags = shaderStageFlags,
 														 .pImmutableSamplers = nullptr };
-				m_bindings.push_back(
-					{ .setIndex = setIndex, .binding = binding, .usesImmutableSamplers = usesImmutableSamplers });
+				bindingLayoutInfos[setIndex].push_back(
+					{ .binding = binding, .usesImmutableSamplers = usesImmutableSamplers });
 			}
 		}
 		++setIndex;
+	}
+
+	for (auto& set : bindingLayoutInfos) {
+		std::optional<uint32_t> matchingCandidateIndex;
+		uint32_t currentIndex = 0;
+		for (auto& candidate : setLayoutInfos) {
+			bool hasMismatch = false;
+			for (auto& binding : set) {
+				if (std::find(candidate.begin(), candidate.end(), binding) == candidate.end()) {
+					hasMismatch = true;
+					break;
+				}
+			}
+			if (!hasMismatch) {
+				matchingCandidateIndex = currentIndex;
+				break;
+			}
+
+			++currentIndex;
+		}
+
+		if(matchingCandidateIndex.has_value()) {
+			m_setLayoutIndices.push_back(matchingCandidateIndex.value());
+		}
+		else {
+			m_setLayoutIndices.push_back(setLayoutInfos.size());
+			setLayoutInfos.push_back(std::move(set));
+		}
 	}
 
 	if (!archetypeRoot["push-constants"].isNull() && !archetypeRoot["push-constants"].isArray()) {
@@ -241,7 +272,7 @@ std::vector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(con
 	return shaderModules;
 }
 
-void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
+void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath, std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
 											  const std::vector<ReflectedShader>& shaders) {
 	for (auto& shader : shaders) {
 		uint32_t pushConstantCount;
@@ -274,25 +305,26 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 
 		uint32_t setIndex = 0;
 		for (auto& set : descriptorSets) {
-			if (setIndex >= m_setBindingOffsets.size()) {
+			if (setIndex >= m_setLayoutIndices.size()) {
 				std::cout << srcPath << ": Error: Not enough descriptor sets specified.\n";
 				m_isValid = false;
 				break;
 			}
 			bool shouldBreak = false;
 
+			auto& bindingInfos = setLayoutInfos[m_setLayoutIndices[setIndex]];
 			for (size_t i = 0; i < set->binding_count; ++i) {
-				if (m_setBindingOffsets[setIndex] + i >= m_bindings.size()) {
+				if (i >= bindingInfos.size()) {
 					shouldBreak = true;
 					break;
 				}
 
 				auto& binding = set->bindings[i];
 				auto pipelineBindingIterator =
-					std::find_if(m_bindings.begin(), m_bindings.end(), [setIndex, i](const auto& info) {
-						return info.setIndex == setIndex && info.binding.binding == i;
+					std::find_if(bindingInfos.begin(), bindingInfos.end(), [setIndex, i](const auto& info) {
+						return info.binding.binding == i;
 					});
-				if (pipelineBindingIterator == m_bindings.end()) {
+				if (pipelineBindingIterator == bindingInfos.end()) {
 					std::cout << srcPath << ": Error: Unbound descriptor at set " << setIndex << ", binding" << i
 							  << ".\n";
 					m_isValid = false;
@@ -333,13 +365,9 @@ size_t PipelineArchetypeRecord::serializedSize() const {
 	for (auto& shader : m_compiledShaders) {
 		totalSize += sizeof(uint32_t) * 2 + shader.dataSize;
 	}
-	size_t descriptorLayoutInfoSize = sizeof(uint32_t) * 4 + sizeof(bool);
 
 	totalSize += sizeof(uint32_t);
-	totalSize += descriptorLayoutInfoSize * m_bindings.size();
-
-	totalSize += sizeof(uint32_t);
-	totalSize += sizeof(uint32_t) * m_setBindingOffsets.size();
+	totalSize += sizeof(uint32_t) * m_setLayoutIndices.size();
 
 	totalSize += sizeof(uint32_t);
 	totalSize += sizeof(uint32_t) * 3 * m_pushConstantRanges.size();
@@ -366,30 +394,13 @@ void PipelineArchetypeRecord::serialize(void* data) {
 		data = offsetVoidPtr(data, compiledShader.dataSize);
 	}
 
-	uint32_t setBindingOffsetCount = static_cast<uint32_t>(m_setBindingOffsets.size());
-	std::memcpy(data, &setBindingOffsetCount, sizeof(uint32_t));
+	uint32_t setLayoutIndexCount = static_cast<uint32_t>(m_setLayoutIndices.size());
+	std::memcpy(data, &setLayoutIndexCount, sizeof(uint32_t));
 	data = offsetVoidPtr(data, sizeof(uint32_t));
 
-	for (auto offset : m_setBindingOffsets) {
-		std::memcpy(data, &offset, sizeof(uint32_t));
+	for (auto index : m_setLayoutIndices) {
+		std::memcpy(data, &index, sizeof(uint32_t));
 		data = offsetVoidPtr(data, sizeof(uint32_t));
-	}
-
-	uint32_t bindingCount = static_cast<uint32_t>(m_bindings.size());
-	std::memcpy(data, &bindingCount, sizeof(uint32_t));
-	data = offsetVoidPtr(data, sizeof(uint32_t));
-
-	for (auto& binding : m_bindings) {
-		std::memcpy(data, &binding.binding.binding, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-		std::memcpy(data, &binding.binding.descriptorCount, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-		std::memcpy(data, &binding.binding.descriptorType, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-		std::memcpy(data, &binding.binding.stageFlags, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-		std::memcpy(data, &binding.usesImmutableSamplers, sizeof(bool));
-		data = offsetVoidPtr(data, sizeof(bool));
 	}
 
 	uint32_t constantRangeCount = static_cast<uint32_t>(m_pushConstantRanges.size());

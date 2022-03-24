@@ -7,7 +7,7 @@
 #include <sys/wait.h>
 
 SubprocessID startSubprocess(const char* processName, const std::vector<const char*>& arguments) { 
-	size_t totalArgsSize = strlen(processName);
+	size_t totalArgsSize = strlen(processName) + 1;
 	for (auto& arg : arguments) {
 		totalArgsSize += strlen(arg) + 1;
 	}

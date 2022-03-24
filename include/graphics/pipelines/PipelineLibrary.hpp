@@ -1,45 +1,56 @@
 #pragma once
 
-#include <vector>
 #include <variant>
-#define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
+#include <vector>
+#include <graphics/DeviceContext.hpp>
 
 namespace vanadium::graphics {
 
-    #include <tools/vcp/include/PipelineStructs.hpp>
+#include <tools/vcp/include/PipelineStructs.hpp>
 
-    struct PipelineLibraryArchetype
-    {
-        PipelineType type;
-        std::vector<VkShaderModule> m_shaders;
-        std::vector<VkDescriptorSetLayoutCreateInfo> m_setLayoutCreateInfos;
-        std::vector<VkDescriptorSetLayoutBinding> m_bindingInfos;
-        std::vector<VkPushConstantRange> m_pushConstantRanges;
-    };
+	struct DescriptorSetLayoutInfo {
+		VkDescriptorSetLayout layout;
+		std::vector<DescriptorBindingLayoutInfo> bindingInfos;
+	};
 
-    struct PipelineLibraryInstance
-    {
-        std::vector<VkVertexInputAttributeDescription> attribDescriptions;
-        std::vector<VkVertexInputBindingDescription> attribDescriptions;
-        VkPipelineVertexInputStateCreateInfo vertexInputConfig;
-        VkPipelineInputAssemblyStateCreateInfo inputAssemblyConfig;
-        VkPipelineRasterizationStateCreateInfo rasterizationConfig;
-        VkPipelineMultisampleStateCreateInfo multisampleConfig;
-        InstanceDepthStencilConfig depthStencilConfig;
-        InstanceColorBlendConfig colorBlendConfig;
-        std::vector<InstanceColorAttachmentBlendConfig> colorAttachmentBlendConfigs;
-        InstanceSpecializationConfig
-    };
-    
-    
+	struct PipelineLibraryArchetype {
+		PipelineType type;
+		std::vector<VkShaderModule> m_shaders;
+		std::vector<uint32_t> m_setLayoutIndices;
+		std::vector<VkPushConstantRange> m_pushConstantRanges;
+	};
 
-    class PipelineLibrary
-    {
-    public:
-        PipelineLibrary();
-    private:
+	struct PipelineLibraryInstance {
+		PipelineLibraryInstance(const PipelineLibraryInstance& other) = delete;
+		PipelineLibraryInstance(PipelineLibraryInstance&& other) = delete;
 
-    };
-    
-}
+		uint32_t archetypeID;
+		std::vector<VkVertexInputAttributeDescription> attribDescriptions;
+		std::vector<VkVertexInputBindingDescription> attribDescriptions;
+		VkPipelineVertexInputStateCreateInfo vertexInputConfig;
+		VkPipelineInputAssemblyStateCreateInfo inputAssemblyConfig;
+		VkPipelineRasterizationStateCreateInfo rasterizationConfig;
+		VkPipelineMultisampleStateCreateInfo multisampleConfig;
+		VkStencilOpState frontStencilState;
+		VkPipelineDepthStencilStateCreateInfo depthStencilConfig;
+		VkPipelineColorBlendStateCreateInfo colorBlendConfig;
+		std::vector<VkPipelineColorBlendAttachmentState> colorAttachmentBlendConfigs;
+		VkSpecializationInfo specializationInfo;
+		std::vector<VkSpecializationMapEntry> mapEntries;
+		char* specializationData;
+	};
+
+	class PipelineLibrary {
+	  public:
+		PipelineLibrary();
+
+		void create(DeviceContext* deviceContext);
+
+	  private:
+		std::vector<PipelineLibraryArchetype> m_archetypes;
+		std::vector<PipelineLibraryInstance> m_instances;
+
+		std::vector<VkDescriptorSetLayout> m_descriptorSetLayouts;
+	};
+
+} // namespace vanadium::graphics
