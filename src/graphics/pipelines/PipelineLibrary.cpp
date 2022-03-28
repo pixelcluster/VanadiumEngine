@@ -96,7 +96,23 @@ namespace vanadium::graphics {
 	}
 
 	void PipelineLibrary::createGraphicsPipeline(uint64_t& bufferOffset) {
-		
+		uint32_t shaderCount = readBuffer<uint32_t>(bufferOffset);
+		std::vector<VkShaderModule> shaderModules;
+		shaderModules.reserve(shaderCount);
+
+		for(uint32_t i = 0; i < shaderCount; ++i) {
+			uint32_t shaderSize = readBuffer<uint32_t>(bufferOffset);
+			assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline file version!\n");
+			VkShaderModuleCreateInfo createInfo = {
+				.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+				.codeSize = shaderSize,
+				.pCode = reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(m_buffer) + bufferOffset)
+			};
+			VkShaderModule shaderModule;
+			verifyResult(vkCreateShaderModule(m_deviceContext->device(), &createInfo, nullptr, &shaderModule));
+
+			bufferOffset = shaderSize;
+		}
 	}
 
 	void PipelineLibrary::createComputePipeline(uint64_t& bufferOffset) {
