@@ -44,12 +44,6 @@ class PipelineInstanceRecord {
 	void verifyVertexShader(const std::string_view& srcPath, const SpvReflectShaderModule& shader);
 	void verifyFragmentShader(const std::string_view& srcPath, const SpvReflectShaderModule& shader);
 
-	uint32_t asUIntOr(const Json::Value& value, const std::string_view& name, uint32_t fallback);
-	float asFloatOr(const Json::Value& value, const std::string_view& name, float fallback);
-	bool asBoolOr(const Json::Value& value, const std::string_view& name, bool fallback);
-	const char* asCStringOr(const Json::Value& value, const std::string_view& name, const char* fallback);
-	std::string asStringOr(const Json::Value& value, const std::string_view& name, const std::string& fallback);
-
 	std::string m_name;
 	PipelineType m_type;
 

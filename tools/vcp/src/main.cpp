@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
 		return EXIT_FAILURE;
 	}
 
-	uint32_t version = 1;
+	uint32_t version = 4;
 	outStream.write(reinterpret_cast<char*>(&version), sizeof(uint32_t));
 	uint32_t pipelineCount = static_cast<uint32_t>(options.fileNames.size());
 	outStream.write(reinterpret_cast<char*>(&pipelineCount), sizeof(uint32_t));
@@ -175,11 +175,16 @@ int main(int argc, char** argv) {
 	}
 
 	uint32_t setCount = static_cast<uint32_t>(setLayoutInfos.size());
+	outStream.write(reinterpret_cast<char*>(&setCount), sizeof(uint32_t));
 	uint64_t currentFileOffset = 3 * sizeof(uint32_t) + setLayoutInfos.size() * sizeof(uint64_t);
 	for (auto& set : setLayoutInfos) {
 		outStream.write(reinterpret_cast<char*>(&currentFileOffset), sizeof(uint64_t));
 		uint32_t bindingCount = static_cast<uint32_t>(set.size());
-		uint64_t bindingSize = 4 * sizeof(uint32_t) + sizeof(bool);
+		uint64_t bindingSize = 0;
+		for (auto& binding : set) {
+			uint64_t samplerInfoSize = 8ULL * sizeof(uint32_t) + 4ULL * sizeof(float) + 3ULL * sizeof(bool);
+			bindingSize += 4 * sizeof(uint32_t) + sizeof(bool) + binding.immutableSamplerInfos.size() * samplerInfoSize;
+		}
 		currentFileOffset += sizeof(uint32_t) + bindingCount * bindingSize;
 	}
 
@@ -193,6 +198,26 @@ int main(int argc, char** argv) {
 			outStream.write(reinterpret_cast<char*>(&binding.binding.descriptorType), sizeof(uint32_t));
 			outStream.write(reinterpret_cast<char*>(&binding.binding.stageFlags), sizeof(uint32_t));
 			outStream.write(reinterpret_cast<char*>(&binding.usesImmutableSamplers), sizeof(bool));
+			uint32_t immutableSamplerCount = binding.immutableSamplerInfos.size();
+			outStream.write(reinterpret_cast<char*>(&immutableSamplerCount), sizeof(uint32_t));
+
+			for (auto& sampler : binding.immutableSamplerInfos) {
+				outStream.write(reinterpret_cast<char*>(&sampler.magFilter), sizeof(uint32_t));
+				outStream.write(reinterpret_cast<char*>(&sampler.minFilter), sizeof(uint32_t));
+				outStream.write(reinterpret_cast<char*>(&sampler.mipmapMode), sizeof(uint32_t));
+				outStream.write(reinterpret_cast<char*>(&sampler.addressModeU), sizeof(uint32_t));
+				outStream.write(reinterpret_cast<char*>(&sampler.addressModeV), sizeof(uint32_t));
+				outStream.write(reinterpret_cast<char*>(&sampler.addressModeW), sizeof(uint32_t));
+				outStream.write(reinterpret_cast<char*>(&sampler.mipLodBias), sizeof(float));
+				outStream.write(reinterpret_cast<char*>(&sampler.anisotropyEnable), sizeof(bool));
+				outStream.write(reinterpret_cast<char*>(&sampler.maxAnisotropy), sizeof(float));
+				outStream.write(reinterpret_cast<char*>(&sampler.compareEnable), sizeof(bool));
+				outStream.write(reinterpret_cast<char*>(&sampler.compareOp), sizeof(uint32_t));
+				outStream.write(reinterpret_cast<char*>(&sampler.minLod), sizeof(float));
+				outStream.write(reinterpret_cast<char*>(&sampler.maxLod), sizeof(float));
+				outStream.write(reinterpret_cast<char*>(&sampler.borderColor), sizeof(uint32_t));
+				outStream.write(reinterpret_cast<char*>(&sampler.unnormalizedCoordinates), sizeof(bool));
+			}
 		}
 	}
 

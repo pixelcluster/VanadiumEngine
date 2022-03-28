@@ -112,8 +112,127 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				}
 
 				bool usesImmutableSamplers = false;
-				if (bindingNode["immutable-samplers"].isBool()) {
-					usesImmutableSamplers = bindingNode["immutable-samplers"].asBool();
+				std::vector<SamplerInfo> samplerInfos;
+				if (bindingNode["immutable-samplers"].isArray()) {
+					usesImmutableSamplers = !bindingNode["immutable-samplers"].empty();
+					samplerInfos.reserve(bindingNode["immutable-samplers"].size());
+					for (auto& node : bindingNode["immutable-samplers"]) {
+						VkFilter magFilter;
+						auto magFilterIterator =
+							VkFilterFromString.find(asCStringOr(node, "mag-filter", "VK_FILTER_NEAREST"));
+						if (magFilterIterator == VkFilterFromString.end()) {
+							std::cout
+								<< srcPath
+								<< ": Warning: Invalid magnification filter! Choosing Nearest, might cause errors...\n";
+							magFilter = VK_FILTER_NEAREST;
+						} else {
+							magFilter = magFilterIterator->second;
+						}
+
+						VkFilter minFilter;
+						auto minFilterIterator =
+							VkFilterFromString.find(asCStringOr(node, "min-filter", "VK_FILTER_NEAREST"));
+						if (minFilterIterator == VkFilterFromString.end()) {
+							std::cout << srcPath
+									  << ": Warning: Invalid minification filter! Choosing Nearest, might cause "
+										 "unintended behaviour...\n";
+							minFilter = VK_FILTER_NEAREST;
+						} else {
+							minFilter = minFilterIterator->second;
+						}
+
+						VkSamplerMipmapMode mipmapMode;
+						auto mipmapModeIterator = VkSamplerMipmapModeFromString.find(
+							asCStringOr(node, "mipmap-mode", "VK_SAMPLER_MIPMAP_MODE_NEAREST"));
+						if (mipmapModeIterator == VkSamplerMipmapModeFromString.end()) {
+							std::cout << srcPath
+									  << ": Warning: Invalid mipmap mode! Choosing Nearest, might cause unintended "
+										 "behaviour...\n";
+							mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+						} else {
+							mipmapMode = mipmapModeIterator->second;
+						}
+
+						VkSamplerAddressMode addressModeU;
+						auto addressModeUIterator = VkSamplerAddressModeFromString.find(
+							asCStringOr(node, "address-mode-u", "VK_SAMPLER_ADDRESS_MODE_REPEAT"));
+						if (addressModeUIterator == VkSamplerAddressModeFromString.end()) {
+							std::cout << srcPath
+									  << ": Warning: Invalid U address mode! Choosing Repeat, might cause unintended "
+										 "behaviour...\n";
+							addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+						} else {
+							addressModeU = addressModeUIterator->second;
+						}
+
+						VkSamplerAddressMode addressModeV;
+						auto addressModeVIterator = VkSamplerAddressModeFromString.find(
+							asCStringOr(node, "address-mode-v", "VK_SAMPLER_ADDRESS_MODE_REPEAT"));
+						if (addressModeVIterator == VkSamplerAddressModeFromString.end()) {
+							std::cout << srcPath
+									  << ": Warning: Invalid V address mode! Choosing Repeat, might cause unintended "
+										 "behaviour...\n";
+							addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+						} else {
+							addressModeV = addressModeVIterator->second;
+						}
+
+						VkSamplerAddressMode addressModeW;
+						auto addressModeWIterator = VkSamplerAddressModeFromString.find(
+							asCStringOr(node, "address-mode-w", "VK_SAMPLER_ADDRESS_MODE_REPEAT"));
+						if (addressModeWIterator == VkSamplerAddressModeFromString.end()) {
+							std::cout << srcPath
+									  << ": Warning: Invalid W address mode! Choosing Repeat, might cause unintended "
+										 "behaviour...\n";
+							addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+						} else {
+							addressModeW = addressModeWIterator->second;
+						}
+
+						VkCompareOp compareOp;
+						auto compareOpIterator =
+							VkCompareOpFromString.find(asCStringOr(node, "compare-op", "VK_COMPARE_OP_ALWAYS"));
+						if (compareOpIterator == VkCompareOpFromString.end()) {
+							std::cout << srcPath
+									  << ": Warning: Invalid sampler compare operation! Choosing Always, might cause "
+										 "unintended "
+										 "behaviour...\n";
+							compareOp = VK_COMPARE_OP_ALWAYS;
+						} else {
+							compareOp = compareOpIterator->second;
+						}
+
+						VkBorderColor borderColor;
+						auto borderColorIterator = VkBorderColorFromString.find(
+							asCStringOr(node, "border-color", "VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK"));
+						if (borderColorIterator == VkBorderColorFromString.end()) {
+							std::cout << srcPath
+									  << ": Warning: Invalid sampler border color! Choosing transparent black (float), "
+										 "might cause unintended "
+										 "behaviour...\n";
+							borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+						} else {
+							borderColor = borderColorIterator->second;
+						}
+
+						samplerInfos.push_back({
+							.magFilter = magFilter,
+							.minFilter = minFilter,
+							.mipmapMode = mipmapMode,
+							.addressModeU = addressModeU,
+							.addressModeV = addressModeV,
+							.addressModeW = addressModeW,
+							.mipLodBias = asFloatOr(node, "mip-lod-bias", 0.0f),
+							.anisotropyEnable = asBoolOr(node, "anisotropy-enable", false),
+							.maxAnisotropy = asFloatOr(node, "max-anisotropy", 0.0f),
+							.compareEnable = asBoolOr(node, "compare-enable", false),
+							.compareOp = compareOp,
+							.minLod = asFloatOr(node, "min-lod", 0.0f),
+							.maxLod = asFloatOr(node, "max-lod", 999999.0f),
+							.borderColor = borderColor,
+							.unnormalizedCoordinates = asBoolOr(node, "unnormalized-coordinates", false),
+						});
+					}
 				}
 
 				VkDescriptorSetLayoutBinding binding = { .binding = bindingNode["binding"].asUInt(),
@@ -122,7 +241,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 														 .stageFlags = shaderStageFlags,
 														 .pImmutableSamplers = nullptr };
 				bindingLayoutInfos[setIndex].push_back(
-					{ .binding = binding, .usesImmutableSamplers = usesImmutableSamplers });
+					{ .binding = binding, .usesImmutableSamplers = usesImmutableSamplers, .immutableSamplerInfos = samplerInfos });
 			}
 		}
 		++setIndex;
@@ -147,10 +266,9 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 			++currentIndex;
 		}
 
-		if(matchingCandidateIndex.has_value()) {
+		if (matchingCandidateIndex.has_value()) {
 			m_setLayoutIndices.push_back(matchingCandidateIndex.value());
-		}
-		else {
+		} else {
 			m_setLayoutIndices.push_back(setLayoutInfos.size());
 			setLayoutInfos.push_back(std::move(set));
 		}
@@ -272,7 +390,8 @@ std::vector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(con
 	return shaderModules;
 }
 
-void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath, std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
+void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
+											  std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
 											  const std::vector<ReflectedShader>& shaders) {
 	for (auto& shader : shaders) {
 		uint32_t pushConstantCount;
@@ -321,9 +440,8 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath, s
 
 				auto& binding = set->bindings[i];
 				auto pipelineBindingIterator =
-					std::find_if(bindingInfos.begin(), bindingInfos.end(), [setIndex, i](const auto& info) {
-						return info.binding.binding == i;
-					});
+					std::find_if(bindingInfos.begin(), bindingInfos.end(),
+								 [setIndex, i](const auto& info) { return info.binding.binding == i; });
 				if (pipelineBindingIterator == bindingInfos.end()) {
 					std::cout << srcPath << ": Error: Unbound descriptor at set " << setIndex << ", binding" << i
 							  << ".\n";

@@ -4,7 +4,7 @@
 namespace vanadium::windowing {
 
 	void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-		WindowInterface* interface = reinterpret_cast<WindowInterface*>(glfwGetWindowUserPointer(window));
+		WindowInterface* interface = std::launder(reinterpret_cast<WindowInterface*>(glfwGetWindowUserPointer(window)));
 		KeyState state;
 
 		switch (action) {
@@ -26,18 +26,16 @@ namespace vanadium::windowing {
 	}
 
 	WindowInterface::WindowInterface(const std::optional<WindowingSettingOverride>& override, const char* name) {
-		WindowingSettingOverride value = override.value_or(WindowingSettingOverride {
-			.width = 640,
-			.height = 480,
-			.createFullScreen = false
-		});
+		WindowingSettingOverride value =
+			override.value_or(WindowingSettingOverride{ .width = 640, .height = 480, .createFullScreen = false });
 		if (!glfwWindowCount) {
 			assertFatal(!glfwInit(), "GLFW initialization failed!\n");
 		}
 
 		GLFWmonitor* monitor = value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		m_window = glfwCreateWindow(static_cast<int>(value.width), static_cast<int>(value.height), name, monitor, nullptr);
+		m_window =
+			glfwCreateWindow(static_cast<int>(value.width), static_cast<int>(value.height), name, monitor, nullptr);
 
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetKeyCallback(m_window, keyCallback);
@@ -67,18 +65,16 @@ namespace vanadium::windowing {
 	void WindowInterface::removeKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask) {
 		auto iterator = m_keyListeners.find(
 			KeyListenerData{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask });
-		if(iterator != m_keyListeners.end()) {
+		if (iterator != m_keyListeners.end()) {
 			m_keyListeners.erase(iterator);
 		}
 	}
 
-	void WindowInterface::addSizeListener(const SizeListenerParams& params) {
-		m_sizeListeners.push_back(params);
-	}
+	void WindowInterface::addSizeListener(const SizeListenerParams& params) { m_sizeListeners.push_back(params); }
 
 	void WindowInterface::removeSizeListener(const SizeListenerParams& params) {
 		auto iterator = std::find(m_sizeListeners.begin(), m_sizeListeners.end(), params);
-		if(iterator != m_sizeListeners.end()) {
+		if (iterator != m_sizeListeners.end()) {
 			m_sizeListeners.erase(iterator);
 		}
 	}

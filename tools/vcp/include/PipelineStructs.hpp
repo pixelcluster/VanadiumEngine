@@ -57,14 +57,44 @@ struct InstanceSpecializationConfig {
 
 using InstanceColorAttachmentBlendConfig = VkPipelineColorBlendAttachmentState;
 
+struct SamplerInfo {
+	VkFilter magFilter;
+	VkFilter minFilter;
+	VkSamplerMipmapMode mipmapMode;
+	VkSamplerAddressMode addressModeU;
+	VkSamplerAddressMode addressModeV;
+	VkSamplerAddressMode addressModeW;
+	float mipLodBias;
+	bool anisotropyEnable;
+	float maxAnisotropy;
+	bool compareEnable;
+	VkCompareOp compareOp;
+	float minLod;
+	float maxLod;
+	VkBorderColor borderColor;
+	bool unnormalizedCoordinates;
+
+	bool operator==(const SamplerInfo& other) const {
+		return magFilter == other.magFilter && minFilter == other.minFilter && mipmapMode == other.mipmapMode &&
+			   addressModeU == other.addressModeU && addressModeV == other.addressModeV &&
+			   addressModeW == other.addressModeW && mipLodBias == other.mipLodBias &&
+			   anisotropyEnable == other.anisotropyEnable && maxAnisotropy == other.maxAnisotropy &&
+			   compareEnable == other.compareEnable && compareOp == other.compareOp && minLod == other.minLod &&
+			   maxLod == other.maxLod && borderColor == other.borderColor &&
+			   unnormalizedCoordinates == other.unnormalizedCoordinates;
+	}
+};
+
 struct DescriptorBindingLayoutInfo {
 	VkDescriptorSetLayoutBinding binding;
 	bool usesImmutableSamplers;
+	std::vector<SamplerInfo> immutableSamplerInfos;
 
 	bool operator==(const DescriptorBindingLayoutInfo& other) const {
 		return binding.binding == other.binding.binding && binding.descriptorCount == other.binding.descriptorCount &&
 			   binding.descriptorType == other.binding.descriptorType &&
-			   binding.stageFlags == other.binding.stageFlags && usesImmutableSamplers == other.usesImmutableSamplers;
+			   binding.stageFlags == other.binding.stageFlags && usesImmutableSamplers == other.usesImmutableSamplers &&
+			   immutableSamplerInfos == other.immutableSamplerInfos;
 	}
 };
 
