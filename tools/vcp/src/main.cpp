@@ -265,6 +265,8 @@ int main(int argc, char** argv) {
 		record.archetypeRecord.serialize(nextData);
 		nextData = offsetVoidPtr(nextData, record.archetypeRecord.serializedSize());
 
+		uint32_t instanceCount = record.instanceRecords.size();
+		std::memcpy(nextData,  &instanceCount, sizeof(uint32_t));
 		for (auto& instance : record.instanceRecords) {
 			std::memcpy(nextData, &record.instanceOffset, sizeof(uint32_t));
 			nextData = offsetVoidPtr(nextData, sizeof(uint32_t));

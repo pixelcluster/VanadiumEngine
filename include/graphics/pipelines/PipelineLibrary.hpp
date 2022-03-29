@@ -18,12 +18,12 @@ namespace vanadium::graphics {
 
 	struct PipelineLibraryArchetype {
 		PipelineType type;
-		std::vector<VkShaderModule> m_shaders;
 		std::vector<uint32_t> m_setLayoutIndices;
 		std::vector<VkPushConstantRange> m_pushConstantRanges;
 	};
 
 	struct PipelineLibraryInstance {
+		PipelineLibraryInstance() {}
 		PipelineLibraryInstance(const PipelineLibraryInstance& other) = delete;
 		PipelineLibraryInstance(PipelineLibraryInstance&& other) = delete;
 
@@ -56,11 +56,11 @@ namespace vanadium::graphics {
 
 		template <typename T> T readBuffer(uint64_t& currentOffset);
 
-		void createGraphicsPipeline(uint64_t& bufferOffset);
-		void createComputePipeline(uint64_t& bufferOffset);
+		void createGraphicsPipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex);
+		void createComputePipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex);
 
 		std::vector<PipelineLibraryArchetype> m_archetypes;
-		std::vector<PipelineLibraryInstance> m_instances;
+		robin_hood::unordered_map<std::string, PipelineLibraryInstance> m_instanceNames;
 
 		std::vector<VkDescriptorSetLayout> m_descriptorSetLayouts;
 		std::vector<VkSampler> m_immutableSamplers;
