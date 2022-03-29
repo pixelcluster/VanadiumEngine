@@ -333,7 +333,13 @@ namespace vanadium {
 		return elementAt(handle);
 	}
 
-	template <typename T> inline void Slotmap<T>::clear() { elements.clear(); }
+	template <typename T> inline void Slotmap<T>::clear() {
+		elements.clear();
+		keys.clear();
+		eraseMap.clear();
+		freeKeyHead = 0;
+		freeKeyTail = 0;
+	}
 
 	template <typename T> inline size_t Slotmap<T>::size() const { return elements.size(); }
 
