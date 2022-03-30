@@ -162,12 +162,92 @@ namespace vanadium::graphics {
 			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline file version!\n");
 			std::memcpy(name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset), nameSize);
 
-			uint32_t vertexInputConfigCount = readBuffer<uint32_t>(offset);
-			
-		}
+			uint32_t attributeCount = readBuffer<uint32_t>(offset);
+			instance.attribDescriptions.reserve(attributeCount);
+			for (uint32_t i = 0; i < attributeCount; ++i) {
+				instance.attribDescriptions.push_back({ .location = readBuffer<uint32_t>(offset),
+														.binding = readBuffer<uint32_t>(offset),
+														.format = readBuffer<VkFormat>(offset),
+														.offset = readBuffer<uint32_t>(offset) });
+			}
 
-		
+			uint32_t bindingCount = readBuffer<uint32_t>(offset);
+			instance.bindingDescriptions.reserve(bindingCount);
+			for (uint32_t i = 0; i < bindingCount; ++i) {
+				instance.bindingDescriptions.push_back(
+					VkVertexInputBindingDescription{ .binding = readBuffer<uint32_t>(offset),
+													 .inputRate = readBuffer<VkVertexInputRate>(offset),
+													 .stride = readBuffer<uint32_t>(offset) });
+			}
+
+			instance.vertexInputConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+										   .vertexAttributeDescriptionCount = attributeCount,
+										   .pVertexAttributeDescriptions = instance.attribDescriptions.data(),
+										   .vertexBindingDescriptionCount = bindingCount,
+										   .pVertexBindingDescriptions = instance.bindingDescriptions.data() };
+
+			instance.inputAssemblyConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+											 .topology = readBuffer<VkPrimitiveTopology>(offset),
+											 .primitiveRestartEnable = readBuffer<bool>(offset) };
+
+			instance.rasterizationConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+											 .depthClampEnable = readBuffer<bool>(offset),
+											 .rasterizerDiscardEnable = readBuffer<bool>(offset),
+											 .polygonMode = readBuffer<VkPolygonMode>(offset),
+											 .cullMode = readBuffer<uint32_t>(offset),
+											 .frontFace = readBuffer<VkFrontFace>(offset),
+											 .depthBiasEnable = readBuffer<bool>(offset),
+											 .depthBiasConstantFactor = readBuffer<float>(offset),
+											 .depthBiasClamp = readBuffer<float>(offset),
+											 .depthBiasSlopeFactor = readBuffer<float>(offset),
+											 .lineWidth = readBuffer<float>(offset) };
+
+			instance.multisampleConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+										   .rasterizationSamples = readBuffer<VkSampleCountFlagBits>(offset) };
+
+			instance.depthStencilConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+											.depthTestEnable = readBuffer<bool>(offset),
+											.depthWriteEnable = readBuffer<bool>(offset),
+											.depthCompareOp = readBuffer<VkCompareOp>(offset),
+											.depthBoundsTestEnable = readBuffer<bool>(offset),
+											.stencilTestEnable = readBuffer<bool>(offset),
+											.front = readStencilState(offset),
+											.back = readStencilState(offset),
+											.minDepthBounds = readBuffer<float>(offset),
+											.maxDepthBounds = readBuffer<float>(offset) };
+
+			instance.colorBlendConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+										  .logicOpEnable = readBuffer<bool>(offset),
+										  .logicOp = readBuffer<VkLogicOp>(offset),
+										  .blendConstants = { readBuffer<float>(offset), readBuffer<float>(offset),
+															  readBuffer<float>(offset), readBuffer<float>(offset) } };
+
+			uint32_t attachmentCount = readBuffer<uint32_t>(offset);
+			instance.colorAttachmentBlendConfigs.reserve(attachmentCount);
+
+			for (uint32_t i = 0; i < attachmentCount; ++i) {
+				instance.colorAttachmentBlendConfigs.push_back(
+					{ .blendEnable = readBuffer<bool>(offset),
+					  .srcColorBlendFactor = readBuffer<VkBlendFactor>(offset),
+					  .dstColorBlendFactor = readBuffer<VkBlendFactor>(offset),
+					  .colorBlendOp = readBuffer<VkBlendOp>(offset),
+					  .srcAlphaBlendFactor = readBuffer<VkBlendFactor>(offset),
+					  .dstAlphaBlendFactor = readBuffer<VkBlendFactor>(offset),
+					  .alphaBlendOp = readBuffer<VkBlendOp>(offset),
+					  .colorWriteMask = readBuffer<VkColorComponentFlags>(offset) });
+			}
+		}
 	}
 
 	void PipelineLibrary::createComputePipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex) {}
+
+	VkStencilOpState PipelineLibrary::readStencilState(uint64_t& offset) {
+		return { .failOp = readBuffer<VkStencilOp>(offset),
+				 .passOp = readBuffer<VkStencilOp>(offset),
+				 .depthFailOp = readBuffer<VkStencilOp>(offset),
+				 .compareOp = readBuffer<VkCompareOp>(offset),
+				 .compareMask = readBuffer<uint32_t>(offset),
+				 .writeMask = readBuffer<uint32_t>(offset),
+				 .reference = readBuffer<uint32_t>(offset) };
+	}
 } // namespace vanadium::graphics

@@ -29,7 +29,7 @@ namespace vanadium::graphics {
 
 		uint32_t archetypeID;
 		std::vector<VkVertexInputAttributeDescription> attribDescriptions;
-		std::vector<VkVertexInputBindingDescription> attribDescriptions;
+		std::vector<VkVertexInputBindingDescription> bindingDescriptions;
 		VkPipelineVertexInputStateCreateInfo vertexInputConfig;
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyConfig;
 		VkPipelineRasterizationStateCreateInfo rasterizationConfig;
@@ -55,6 +55,8 @@ namespace vanadium::graphics {
 		size_t m_fileSize;
 
 		template <typename T> T readBuffer(uint64_t& currentOffset);
+
+		VkStencilOpState readStencilState(uint64_t& offset);
 
 		void createGraphicsPipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex);
 		void createComputePipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex);
