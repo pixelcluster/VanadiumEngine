@@ -6,6 +6,46 @@
 #include <volk.h>
 
 namespace vanadium::graphics {
+	PipelineLibraryGraphicsInstance::PipelineLibraryGraphicsInstance(PipelineLibraryGraphicsInstance&& other)
+		: archetypeID(std::forward<decltype(archetypeID)>(other.archetypeID)),
+		  shaderStageCreateInfos(std::forward<decltype(shaderStageCreateInfos)>(other.shaderStageCreateInfos)),
+		  specializationInfos(std::forward<decltype(specializationInfos)>(other.specializationInfos)),
+		  attribDescriptions(std::forward<decltype(attribDescriptions)>(other.attribDescriptions)),
+		  bindingDescriptions(std::forward<decltype(bindingDescriptions)>(other.bindingDescriptions)),
+		  vertexInputConfig(std::forward<decltype(vertexInputConfig)>(other.vertexInputConfig)),
+		  inputAssemblyConfig(std::forward<decltype(inputAssemblyConfig)>(other.inputAssemblyConfig)),
+		  rasterizationConfig(std::forward<decltype(rasterizationConfig)>(other.rasterizationConfig)),
+		  multisampleConfig(std::forward<decltype(multisampleConfig)>(other.multisampleConfig)),
+		  depthStencilConfig(std::forward<decltype(depthStencilConfig)>(other.depthStencilConfig)),
+		  colorBlendConfig(std::forward<decltype(colorBlendConfig)>(other.colorBlendConfig)),
+		  colorAttachmentBlendConfigs(
+			  std::forward<decltype(colorAttachmentBlendConfigs)>(other.colorAttachmentBlendConfigs)),
+		  dynamicStateConfig(std::forward<decltype(dynamicStateConfig)>(other.dynamicStateConfig)),
+		  viewportConfig(std::forward<decltype(viewportConfig)>(other.viewportConfig)),
+		  viewports(std::forward<decltype(viewports)>(other.viewports)),
+		  scissorRects(std::forward<decltype(scissorRects)>(other.scissorRects)),
+		  specializationInfo(std::forward<decltype(specializationInfo)>(other.specializationInfo)),
+		  mapEntries(std::forward<decltype(mapEntries)>(other.mapEntries)),
+		  specializationData(std::forward<decltype(specializationData)>(other.specializationData)),
+		  pipelineCreateInfo(std::forward<decltype(pipelineCreateInfo)>(other.pipelineCreateInfo)),
+		  layout(std::forward<decltype(layout)>(other.layout)) {
+		vertexInputConfig.pVertexAttributeDescriptions = attribDescriptions.data();
+		vertexInputConfig.pVertexBindingDescriptions = bindingDescriptions.data();
+		colorBlendConfig.pAttachments = colorAttachmentBlendConfigs.data();
+		viewportConfig.pViewports = viewports.data();
+		viewportConfig.pScissors = scissorRects.data();
+		specializationInfo.pMapEntries = mapEntries.data();
+		pipelineCreateInfo.pStages = shaderStageCreateInfos.data();
+		pipelineCreateInfo.pVertexInputState = &vertexInputConfig;
+		pipelineCreateInfo.pInputAssemblyState = &inputAssemblyConfig;
+		pipelineCreateInfo.pRasterizationState = &rasterizationConfig;
+		pipelineCreateInfo.pViewportState = &viewportConfig;
+		pipelineCreateInfo.pMultisampleState = &multisampleConfig;
+		pipelineCreateInfo.pViewportState = &viewportConfig;
+		pipelineCreateInfo.pDepthStencilState = &depthStencilConfig;
+		pipelineCreateInfo.pColorBlendState = &colorBlendConfig;
+	}
+
 	void PipelineLibrary::create(const std::string& libraryFileName, DeviceContext* context) {
 		m_deviceContext = context;
 
@@ -103,7 +143,7 @@ namespace vanadium::graphics {
 		for (uint32_t i = 0; i < shaderCount; ++i) {
 			VkShaderStageFlags stageFlags = readBuffer<uint32_t>(bufferOffset);
 			uint32_t shaderSize = readBuffer<uint32_t>(bufferOffset);
-			assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline file version!\n");
+			assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
 			VkShaderModuleCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 													.codeSize = shaderSize,
 													.pCode = reinterpret_cast<uint32_t*>(
@@ -147,7 +187,7 @@ namespace vanadium::graphics {
 		uint32_t instanceCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<uint64_t> instanceOffsets;
 		std::vector<std::string> instanceNames;
-		std::vector<PipelineLibraryInstance> instances;
+		std::vector<PipelineLibraryGraphicsInstance> instances;
 		instanceOffsets.reserve(instanceCount);
 
 		for (uint32_t i = 0; i < instanceCount; ++i) {
@@ -155,11 +195,11 @@ namespace vanadium::graphics {
 		}
 
 		for (auto& offset : instanceOffsets) {
-			PipelineLibraryInstance instance;
+			PipelineLibraryGraphicsInstance instance;
 
 			uint32_t nameSize = readBuffer<uint32_t>(offset);
 			std::string name = std::string(nameSize, ' ');
-			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline file version!\n");
+			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
 			std::memcpy(name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset), nameSize);
 
 			uint32_t attributeCount = readBuffer<uint32_t>(offset);
@@ -236,6 +276,27 @@ namespace vanadium::graphics {
 					  .alphaBlendOp = readBuffer<VkBlendOp>(offset),
 					  .colorWriteMask = readBuffer<VkColorComponentFlags>(offset) });
 			}
+			instance.colorBlendConfig.attachmentCount = attachmentCount;
+			instance.colorBlendConfig.pAttachments = instance.colorAttachmentBlendConfigs.data();
+
+			uint32_t specializationMapEntryCount = readBuffer<uint32_t>(offset);
+			instance.mapEntries.reserve(specializationMapEntryCount);
+			for (uint32_t i = 0; i < specializationMapEntryCount; ++i) {
+				instance.mapEntries.push_back({ .constantID = readBuffer<uint32_t>(offset),
+												.offset = readBuffer<uint32_t>(offset),
+												.size = readBuffer<uint32_t>(offset) });
+			}
+			uint32_t specializationDataSize = readBuffer<uint32_t>(offset);
+			assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!\n");
+			instance.specializationData = new char[specializationDataSize];
+			std::memcpy(instance.specializationData,
+						reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
+						specializationDataSize);
+
+			instance.specializationInfo = { .mapEntryCount = specializationMapEntryCount,
+											.pMapEntries = instance.mapEntries.data(),
+											.dataSize = specializationDataSize,
+											.pData = instance.specializationData };
 		}
 	}
 

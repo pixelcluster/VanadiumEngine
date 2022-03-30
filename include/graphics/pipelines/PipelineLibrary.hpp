@@ -18,30 +18,55 @@ namespace vanadium::graphics {
 
 	struct PipelineLibraryArchetype {
 		PipelineType type;
+		std::vector<VkShaderModule> shaderModules;
 		std::vector<uint32_t> m_setLayoutIndices;
 		std::vector<VkPushConstantRange> m_pushConstantRanges;
 	};
 
-	struct PipelineLibraryInstance {
-		PipelineLibraryInstance() {}
-		PipelineLibraryInstance(const PipelineLibraryInstance& other) = delete;
-		PipelineLibraryInstance(PipelineLibraryInstance&& other) = delete;
+	struct PipelineLibraryGraphicsInstance {
+		PipelineLibraryGraphicsInstance() {}
+		PipelineLibraryGraphicsInstance(const PipelineLibraryGraphicsInstance& other) = delete;
+		PipelineLibraryGraphicsInstance(PipelineLibraryGraphicsInstance&& other);
 
 		uint32_t archetypeID;
+		std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
+		std::vector<VkSpecializationInfo> specializationInfos;
 		std::vector<VkVertexInputAttributeDescription> attribDescriptions;
 		std::vector<VkVertexInputBindingDescription> bindingDescriptions;
 		VkPipelineVertexInputStateCreateInfo vertexInputConfig;
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyConfig;
 		VkPipelineRasterizationStateCreateInfo rasterizationConfig;
 		VkPipelineMultisampleStateCreateInfo multisampleConfig;
-		VkStencilOpState frontStencilState;
 		VkPipelineDepthStencilStateCreateInfo depthStencilConfig;
 		VkPipelineColorBlendStateCreateInfo colorBlendConfig;
 		std::vector<VkPipelineColorBlendAttachmentState> colorAttachmentBlendConfigs;
+		VkPipelineDynamicStateCreateInfo dynamicStateConfig;
+		VkPipelineViewportStateCreateInfo viewportConfig;
+		std::vector<VkViewport> viewports;
+		std::vector<VkRect2D> scissorRects;
 		VkSpecializationInfo specializationInfo;
 		std::vector<VkSpecializationMapEntry> mapEntries;
 		char* specializationData;
+		VkGraphicsPipelineCreateInfo pipelineCreateInfo;
+		VkPipelineLayout layout;
 	};
+
+	struct PipelineLibraryComputeInstance
+	{
+		PipelineLibraryComputeInstance() {}
+		PipelineLibraryComputeInstance(const PipelineLibraryComputeInstance& other) = delete;
+		PipelineLibraryComputeInstance(PipelineLibraryComputeInstance&& other);
+
+		uint32_t archetypeID;
+		std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
+		std::vector<VkSpecializationInfo> specializationInfos;
+		std::vector<VkSpecializationMapEntry> mapEntries;
+		char* specializationData;
+		VkComputePipelineCreateInfo createInfo;
+		VkPipeline pipeline;
+		VkPipelineLayout layout;
+	};
+	
 
 	class PipelineLibrary {
 	  public:
@@ -62,7 +87,8 @@ namespace vanadium::graphics {
 		void createComputePipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex);
 
 		std::vector<PipelineLibraryArchetype> m_archetypes;
-		robin_hood::unordered_map<std::string, PipelineLibraryInstance> m_instanceNames;
+		robin_hood::unordered_map<std::string, PipelineLibraryGraphicsInstance> m_graphicsInstanceNames;
+		robin_hood::unordered_map<std::string, PipelineLibraryComputeInstance> m_computeInstanceNames;
 
 		std::vector<VkDescriptorSetLayout> m_descriptorSetLayouts;
 		std::vector<VkSampler> m_immutableSamplers;
