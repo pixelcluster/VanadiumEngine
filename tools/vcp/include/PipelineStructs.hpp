@@ -55,6 +55,12 @@ struct InstanceSpecializationConfig {
 	std::variant<bool, uint32_t, float> data;
 };
 
+struct InstanceStageSpecializationConfig {
+	VkShaderStageFlagBits stage;
+	std::vector<InstanceSpecializationConfig> configs;
+	size_t specializationDataSize;
+};
+
 using InstanceColorAttachmentBlendConfig = VkPipelineColorBlendAttachmentState;
 
 struct SamplerInfo {

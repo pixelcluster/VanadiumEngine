@@ -119,9 +119,12 @@ size_t PipelineInstanceRecord::serializedSize() const {
 		totalSize += m_instanceColorAttachmentBlendConfigs.size() * colorAttachmentSize;
 	}
 	totalSize += sizeof(uint32_t);
-	totalSize += m_instanceSpecializationConfigs.size() * specializationMapEntrySize;
-	totalSize += sizeof(uint32_t);
-	totalSize += m_currentSpecializationDataSize;
+	for (auto& config : m_instanceSpecializationConfigs) {
+		totalSize += sizeof(uint32_t);
+		totalSize += config.configs.size() * specializationMapEntrySize;
+		totalSize += sizeof(uint32_t);
+		totalSize += config.specializationDataSize;
+	}
 
 	return totalSize;
 }
@@ -245,37 +248,44 @@ void PipelineInstanceRecord::serialize(void* data) {
 		}
 	}
 
-	uint32_t specializationConfigCount = m_instanceSpecializationConfigs.size();
-	std::memcpy(data, &specializationConfigCount, sizeof(uint32_t));
+	uint32_t stageConfigCount = m_instanceSpecializationConfigs.size();
+	std::memcpy(data, &stageConfigCount, sizeof(uint32_t));
 	data = offsetVoidPtr(data, sizeof(uint32_t));
-	for (auto& config : m_instanceSpecializationConfigs) {
-		std::memcpy(data, &config.mapEntry.constantID, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-		std::memcpy(data, &config.mapEntry.offset, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-		std::memcpy(data, &config.mapEntry.size, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-	}
 
-	uint32_t specializationDataSize = 0;
-	std::memcpy(data, &specializationDataSize, sizeof(uint32_t));
-	data = offsetVoidPtr(data, sizeof(uint32_t));
-	for (auto& config : m_instanceSpecializationConfigs) {
-		switch (config.data.index()) {
-			case 1:
-				std::memcpy(data, &std::get<bool>(config.data), sizeof(bool));
-				data = offsetVoidPtr(data, sizeof(bool));
-				break;
-			case 2:
-				std::memcpy(data, &std::get<uint32_t>(config.data), sizeof(uint32_t));
-				data = offsetVoidPtr(data, sizeof(uint32_t));
-				break;
-			case 3:
-				std::memcpy(data, &std::get<float>(config.data), sizeof(float));
-				data = offsetVoidPtr(data, sizeof(float));
-				break;
-			default:
-				break;
+	for (auto& stageConfig : m_instanceSpecializationConfigs) {
+		uint32_t specializationConfigCount = stageConfig.configs.size();
+		std::memcpy(data, &specializationConfigCount, sizeof(uint32_t));
+		data = offsetVoidPtr(data, sizeof(uint32_t));
+
+		for (auto& config : stageConfig.configs) {
+			std::memcpy(data, &config.mapEntry.constantID, sizeof(uint32_t));
+			data = offsetVoidPtr(data, sizeof(uint32_t));
+			std::memcpy(data, &config.mapEntry.offset, sizeof(uint32_t));
+			data = offsetVoidPtr(data, sizeof(uint32_t));
+			std::memcpy(data, &config.mapEntry.size, sizeof(uint32_t));
+			data = offsetVoidPtr(data, sizeof(uint32_t));
+		}
+
+		uint32_t specializationDataSize = stageConfig.specializationDataSize;
+		std::memcpy(data, &specializationDataSize, sizeof(uint32_t));
+		data = offsetVoidPtr(data, sizeof(uint32_t));
+		for (auto& config : stageConfig.configs) {
+			switch (config.data.index()) {
+				case 1:
+					std::memcpy(data, &std::get<bool>(config.data), sizeof(bool));
+					data = offsetVoidPtr(data, sizeof(bool));
+					break;
+				case 2:
+					std::memcpy(data, &std::get<uint32_t>(config.data), sizeof(uint32_t));
+					data = offsetVoidPtr(data, sizeof(uint32_t));
+					break;
+				case 3:
+					std::memcpy(data, &std::get<float>(config.data), sizeof(float));
+					data = offsetVoidPtr(data, sizeof(float));
+					break;
+				default:
+					break;
+			}
 		}
 	}
 }
@@ -708,40 +718,77 @@ void PipelineInstanceRecord::deserializeSpecializationConfigs(const std::string_
 		return;
 
 	if (!node.isArray()) {
-		std::cout << srcPath << ": Error: Invalid specialization constant array.\n";
+		std::cout << srcPath << ": Error: Invalid specialization constant stage array.\n";
 		m_isValid = false;
 		return;
 	}
 
-	for (auto& config : node) {
-		if (config.type() != Json::objectValue) {
-			std::cout << srcPath << ": Error: Invalid specialization constant structure value.\n";
+	for (auto& stage : node) {
+		if (!stage.isArray()) {
+			std::cout << srcPath << ": Error: Invalid specialization constant array.\n";
+			m_isValid = false;
+			return;
+		}
+		m_instanceSpecializationConfigs.reserve(stage.size());
+
+		InstanceStageSpecializationConfig newConfig;
+
+		auto stageIterator = VkShaderStageFlagBitsFromString.find(asCStringOr(stage, "stage", " "));
+		if(stageIterator == VkShaderStageFlagBitsFromString.end()) {
+			std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
+		}
+		else {
+			switch (m_type)
+			{
+			case PipelineType::Graphics:
+				/* code */
+				break;
+			
+			default:
+				break;
+			}
+		}
+
+		auto& configArray = stage["values"];
+
+		if (!configArray.isArray()) {
+			std::cout << srcPath << ": Error: Invalid specialization constant array.\n";
 			m_isValid = false;
 			return;
 		}
 
-		InstanceSpecializationConfig resultConfig = { .mapEntry = { .constantID = node["id"].asUInt(),
-																	.offset = static_cast<uint32_t>(
-																		m_currentSpecializationDataSize) } };
+		for (auto& config : stage) {
+			if (!config.isObject()) {
+				std::cout << srcPath << ": Error: Invalid specialization constant structure.\n";
+				m_isValid = false;
+				return;
+			}
+			
+			InstanceSpecializationConfig resultConfig = { .mapEntry = { .constantID = node["id"].asUInt(),
+																		.offset = static_cast<uint32_t>(
+																			newConfig.specializationDataSize) } };
 
-		if (node["value"].isInt()) {
-			uint32_t value;
-			int32_t intValue = node["value"].asInt();
-			std::memcpy(&value, &intValue, sizeof(uint32_t));
+			if (node["value"].isInt()) {
+				uint32_t value;
+				int32_t intValue = node["value"].asInt();
+				std::memcpy(&value, &intValue, sizeof(uint32_t));
 
-			resultConfig.data = value;
-			resultConfig.mapEntry.size = sizeof(uint32_t);
-		} else if (node["value"].isUInt()) {
-			resultConfig.data = static_cast<uint32_t>(node["value"].asUInt());
-			resultConfig.mapEntry.size = sizeof(uint32_t);
-		} else if (node["value"].isNumeric()) {
-			resultConfig.data = static_cast<float>(node["value"].asFloat());
-			resultConfig.mapEntry.size = sizeof(float);
-		} else if (node["value"].isBool()) {
-			resultConfig.data = static_cast<bool>(node["value"].asBool());
-			resultConfig.mapEntry.size = sizeof(bool);
+				resultConfig.data = value;
+				resultConfig.mapEntry.size = sizeof(uint32_t);
+			} else if (node["value"].isUInt()) {
+				resultConfig.data = static_cast<uint32_t>(node["value"].asUInt());
+				resultConfig.mapEntry.size = sizeof(uint32_t);
+			} else if (node["value"].isNumeric()) {
+				resultConfig.data = static_cast<float>(node["value"].asFloat());
+				resultConfig.mapEntry.size = sizeof(float);
+			} else if (node["value"].isBool()) {
+				resultConfig.data = static_cast<bool>(node["value"].asBool());
+				resultConfig.mapEntry.size = sizeof(bool);
+			}
+
+			newConfig.specializationDataSize += resultConfig.mapEntry.size;
+			newConfig.configs.push_back(resultConfig);
 		}
-
-		m_currentSpecializationDataSize += resultConfig.mapEntry.size;
+		m_instanceSpecializationConfigs.push_back(std::move(newConfig));
 	}
 }

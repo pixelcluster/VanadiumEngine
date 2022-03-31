@@ -55,6 +55,5 @@ class PipelineInstanceRecord {
 	InstanceColorBlendConfig m_instanceColorBlendConfig;
 	std::vector<InstanceColorAttachmentBlendConfig> m_instanceColorAttachmentBlendConfigs;
 
-	std::vector<InstanceSpecializationConfig> m_instanceSpecializationConfigs;
-	size_t m_currentSpecializationDataSize = 0;
+	std::vector<InstanceStageSpecializationConfig> m_instanceSpecializationConfigs;
 };
