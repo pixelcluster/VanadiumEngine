@@ -734,18 +734,28 @@ void PipelineInstanceRecord::deserializeSpecializationConfigs(const std::string_
 		InstanceStageSpecializationConfig newConfig;
 
 		auto stageIterator = VkShaderStageFlagBitsFromString.find(asCStringOr(stage, "stage", " "));
-		if(stageIterator == VkShaderStageFlagBitsFromString.end()) {
+		if (stageIterator == VkShaderStageFlagBitsFromString.end()) {
 			std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
-		}
-		else {
-			switch (m_type)
-			{
-			case PipelineType::Graphics:
-				/* code */
-				break;
-			
-			default:
-				break;
+			m_isValid = false;
+			return;
+		} else {
+			switch (m_type) {
+				case PipelineType::Graphics:
+					if (stageIterator->second != VK_SHADER_STAGE_VERTEX_BIT &&
+						stageIterator->second != VK_SHADER_STAGE_FRAGMENT_BIT) {
+						std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
+						m_isValid = false;
+						return;
+					}
+					break;
+				case PipelineType::Compute:
+					if (stageIterator->second != VK_SHADER_STAGE_COMPUTE_BIT) {
+						std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
+						m_isValid = false;
+						return;
+					}
+				default:
+					break;
 			}
 		}
 
@@ -763,7 +773,7 @@ void PipelineInstanceRecord::deserializeSpecializationConfigs(const std::string_
 				m_isValid = false;
 				return;
 			}
-			
+
 			InstanceSpecializationConfig resultConfig = { .mapEntry = { .constantID = node["id"].asUInt(),
 																		.offset = static_cast<uint32_t>(
 																			newConfig.specializationDataSize) } };

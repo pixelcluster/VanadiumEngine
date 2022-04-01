@@ -23,14 +23,32 @@ namespace vanadium::graphics {
 		std::vector<VkPushConstantRange> m_pushConstantRanges;
 	};
 
+	struct PipelineLibraryStageSpecialization
+	{
+		PipelineLibraryStageSpecialization() {}
+		PipelineLibraryStageSpecialization(const PipelineLibraryStageSpecialization& other) = delete;
+		PipelineLibraryStageSpecialization& operator=(const PipelineLibraryStageSpecialization& other) = delete;
+		PipelineLibraryStageSpecialization(PipelineLibraryStageSpecialization&& other);
+		PipelineLibraryStageSpecialization& operator=(PipelineLibraryStageSpecialization&& other) = delete;
+		~PipelineLibraryStageSpecialization();
+
+		VkShaderStageFlagBits stage;
+		VkSpecializationInfo specializationInfo;
+		std::vector<VkSpecializationMapEntry> mapEntries;
+		char* specializationData;
+	};
+	
+
 	struct PipelineLibraryGraphicsInstance {
 		PipelineLibraryGraphicsInstance() {}
 		PipelineLibraryGraphicsInstance(const PipelineLibraryGraphicsInstance& other) = delete;
+		PipelineLibraryGraphicsInstance& operator=(const PipelineLibraryGraphicsInstance& other) = delete;
 		PipelineLibraryGraphicsInstance(PipelineLibraryGraphicsInstance&& other);
+		PipelineLibraryGraphicsInstance& operator=(PipelineLibraryGraphicsInstance&& other) = delete;
 
 		uint32_t archetypeID;
 		std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
-		std::vector<VkSpecializationInfo> specializationInfos;
+		std::vector<PipelineLibraryStageSpecialization> stageSpecializations;
 		std::vector<VkVertexInputAttributeDescription> attribDescriptions;
 		std::vector<VkVertexInputBindingDescription> bindingDescriptions;
 		VkPipelineVertexInputStateCreateInfo vertexInputConfig;
@@ -41,28 +59,17 @@ namespace vanadium::graphics {
 		VkPipelineColorBlendStateCreateInfo colorBlendConfig;
 		std::vector<VkPipelineColorBlendAttachmentState> colorAttachmentBlendConfigs;
 		VkPipelineDynamicStateCreateInfo dynamicStateConfig;
+		std::vector<VkDynamicState> dynamicStates;
 		VkPipelineViewportStateCreateInfo viewportConfig;
-		std::vector<VkViewport> viewports;
-		std::vector<VkRect2D> scissorRects;
-		VkSpecializationInfo specializationInfo;
-		std::vector<VkSpecializationMapEntry> mapEntries;
-		char* specializationData;
+		VkViewport viewport;
+		VkRect2D scissorRect;
 		VkGraphicsPipelineCreateInfo pipelineCreateInfo;
 		VkPipelineLayout layout;
 	};
 
 	struct PipelineLibraryComputeInstance
 	{
-		PipelineLibraryComputeInstance() {}
-		PipelineLibraryComputeInstance(const PipelineLibraryComputeInstance& other) = delete;
-		PipelineLibraryComputeInstance(PipelineLibraryComputeInstance&& other);
-
 		uint32_t archetypeID;
-		std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
-		std::vector<VkSpecializationInfo> specializationInfos;
-		std::vector<VkSpecializationMapEntry> mapEntries;
-		char* specializationData;
-		VkComputePipelineCreateInfo createInfo;
 		VkPipeline pipeline;
 		VkPipelineLayout layout;
 	};
@@ -83,8 +90,8 @@ namespace vanadium::graphics {
 
 		VkStencilOpState readStencilState(uint64_t& offset);
 
-		void createGraphicsPipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex);
-		void createComputePipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex);
+		void createGraphicsPipeline(uint64_t& bufferOffset);
+		void createComputePipeline(uint64_t& bufferOffset);
 
 		std::vector<PipelineLibraryArchetype> m_archetypes;
 		robin_hood::unordered_map<std::string, PipelineLibraryGraphicsInstance> m_graphicsInstanceNames;
@@ -95,9 +102,9 @@ namespace vanadium::graphics {
 	};
 
 	template <typename T> T PipelineLibrary::readBuffer(uint64_t& currentOffset) {
-		assertFatal(currentOffset + sizeof(T) <= fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
+		assertFatal(currentOffset + sizeof(T) <= m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
 		T value;
-		std::memcpy(&value, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(buffer) + currentOffset), sizeof(T));
+		std::memcpy(&value, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + currentOffset), sizeof(T));
 
 		return value;
 	}

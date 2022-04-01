@@ -9,7 +9,7 @@ namespace vanadium::graphics {
 	PipelineLibraryGraphicsInstance::PipelineLibraryGraphicsInstance(PipelineLibraryGraphicsInstance&& other)
 		: archetypeID(std::forward<decltype(archetypeID)>(other.archetypeID)),
 		  shaderStageCreateInfos(std::forward<decltype(shaderStageCreateInfos)>(other.shaderStageCreateInfos)),
-		  specializationInfos(std::forward<decltype(specializationInfos)>(other.specializationInfos)),
+		  stageSpecializations(std::forward<decltype(stageSpecializations)>(other.stageSpecializations)),
 		  attribDescriptions(std::forward<decltype(attribDescriptions)>(other.attribDescriptions)),
 		  bindingDescriptions(std::forward<decltype(bindingDescriptions)>(other.bindingDescriptions)),
 		  vertexInputConfig(std::forward<decltype(vertexInputConfig)>(other.vertexInputConfig)),
@@ -21,20 +21,18 @@ namespace vanadium::graphics {
 		  colorAttachmentBlendConfigs(
 			  std::forward<decltype(colorAttachmentBlendConfigs)>(other.colorAttachmentBlendConfigs)),
 		  dynamicStateConfig(std::forward<decltype(dynamicStateConfig)>(other.dynamicStateConfig)),
+		  dynamicStates(std::forward<decltype(dynamicStates)>(other.dynamicStates)),
 		  viewportConfig(std::forward<decltype(viewportConfig)>(other.viewportConfig)),
-		  viewports(std::forward<decltype(viewports)>(other.viewports)),
-		  scissorRects(std::forward<decltype(scissorRects)>(other.scissorRects)),
-		  specializationInfo(std::forward<decltype(specializationInfo)>(other.specializationInfo)),
-		  mapEntries(std::forward<decltype(mapEntries)>(other.mapEntries)),
-		  specializationData(std::forward<decltype(specializationData)>(other.specializationData)),
+		  viewport(std::forward<decltype(viewport)>(other.viewport)),
+		  scissorRect(std::forward<decltype(scissorRect)>(other.scissorRect)),
 		  pipelineCreateInfo(std::forward<decltype(pipelineCreateInfo)>(other.pipelineCreateInfo)),
 		  layout(std::forward<decltype(layout)>(other.layout)) {
 		vertexInputConfig.pVertexAttributeDescriptions = attribDescriptions.data();
 		vertexInputConfig.pVertexBindingDescriptions = bindingDescriptions.data();
 		colorBlendConfig.pAttachments = colorAttachmentBlendConfigs.data();
-		viewportConfig.pViewports = viewports.data();
-		viewportConfig.pScissors = scissorRects.data();
-		specializationInfo.pMapEntries = mapEntries.data();
+		viewportConfig.pViewports = &viewport;
+		viewportConfig.pScissors = &scissorRect;
+		dynamicStateConfig.pDynamicStates = dynamicStates.data();
 		pipelineCreateInfo.pStages = shaderStageCreateInfos.data();
 		pipelineCreateInfo.pVertexInputState = &vertexInputConfig;
 		pipelineCreateInfo.pInputAssemblyState = &inputAssemblyConfig;
@@ -44,6 +42,15 @@ namespace vanadium::graphics {
 		pipelineCreateInfo.pViewportState = &viewportConfig;
 		pipelineCreateInfo.pDepthStencilState = &depthStencilConfig;
 		pipelineCreateInfo.pColorBlendState = &colorBlendConfig;
+		pipelineCreateInfo.pDynamicState = &dynamicStateConfig;
+
+		for (auto& specialization : stageSpecializations) {
+			specialization.specializationInfo.pMapEntries = specialization.mapEntries.data();
+			auto stageIterator =
+				std::find_if(shaderStageCreateInfos.begin(), shaderStageCreateInfos.end(),
+							 [&specialization](const auto& stage) { return stage.stage == specialization.stage; });
+			stageIterator->pSpecializationInfo = &specialization.specializationInfo;
+		}
 	}
 
 	void PipelineLibrary::create(const std::string& libraryFileName, DeviceContext* context) {
@@ -72,8 +79,8 @@ namespace vanadium::graphics {
 
 			for (uint32_t i = 0; i < bindingCount; ++i) {
 				VkDescriptorSetLayoutBinding binding = { .binding = readBuffer<uint32_t>(offset),
-														 .descriptorCount = readBuffer<uint32_t>(offset),
 														 .descriptorType = readBuffer<VkDescriptorType>(offset),
+														 .descriptorCount = readBuffer<uint32_t>(offset),
 														 .stageFlags = readBuffer<VkShaderStageFlags>(offset) };
 				uint32_t immutableSamplerCount = readBuffer<uint32_t>(offset);
 				if (immutableSamplerCount > 0) {
@@ -119,23 +126,20 @@ namespace vanadium::graphics {
 			pipelineDataOffsets.push_back(readBuffer<uint64_t>(headerReadOffset));
 		}
 
-		std::mutex pipelineWriteMutex;
-
-		std::for_each(std::execution::par_unseq, pipelineDataOffsets.begin(), pipelineDataOffsets.end(),
-					  [this, &pipelineWriteMutex](auto& pipelineOffset) {
-						  PipelineType pipelineType = readBuffer<PipelineType>(pipelineOffset);
-						  switch (pipelineType) {
-							  case PipelineType::Graphics:
-								  createGraphicsPipeline(pipelineOffset, pipelineWriteMutex);
-								  break;
-							  case PipelineType::Compute:
-								  createComputePipeline(pipelineOffset, pipelineWriteMutex);
-								  break;
-						  }
-					  });
+		for (auto& pipelineOffset : pipelineDataOffsets) {
+			PipelineType pipelineType = readBuffer<PipelineType>(pipelineOffset);
+			switch (pipelineType) {
+				case PipelineType::Graphics:
+					createGraphicsPipeline(pipelineOffset);
+					break;
+				case PipelineType::Compute:
+					createComputePipeline(pipelineOffset);
+					break;
+			}
+		}
 	}
 
-	void PipelineLibrary::createGraphicsPipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex) {
+	void PipelineLibrary::createGraphicsPipeline(uint64_t& bufferOffset) {
 		uint32_t shaderCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
 		stageCreateInfos.reserve(shaderCount);
@@ -216,15 +220,15 @@ namespace vanadium::graphics {
 			for (uint32_t i = 0; i < bindingCount; ++i) {
 				instance.bindingDescriptions.push_back(
 					VkVertexInputBindingDescription{ .binding = readBuffer<uint32_t>(offset),
-													 .inputRate = readBuffer<VkVertexInputRate>(offset),
-													 .stride = readBuffer<uint32_t>(offset) });
+													 .stride = readBuffer<uint32_t>(offset),
+													 .inputRate = readBuffer<VkVertexInputRate>(offset) });
 			}
 
 			instance.vertexInputConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-										   .vertexAttributeDescriptionCount = attributeCount,
-										   .pVertexAttributeDescriptions = instance.attribDescriptions.data(),
 										   .vertexBindingDescriptionCount = bindingCount,
-										   .pVertexBindingDescriptions = instance.bindingDescriptions.data() };
+										   .pVertexBindingDescriptions = instance.bindingDescriptions.data(),
+										   .vertexAttributeDescriptionCount = attributeCount,
+										   .pVertexAttributeDescriptions = instance.attribDescriptions.data() };
 
 			instance.inputAssemblyConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 											 .topology = readBuffer<VkPrimitiveTopology>(offset),
@@ -279,28 +283,172 @@ namespace vanadium::graphics {
 			instance.colorBlendConfig.attachmentCount = attachmentCount;
 			instance.colorBlendConfig.pAttachments = instance.colorAttachmentBlendConfigs.data();
 
-			uint32_t specializationMapEntryCount = readBuffer<uint32_t>(offset);
-			instance.mapEntries.reserve(specializationMapEntryCount);
-			for (uint32_t i = 0; i < specializationMapEntryCount; ++i) {
-				instance.mapEntries.push_back({ .constantID = readBuffer<uint32_t>(offset),
-												.offset = readBuffer<uint32_t>(offset),
-												.size = readBuffer<uint32_t>(offset) });
-			}
-			uint32_t specializationDataSize = readBuffer<uint32_t>(offset);
-			assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!\n");
-			instance.specializationData = new char[specializationDataSize];
-			std::memcpy(instance.specializationData,
-						reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
-						specializationDataSize);
+			uint32_t specializationStageCount = readBuffer<uint32_t>(offset);
+			for (uint32_t i = 0; i < specializationStageCount; ++i) {
+				PipelineLibraryStageSpecialization stageSpecialization;
+				stageSpecialization.stage = readBuffer<VkShaderStageFlagBits>(offset);
+				uint32_t specializationMapEntryCount = readBuffer<uint32_t>(offset);
+				stageSpecialization.mapEntries.reserve(specializationMapEntryCount);
+				for (uint32_t i = 0; i < specializationMapEntryCount; ++i) {
+					stageSpecialization.mapEntries.push_back({ .constantID = readBuffer<uint32_t>(offset),
+															   .offset = readBuffer<uint32_t>(offset),
+															   .size = readBuffer<uint32_t>(offset) });
+				}
+				uint32_t specializationDataSize = readBuffer<uint32_t>(offset);
+				assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!\n");
+				stageSpecialization.specializationData = new char[specializationDataSize];
+				std::memcpy(stageSpecialization.specializationData,
+							reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
+							specializationDataSize);
 
-			instance.specializationInfo = { .mapEntryCount = specializationMapEntryCount,
-											.pMapEntries = instance.mapEntries.data(),
-											.dataSize = specializationDataSize,
-											.pData = instance.specializationData };
+				stageSpecialization.specializationInfo = { .mapEntryCount = specializationMapEntryCount,
+														   .pMapEntries = stageSpecialization.mapEntries.data(),
+														   .dataSize = specializationDataSize,
+														   .pData = stageSpecialization.specializationData };
+				instance.stageSpecializations.push_back(std::move(stageSpecialization));
+
+				auto stageIterator = std::find_if(
+					instance.shaderStageCreateInfos.begin(), instance.shaderStageCreateInfos.end(),
+					[&stageSpecialization](const auto& stage) { return stage.stage == stageSpecialization.stage; });
+				stageIterator->pSpecializationInfo = &instance.stageSpecializations.back().specializationInfo;
+			}
+
+			instance.viewportConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+										.viewportCount = 1,
+										.pViewports = &instance.viewport,
+										.scissorCount = 1,
+										.pScissors = &instance.scissorRect };
+
+			instance.dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT };
+
+			instance.dynamicStateConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+											.dynamicStateCount = static_cast<uint32_t>(instance.dynamicStates.size()),
+											.pDynamicStates = instance.dynamicStates.data() };
+
+			instance.pipelineCreateInfo =
+				VkGraphicsPipelineCreateInfo{ .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+											  .stageCount = shaderCount,
+											  .pStages = instance.shaderStageCreateInfos.data(),
+											  .pVertexInputState = &instance.vertexInputConfig,
+											  .pInputAssemblyState = &instance.inputAssemblyConfig,
+											  .pViewportState = &instance.viewportConfig,
+											  .pRasterizationState = &instance.rasterizationConfig,
+											  .pMultisampleState = &instance.multisampleConfig,
+											  .pDepthStencilState = &instance.depthStencilConfig,
+											  .pColorBlendState = &instance.colorBlendConfig,
+											  .pDynamicState = &instance.dynamicStateConfig,
+											  .layout = layout };
+
+			m_graphicsInstanceNames.insert(robin_hood::pair<const std::string, PipelineLibraryGraphicsInstance>(
+				std::move(name), std::move(instance)));
 		}
 	}
 
-	void PipelineLibrary::createComputePipeline(uint64_t& bufferOffset, std::mutex& pipelineWriteMutex) {}
+	void PipelineLibrary::createComputePipeline(uint64_t& bufferOffset) {
+		uint32_t shaderCount = readBuffer<uint32_t>(bufferOffset);
+
+		VkShaderStageFlags stageFlags = readBuffer<uint32_t>(bufferOffset);
+		uint32_t shaderSize = readBuffer<uint32_t>(bufferOffset);
+		assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
+		VkShaderModuleCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+												.codeSize = shaderSize,
+												.pCode = reinterpret_cast<uint32_t*>(
+													reinterpret_cast<uintptr_t>(m_buffer) + bufferOffset) };
+		VkShaderModule shaderModule;
+		verifyResult(vkCreateShaderModule(m_deviceContext->device(), &createInfo, nullptr, &shaderModule));
+
+		bufferOffset = shaderSize;
+
+		VkPipelineShaderStageCreateInfo stageInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+													  .module = shaderModule,
+													  .pName = "main" };
+
+		uint32_t setLayoutCount = readBuffer<uint32_t>(bufferOffset);
+		std::vector<VkDescriptorSetLayout> setLayouts;
+		setLayouts.reserve(setLayoutCount);
+
+		for (uint32_t i = 0; i < setLayoutCount; ++i) {
+			setLayouts.push_back(m_descriptorSetLayouts[readBuffer<uint32_t>(bufferOffset)]);
+		}
+
+		uint32_t pushConstantRangeCount = readBuffer<uint32_t>(bufferOffset);
+		std::vector<VkPushConstantRange> pushConstantRanges;
+		pushConstantRanges.reserve(pushConstantRangeCount);
+
+		for (uint32_t i = 0; i < pushConstantRangeCount; ++i) {
+			pushConstantRanges.push_back({ .stageFlags = readBuffer<VkShaderStageFlags>(bufferOffset),
+										   .offset = readBuffer<uint32_t>(bufferOffset),
+										   .size = readBuffer<uint32_t>(bufferOffset) });
+		}
+
+		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+																.setLayoutCount = setLayoutCount,
+																.pSetLayouts = setLayouts.data(),
+																.pushConstantRangeCount = pushConstantRangeCount,
+																.pPushConstantRanges = pushConstantRanges.data() };
+		VkPipelineLayout layout;
+		verifyResult(vkCreatePipelineLayout(m_deviceContext->device(), &pipelineLayoutCreateInfo, nullptr, &layout));
+
+		uint32_t instanceCount = readBuffer<uint32_t>(bufferOffset);
+		std::vector<uint64_t> instanceOffsets;
+		std::vector<std::string> instanceNames;
+		std::vector<PipelineLibraryGraphicsInstance> instances;
+		instanceOffsets.reserve(instanceCount);
+
+		for (uint32_t i = 0; i < instanceCount; ++i) {
+			instanceOffsets.push_back(readBuffer<uint32_t>(bufferOffset));
+		}
+
+		VkSpecializationInfo specializationInfo;
+		std::vector<VkSpecializationMapEntry> mapEntries;
+		char* specializationData;
+
+		for (auto& offset : instanceOffsets) {
+			PipelineLibraryComputeInstance instance;
+
+			uint32_t nameSize = readBuffer<uint32_t>(offset);
+			std::string name = std::string(nameSize, ' ');
+			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
+			std::memcpy(name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset), nameSize);
+
+			uint32_t specializationStageCount = readBuffer<uint32_t>(offset);
+			for (uint32_t i = 0; i < specializationStageCount; ++i) {
+				assertFatal(readBuffer<VkShaderStageFlagBits>(offset) == VK_SHADER_STAGE_COMPUTE_BIT,
+							"PipelineLibrary: Invalid pipeline library file!\n");
+				uint32_t specializationMapEntryCount = readBuffer<uint32_t>(offset);
+				mapEntries.reserve(specializationMapEntryCount);
+				for (uint32_t i = 0; i < specializationMapEntryCount; ++i) {
+					mapEntries.push_back({ .constantID = readBuffer<uint32_t>(offset),
+										   .offset = readBuffer<uint32_t>(offset),
+										   .size = readBuffer<uint32_t>(offset) });
+				}
+				uint32_t specializationDataSize = readBuffer<uint32_t>(offset);
+				assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!\n");
+				specializationData = new char[specializationDataSize];
+				std::memcpy(specializationData, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
+							specializationDataSize);
+
+				specializationInfo = { .mapEntryCount = specializationMapEntryCount,
+									   .pMapEntries = mapEntries.data(),
+									   .dataSize = specializationDataSize,
+									   .pData = specializationData };
+
+				stageInfo.pSpecializationInfo = &specializationInfo;
+			}
+
+			VkComputePipelineCreateInfo computeCreateInfo = { .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+															  .stage = stageInfo,
+															  .layout = layout };
+			verifyResult(vkCreateComputePipelines(m_deviceContext->device(), VK_NULL_HANDLE, 1, &computeCreateInfo,
+												  nullptr, &instance.pipeline));
+			instance.layout = layout;
+			m_computeInstanceNames.insert(robin_hood::pair<const std::string, PipelineLibraryComputeInstance>(
+				std::move(name), std::move(instance)));
+
+			vkDestroyShaderModule(m_deviceContext->device(), shaderModule, nullptr);
+			delete[] specializationData;
+		}
+	}
 
 	VkStencilOpState PipelineLibrary::readStencilState(uint64_t& offset) {
 		return { .failOp = readBuffer<VkStencilOp>(offset),

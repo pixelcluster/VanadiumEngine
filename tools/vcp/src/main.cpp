@@ -194,8 +194,8 @@ int main(int argc, char** argv) {
 
 		for (auto& binding : set) {
 			outStream.write(reinterpret_cast<char*>(&binding.binding.binding), sizeof(uint32_t));
-			outStream.write(reinterpret_cast<char*>(&binding.binding.descriptorCount), sizeof(uint32_t));
 			outStream.write(reinterpret_cast<char*>(&binding.binding.descriptorType), sizeof(uint32_t));
+			outStream.write(reinterpret_cast<char*>(&binding.binding.descriptorCount), sizeof(uint32_t));
 			outStream.write(reinterpret_cast<char*>(&binding.binding.stageFlags), sizeof(uint32_t));
 			outStream.write(reinterpret_cast<char*>(&binding.usesImmutableSamplers), sizeof(bool));
 			uint32_t immutableSamplerCount = binding.immutableSamplerInfos.size();
