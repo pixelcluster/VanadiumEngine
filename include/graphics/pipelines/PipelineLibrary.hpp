@@ -23,8 +23,7 @@ namespace vanadium::graphics {
 		std::vector<VkPushConstantRange> m_pushConstantRanges;
 	};
 
-	struct PipelineLibraryStageSpecialization
-	{
+	struct PipelineLibraryStageSpecialization {
 		PipelineLibraryStageSpecialization() {}
 		PipelineLibraryStageSpecialization(const PipelineLibraryStageSpecialization& other) = delete;
 		PipelineLibraryStageSpecialization& operator=(const PipelineLibraryStageSpecialization& other) = delete;
@@ -37,8 +36,107 @@ namespace vanadium::graphics {
 		std::vector<VkSpecializationMapEntry> mapEntries;
 		char* specializationData;
 	};
-	
 
+	struct AttachmentPassSignature {
+		bool isUsed;
+		VkFormat format;
+		VkSampleCountFlagBits sampleCount;
+	};
+
+	struct SubpassSignature {
+		std::vector<AttachmentPassSignature> outputAttachments;
+		std::vector<AttachmentPassSignature> inputAttachments;
+		std::vector<AttachmentPassSignature> resolveAttachments;
+		std::vector<AttachmentPassSignature> preserveAttachments;
+	};
+
+	struct RenderPassSignature {
+		std::vector<SubpassSignature> subpassSignatures;
+		std::vector<AttachmentPassSignature> attachmentDescriptionSignatures;
+		std::vector<VkSubpassDependency> subpassDependencies;
+	};
+} // namespace vanadium::graphics
+
+namespace robin_hood {
+	template <std::integral T, std::integral U> constexpr size_t hashCombine(T t, U u) {
+		if (t == 0)
+			return u;
+		if (u == 0)
+			return t;
+		return t ^ (0x517cc1b727220a95 + ((t << 2) ^ (u >> 3)));
+	}
+
+	template <std::integral T, std::integral... Ts> constexpr size_t hashCombine(T t, Ts... ts) {
+		size_t u = hashCombine(ts...);
+		return hashCombine(t, u);
+	}
+
+	template <> struct hash<vanadium::graphics::AttachmentPassSignature> {
+		size_t operator()(const vanadium::graphics::AttachmentPassSignature& object) const {
+			if (!object.isUsed)
+				return 0ULL;
+			return hashCombine(hash<VkFormat>()(object.format), hash<VkSampleCountFlagBits>()(object.sampleCount));
+		}
+	};
+
+	template <> struct hash<std::vector<vanadium::graphics::AttachmentPassSignature>> {
+		size_t operator()(const std::vector<vanadium::graphics::AttachmentPassSignature>& object) const {
+			size_t value = 0;
+			for (const auto& signature : object) {
+				value = hashCombine(value, hash<vanadium::graphics::AttachmentPassSignature>()(signature));
+			}
+			return value;
+		}
+	};
+
+	template <> struct hash<vanadium::graphics::SubpassSignature> {
+		size_t operator()(const vanadium::graphics::SubpassSignature& object) const {
+			return hashCombine(hash<decltype(object.inputAttachments)>()(object.inputAttachments),
+							   hash<decltype(object.outputAttachments)>()(object.outputAttachments),
+							   hash<decltype(object.resolveAttachments)>()(object.resolveAttachments),
+							   hash<decltype(object.preserveAttachments)>()(object.preserveAttachments));
+		}
+
+		size_t operator()(const vanadium::graphics::SubpassSignature& object, bool isSingleSubpass) const {
+			if (isSingleSubpass) {
+				return hashCombine(hash<decltype(object.inputAttachments)>()(object.inputAttachments),
+								   hash<decltype(object.outputAttachments)>()(object.outputAttachments),
+								   hash<decltype(object.preserveAttachments)>()(object.preserveAttachments));
+			} else {
+				return operator()(object);
+			}
+		}
+	};
+
+	template <> struct hash<vanadium::graphics::RenderPassSignature> {
+		size_t operator()(const vanadium::graphics::RenderPassSignature& object) const {
+			size_t subpassHash = 0;
+			if (object.subpassSignatures.size() == 1) {
+				subpassHash = hash<vanadium::graphics::SubpassSignature>()(object.subpassSignatures[0], true);
+			} else {
+				for (const auto& signature : object.subpassSignatures) {
+					subpassHash = hashCombine(subpassHash, hash<vanadium::graphics::SubpassSignature>()(signature));
+				}
+			}
+			size_t descriptionHash = hash<std::vector<vanadium::graphics::AttachmentPassSignature>>()(
+				object.attachmentDescriptionSignatures);
+			size_t dependencyHash = 0;
+			for (auto& dependency : object.subpassDependencies) {
+				dependencyHash =
+					hashCombine(dependencyHash, hash<decltype(dependency.srcAccessMask)>()(dependency.srcAccessMask),
+								hash<decltype(dependency.srcStageMask)>()(dependency.srcStageMask),
+								hash<decltype(dependency.srcSubpass)>()(dependency.srcSubpass),
+								hash<decltype(dependency.dstAccessMask)>()(dependency.dstAccessMask),
+								hash<decltype(dependency.dstStageMask)>()(dependency.dstStageMask),
+								hash<decltype(dependency.dstSubpass)>()(dependency.dstSubpass),
+								hash<decltype(dependency.dependencyFlags)>()(dependency.dependencyFlags));
+			}
+			return hashCombine(subpassHash, descriptionHash, dependencyHash);
+		}
+	};
+} // namespace robin_hood
+
+namespace vanadium::graphics {
 	struct PipelineLibraryGraphicsInstance {
 		PipelineLibraryGraphicsInstance() {}
 		PipelineLibraryGraphicsInstance(const PipelineLibraryGraphicsInstance& other) = delete;
@@ -67,13 +165,11 @@ namespace vanadium::graphics {
 		VkPipelineLayout layout;
 	};
 
-	struct PipelineLibraryComputeInstance
-	{
+	struct PipelineLibraryComputeInstance {
 		uint32_t archetypeID;
 		VkPipeline pipeline;
 		VkPipelineLayout layout;
 	};
-	
 
 	class PipelineLibrary {
 	  public:
