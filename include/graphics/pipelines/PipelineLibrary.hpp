@@ -145,6 +145,7 @@ namespace vanadium::graphics {
 		PipelineLibraryGraphicsInstance& operator=(PipelineLibraryGraphicsInstance&& other) = delete;
 
 		uint32_t archetypeID;
+		std::string name;
 		std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
 		std::vector<PipelineLibraryStageSpecialization> stageSpecializations;
 		std::vector<VkVertexInputAttributeDescription> attribDescriptions;
@@ -163,10 +164,13 @@ namespace vanadium::graphics {
 		VkRect2D scissorRect;
 		VkGraphicsPipelineCreateInfo pipelineCreateInfo;
 		VkPipelineLayout layout;
+
+		robin_hood::unordered_map<RenderPassSignature, VkPipeline> pipelines;
 	};
 
 	struct PipelineLibraryComputeInstance {
 		uint32_t archetypeID;
+		std::string name;
 		VkPipeline pipeline;
 		VkPipelineLayout layout;
 	};
@@ -176,6 +180,17 @@ namespace vanadium::graphics {
 		PipelineLibrary() {}
 
 		void create(const std::string& libraryFileName, DeviceContext* deviceContext);
+
+		void createForPass(const RenderPassSignature& signature, const std::vector<uint32_t>& pipelineIDs);
+
+		// these methods are essentially const but the user can modify state using the pipeline handles
+		VkPipeline graphicsPipeline(uint32_t id, const RenderPassSignature& signature) {
+			return m_graphicsInstances[id].pipelines[signature];
+		}
+		VkPipeline computePipeline(uint32_t id) { return m_computeInstances[id].pipeline; }
+
+		std::string_view graphicsPipelineName(uint32_t id) const { return m_graphicsInstances[id].name; }
+		std::string_view computePipelineName(uint32_t id) const { return m_computeInstances[id].name; }
 
 	  private:
 		DeviceContext* m_deviceContext;
@@ -190,8 +205,8 @@ namespace vanadium::graphics {
 		void createComputePipeline(uint64_t& bufferOffset);
 
 		std::vector<PipelineLibraryArchetype> m_archetypes;
-		robin_hood::unordered_map<std::string, PipelineLibraryGraphicsInstance> m_graphicsInstanceNames;
-		robin_hood::unordered_map<std::string, PipelineLibraryComputeInstance> m_computeInstanceNames;
+		std::vector<PipelineLibraryGraphicsInstance> m_graphicsInstances;
+		std::vector<PipelineLibraryComputeInstance> m_computeInstances;
 
 		std::vector<VkDescriptorSetLayout> m_descriptorSetLayouts;
 		std::vector<VkSampler> m_immutableSamplers;

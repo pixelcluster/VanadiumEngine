@@ -139,6 +139,19 @@ namespace vanadium::graphics {
 		}
 	}
 
+	void PipelineLibrary::createForPass(const RenderPassSignature& signature,
+										const std::vector<uint32_t>& pipelineIDs) {
+		std::for_each(std::execution::par_unseq, pipelineIDs.begin(), pipelineIDs.end(),
+					  [this, &signature](const auto& id) {
+						  VkPipeline pipeline;
+						  verifyResult(vkCreateGraphicsPipelines(m_deviceContext->device(), VK_NULL_HANDLE, 1,
+																 &m_graphicsInstances[id].pipelineCreateInfo, nullptr,
+																 &pipeline));
+						  m_graphicsInstances[id].pipelines.insert(
+							  robin_hood::pair<const RenderPassSignature, VkPipeline>(signature, pipeline));
+					  });
+	}
+
 	void PipelineLibrary::createGraphicsPipeline(uint64_t& bufferOffset) {
 		uint32_t shaderCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
@@ -205,6 +218,8 @@ namespace vanadium::graphics {
 			std::string name = std::string(nameSize, ' ');
 			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
 			std::memcpy(name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset), nameSize);
+
+			instance.name = std::move(name);
 
 			uint32_t attributeCount = readBuffer<uint32_t>(offset);
 			instance.attribDescriptions.reserve(attributeCount);
@@ -339,8 +354,7 @@ namespace vanadium::graphics {
 											  .pDynamicState = &instance.dynamicStateConfig,
 											  .layout = layout };
 
-			m_graphicsInstanceNames.insert(robin_hood::pair<const std::string, PipelineLibraryGraphicsInstance>(
-				std::move(name), std::move(instance)));
+			m_graphicsInstances.push_back(std::move(instance));
 		}
 	}
 
@@ -442,8 +456,7 @@ namespace vanadium::graphics {
 			verifyResult(vkCreateComputePipelines(m_deviceContext->device(), VK_NULL_HANDLE, 1, &computeCreateInfo,
 												  nullptr, &instance.pipeline));
 			instance.layout = layout;
-			m_computeInstanceNames.insert(robin_hood::pair<const std::string, PipelineLibraryComputeInstance>(
-				std::move(name), std::move(instance)));
+			m_computeInstances.push_back(std::move(instance));
 
 			vkDestroyShaderModule(m_deviceContext->device(), shaderModule, nullptr);
 			delete[] specializationData;
