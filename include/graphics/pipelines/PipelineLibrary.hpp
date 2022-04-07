@@ -13,7 +13,7 @@ namespace vanadium::graphics {
 
 	struct DescriptorSetLayoutInfo {
 		VkDescriptorSetLayout layout;
-		std::vector<DescriptorBindingLayoutInfo> bindingInfos;
+		std::vector<VkDescriptorSetLayoutBinding> bindingInfos;
 	};
 
 	struct PipelineLibraryArchetype {
@@ -208,7 +208,7 @@ namespace vanadium::graphics {
 		std::vector<PipelineLibraryGraphicsInstance> m_graphicsInstances;
 		std::vector<PipelineLibraryComputeInstance> m_computeInstances;
 
-		std::vector<VkDescriptorSetLayout> m_descriptorSetLayouts;
+		std::vector<DescriptorSetLayoutInfo> m_descriptorSetLayouts;
 		std::vector<VkSampler> m_immutableSamplers;
 	};
 

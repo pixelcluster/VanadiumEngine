@@ -7,6 +7,7 @@ namespace vanadium {
 	template <uint32_t n, std::floating_point T> struct Vector;
 
 	template <std::floating_point T> struct Vector<2, T> {
+		Vector() {}
 		Vector(T _x, T _y) : x(_x), y(_y) {}
 
 		union {
@@ -23,6 +24,7 @@ namespace vanadium {
 	};
 
 	template <std::floating_point T> struct Vector<3, T> {
+		Vector() {}
 		Vector(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {}
 		Vector(Vector<2, T> xy, T _z) : x(xy.x), y(xy.y), z(_z) {}
 		Vector(T _x, Vector<2, T> yz) : x(x), y(yz.x), z(yz.y) {}
@@ -47,6 +49,7 @@ namespace vanadium {
 	};
 
 	template <std::floating_point T> struct Vector<4, T> {
+		Vector() {}
 		Vector(T _x, T _y, T _z, T _w) : x(_x), y(_y), z(_z), w(_w) {}
 		Vector(Vector<2, T> xy, Vector<2, T> zw) : x(xy.x), y(xy.y), z(zw.x), w(zw.y) {}
 		Vector(T _x, Vector<3, T> yzw) : x(x), y(yzw.x), z(yzw.y), w(yzw.z) {}

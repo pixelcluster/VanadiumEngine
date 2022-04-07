@@ -115,7 +115,10 @@ namespace vanadium::graphics {
 														   .pBindings = bindings.data() };
 			VkDescriptorSetLayout layout;
 			verifyResult(vkCreateDescriptorSetLayout(m_deviceContext->device(), &createInfo, nullptr, &layout));
-			m_descriptorSetLayouts.push_back(layout);
+			m_descriptorSetLayouts.push_back( {
+				.layout = layout, 
+				.bindingInfos = std::move(bindings)
+			});
 		}
 
 		headerReadOffset = setLayoutOffsets.back();
@@ -180,7 +183,7 @@ namespace vanadium::graphics {
 		setLayouts.reserve(setLayoutCount);
 
 		for (uint32_t i = 0; i < setLayoutCount; ++i) {
-			setLayouts.push_back(m_descriptorSetLayouts[readBuffer<uint32_t>(bufferOffset)]);
+			setLayouts.push_back(m_descriptorSetLayouts[readBuffer<uint32_t>(bufferOffset)].layout);
 		}
 
 		uint32_t pushConstantRangeCount = readBuffer<uint32_t>(bufferOffset);
@@ -382,7 +385,7 @@ namespace vanadium::graphics {
 		setLayouts.reserve(setLayoutCount);
 
 		for (uint32_t i = 0; i < setLayoutCount; ++i) {
-			setLayouts.push_back(m_descriptorSetLayouts[readBuffer<uint32_t>(bufferOffset)]);
+			setLayouts.push_back(m_descriptorSetLayouts[readBuffer<uint32_t>(bufferOffset)].layout);
 		}
 
 		uint32_t pushConstantRangeCount = readBuffer<uint32_t>(bufferOffset);
