@@ -9,6 +9,7 @@ namespace vanadium::graphics {
 	void GPUResourceAllocator::create(DeviceContext* gpuContext) {
 		m_bufferFreeList.resize(frameInFlightCount);
 		m_imageFreeList.resize(frameInFlightCount);
+		m_blockFreeList.resize(frameInFlightCount);
 
 		if (gpuContext->deviceCapabilities().memoryBudget) {
 			VkPhysicalDeviceMemoryProperties2KHR memoryProperties2 = {
@@ -630,7 +631,7 @@ namespace vanadium::graphics {
 		for (auto& block : m_memoryTypes[typeIndex].blocks) {
 			if (block.maxAllocatableSize >= size &&
 				(!createMapped || !block.capabilities.hostVisible || block.mappedPointer != nullptr)) {
-				auto result = allocateInBlock(typeIndex, m_memoryTypes[typeIndex].blocks.handle(blockIterator), block,
+				auto result = allocateInBlock(m_memoryTypes[typeIndex].blocks.handle(blockIterator), block,
 											  alignment, size, createMapped);
 				if (result.has_value())
 					return result;
@@ -642,7 +643,7 @@ namespace vanadium::graphics {
 				return std::nullopt;
 			}
 			auto blockHandle = m_memoryTypes[typeIndex].blocks.handle(--m_memoryTypes[typeIndex].blocks.end());
-			return allocateInBlock(typeIndex, blockHandle, *(--m_memoryTypes[typeIndex].blocks.end()), alignment, size,
+			return allocateInBlock(blockHandle, *(--m_memoryTypes[typeIndex].blocks.end()), alignment, size,
 								   createMapped);
 		}
 		return std::nullopt;
@@ -653,7 +654,7 @@ namespace vanadium::graphics {
 		auto blockIterator = m_memoryTypes[typeIndex].imageBlocks.begin();
 		for (auto& block : m_memoryTypes[typeIndex].imageBlocks) {
 			if (block.maxAllocatableSize >= size) {
-				auto result = allocateInBlock(typeIndex, m_memoryTypes[typeIndex].imageBlocks.handle(blockIterator),
+				auto result = allocateInBlock(m_memoryTypes[typeIndex].imageBlocks.handle(blockIterator),
 											  block, alignment, size, false);
 				if (result.has_value())
 					return result;
@@ -666,13 +667,13 @@ namespace vanadium::graphics {
 			}
 			auto blockHandle =
 				m_memoryTypes[typeIndex].imageBlocks.handle(--m_memoryTypes[typeIndex].imageBlocks.end());
-			return allocateInBlock(typeIndex, blockHandle, *(--m_memoryTypes[typeIndex].imageBlocks.end()), alignment,
+			return allocateInBlock(blockHandle, *(--m_memoryTypes[typeIndex].imageBlocks.end()), alignment,
 								   size, false);
 		}
 		return std::nullopt;
 	}
 
-	std::optional<AllocationResult> GPUResourceAllocator::allocateInBlock(uint32_t typeIndex, BlockHandle blockHandle,
+	std::optional<AllocationResult> GPUResourceAllocator::allocateInBlock(BlockHandle blockHandle,
 																		  MemoryBlock& block, VkDeviceSize alignment,
 																		  VkDeviceSize size, bool createMapped) {
 		auto result = allocateFromRanges(block.freeBlocksOffsetSorted, block.freeBlocksSizeSorted, alignment, size);

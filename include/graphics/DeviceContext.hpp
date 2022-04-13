@@ -18,7 +18,6 @@ namespace vanadium::graphics {
 		DeviceContext(const std::string_view& appName, uint32_t appVersion, WindowSurface& windowSurface);
 		DeviceContext(const DeviceContext&) = delete;
 		DeviceContext(DeviceContext&&) = delete;
-		~DeviceContext();
 
 		VkInstance instance() { return m_instance; }
 		VkPhysicalDevice physicalDevice() { return m_physicalDevice; }
@@ -34,6 +33,8 @@ namespace vanadium::graphics {
 		const VkPhysicalDeviceProperties& properties() const { return m_properties; }
 
 		const VkFence& frameCompletionFence(uint32_t frameIndex) { return m_frameCompletionFences[frameIndex]; }
+
+		void destroy();
 
 	  private:
 		VkInstance m_instance;

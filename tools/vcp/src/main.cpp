@@ -18,7 +18,6 @@
 struct Options {
 	std::string outFile;
 	std::vector<std::string> fileNames;
-	std::string projectDir;
 	std::string compilerCommand = "glslc";
 	std::vector<std::string> additionalCommandArgs;
 };
@@ -35,14 +34,7 @@ bool checkOption(int argc, char** argv, size_t index, const std::string_view& ar
 }
 
 size_t parseOption(int argc, char** argv, size_t index, Options& options) {
-	if (argv[index] == std::string_view("--working-dir")) {
-		if (checkOption(argc, argv, index, "--working-dir")) {
-			options.projectDir = argv[index + 1];
-			if (options.projectDir.back() != '/')
-				options.projectDir.push_back('/');
-			return index + 1;
-		}
-	} else if (argv[index] == std::string_view("--compiler-command")) {
+	if (argv[index] == std::string_view("--compiler-command")) {
 		if (checkOption(argc, argv, index, "--compiler-command")) {
 			options.compilerCommand = argv[index + 1];
 			return index + 1;
@@ -91,10 +83,8 @@ int main(int argc, char** argv) {
 		std::cout << "Error: No output file specified." << std::endl;
 		return EXIT_FAILURE;
 	}
-	if (!options.projectDir.empty())
-		current_path(options.projectDir);
 
-	path tempDirPath = path(options.projectDir + "/temp");
+	path tempDirPath = path("./temp");
 	std::error_code error;
 	if (!create_directory(tempDirPath, error)) {
 		std::cout << "Error: Could not create temporary shader output directory inside the project directory."
@@ -115,10 +105,22 @@ int main(int argc, char** argv) {
 	outStream.write(reinterpret_cast<char*>(&pipelineCount), sizeof(uint32_t));
 
 	auto records = std::vector<PipelineRecord>();
+	std::vector<path> localRecordPaths;
 	std::vector<std::vector<DescriptorBindingLayoutInfo>> setLayoutInfos;
+
+	records.reserve(options.fileNames.size());
+	localRecordPaths.reserve(options.fileNames.size());
 
 	size_t recordIndex = 0;
 	for (auto& name : options.fileNames) {
+		path localRecordPath = tempDirPath;
+		if (!create_directory(localRecordPath.append(std::to_string(recordIndex)))) {
+			std::cout << "Error: Could not create temporary shader output directory inside the project directory."
+					  << std::endl;
+			remove_all(tempDirPath);
+			return EXIT_FAILURE;
+		}
+
 		path filePath = absolute(name);
 		size_t fileSize;
 		char* data = reinterpret_cast<char*>(readFile(name.c_str(), &fileSize));
@@ -152,8 +154,9 @@ int main(int argc, char** argv) {
 			return EXIT_FAILURE;
 		}
 
-		records.push_back({ .archetypeRecord = PipelineArchetypeRecord(filePath.string(), options.projectDir,
-																	   setLayoutInfos, rootValue["archetype"]) });
+		records.push_back(
+			{ .archetypeRecord = PipelineArchetypeRecord(filePath.string(), filePath.parent_path().c_str(),
+														 setLayoutInfos, rootValue["archetype"]) });
 		if (!records[recordIndex].archetypeRecord.isValid()) {
 			outStream.close();
 			remove(options.outFile);
@@ -161,7 +164,7 @@ int main(int argc, char** argv) {
 			return EXIT_FAILURE;
 		}
 
-		records[recordIndex].archetypeRecord.compileShaders(tempDirPath.string(), options.compilerCommand,
+		records[recordIndex].archetypeRecord.compileShaders(localRecordPath.string(), options.compilerCommand,
 															options.additionalCommandArgs);
 
 		std::vector<PipelineInstanceRecord> instanceRecords;
@@ -171,6 +174,7 @@ int main(int argc, char** argv) {
 				PipelineInstanceRecord(records[recordIndex].archetypeRecord.type(), filePath.string(), instance));
 		}
 		records[recordIndex].instanceRecords = std::move(instanceRecords);
+		localRecordPaths.push_back(localRecordPath);
 		++recordIndex;
 	}
 
@@ -183,9 +187,9 @@ int main(int argc, char** argv) {
 		uint64_t bindingSize = 0;
 		for (auto& binding : set) {
 			uint64_t samplerInfoSize = 8ULL * sizeof(uint32_t) + 4ULL * sizeof(float) + 3ULL * sizeof(bool);
-			bindingSize += 4 * sizeof(uint32_t) + sizeof(bool) + binding.immutableSamplerInfos.size() * samplerInfoSize;
+			bindingSize += 5 * sizeof(uint32_t) + sizeof(bool) + binding.immutableSamplerInfos.size() * samplerInfoSize;
 		}
-		currentFileOffset += sizeof(uint32_t) + bindingCount * bindingSize;
+		currentFileOffset += sizeof(uint32_t) + bindingSize;
 	}
 
 	for (auto& set : setLayoutInfos) {
@@ -225,7 +229,7 @@ int main(int argc, char** argv) {
 	currentFileOffset += sizeof(uint64_t) * options.fileNames.size();
 	for (auto& record : records) {
 		path filePath = absolute(options.fileNames[fileNameIndex]);
-		auto shaders = record.archetypeRecord.retrieveCompileResults(filePath.string(), tempDirPath.string());
+		auto shaders = record.archetypeRecord.retrieveCompileResults(filePath.string(), localRecordPaths[fileNameIndex].string());
 
 		outStream.write(reinterpret_cast<char*>(&currentFileOffset), sizeof(uint64_t));
 		record.totalRecordSize = 0;
@@ -266,7 +270,8 @@ int main(int argc, char** argv) {
 		nextData = offsetVoidPtr(nextData, record.archetypeRecord.serializedSize());
 
 		uint32_t instanceCount = record.instanceRecords.size();
-		std::memcpy(nextData,  &instanceCount, sizeof(uint32_t));
+		std::memcpy(nextData, &instanceCount, sizeof(uint32_t));
+		nextData = offsetVoidPtr(nextData, sizeof(uint32_t));
 		for (auto& instance : record.instanceRecords) {
 			std::memcpy(nextData, &record.instanceOffset, sizeof(uint32_t));
 			nextData = offsetVoidPtr(nextData, sizeof(uint32_t));

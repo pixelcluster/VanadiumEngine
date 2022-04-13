@@ -119,8 +119,6 @@ namespace vanadium::graphics {
 		GPUResourceAllocator() {}
 		GPUResourceAllocator(const GPUResourceAllocator&) = delete;
 		GPUResourceAllocator& operator=(const GPUResourceAllocator&) = delete;
-		GPUResourceAllocator(GPUResourceAllocator&&) = default;
-		GPUResourceAllocator& operator=(GPUResourceAllocator&&) = default;
 
 		void create(DeviceContext* gpuContext);
 
@@ -181,8 +179,6 @@ namespace vanadium::graphics {
 		std::optional<AllocationResult> allocate(uint32_t typeIndex, VkDeviceSize alignment, VkDeviceSize size,
 												 bool createMapped);
 		std::optional<AllocationResult> allocateImage(uint32_t typeIndex, VkDeviceSize alignment, VkDeviceSize size);
-		std::optional<AllocationResult> allocateInBlock(uint32_t typeIndex, BlockHandle blockHandle, MemoryBlock& block,
-														VkDeviceSize alignment, VkDeviceSize size, bool createMapped);
 		std::optional<AllocationResult> allocateInBlock(BlockHandle blockHandle, MemoryBlock& block,
 														VkDeviceSize alignment, VkDeviceSize size, bool createMapped);
 		void freeInBlock(MemoryBlock& block, VkDeviceSize offset, VkDeviceSize size);

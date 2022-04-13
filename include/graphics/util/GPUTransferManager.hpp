@@ -95,6 +95,8 @@ namespace vanadium::graphics {
 		GPUTransferHandle createTransfer(VkDeviceSize transferBufferSize, VkBufferUsageFlags usageFlags,
 										 VkPipelineStageFlags usageStageFlags, VkAccessFlags usageAccessFlags);
 
+		void destroyTransfer(GPUTransferHandle handle);
+
 		AsyncBufferTransferHandle createAsyncBufferTransfer(void* data, size_t size, BufferResourceHandle dstBuffer,
 															size_t offset, VkPipelineStageFlags usageStageFlags,
 															VkAccessFlags usageAccessFlags);

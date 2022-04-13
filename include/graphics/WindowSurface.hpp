@@ -8,7 +8,6 @@ namespace vanadium::graphics {
 	class WindowSurface {
 	  public:
 		WindowSurface(windowing::WindowInterface& interface);
-		~WindowSurface();
 
 		void create(VkInstance instance, size_t frameInFlightCount);
 

@@ -40,14 +40,14 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				return;
 			} else {
 				m_files.push_back(
-					{ .stage = VK_SHADER_STAGE_VERTEX_BIT, .path = projectDir + archetypeRoot["vert"].asCString() });
+					{ .stage = VK_SHADER_STAGE_VERTEX_BIT, .path = projectDir + "/" + archetypeRoot["vert"].asCString() });
 			}
 			if (!archetypeRoot["frag"].isString()) {
 				std::cout << srcPath << ": Error: Vertex shader node has invalid type." << std::endl;
 				return;
 			} else {
 				m_files.push_back(
-					{ .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .path = projectDir + archetypeRoot["frag"].asCString() });
+					{ .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .path = projectDir + "/" + archetypeRoot["frag"].asCString() });
 			}
 			break;
 		case PipelineType::Compute:
@@ -57,7 +57,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				return;
 			} else {
 				m_files.push_back(
-					{ .stage = VK_SHADER_STAGE_COMPUTE_BIT, .path = projectDir + archetypeRoot["comp"].asCString() });
+					{ .stage = VK_SHADER_STAGE_COMPUTE_BIT, .path = projectDir + "/" + archetypeRoot["comp"].asCString() });
 			}
 			break;
 	}

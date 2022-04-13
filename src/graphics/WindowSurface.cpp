@@ -168,4 +168,15 @@ namespace vanadium::graphics {
 				break;
 		}
 	}
+
+	void WindowSurface::destroy(VkDevice device, VkInstance instance) {
+		for(auto& semaphore : m_acquireSemaphores) {
+			vkDestroySemaphore(device, semaphore, nullptr);
+		}
+		for(auto& semaphore : m_presentSemaphores) {
+			vkDestroySemaphore(device, semaphore, nullptr);
+		}
+		vkDestroySwapchainKHR(device, m_swapchain, nullptr);
+		vkDestroySurfaceKHR(instance, m_surface, nullptr);
+	}
 } // namespace vanadium::graphics

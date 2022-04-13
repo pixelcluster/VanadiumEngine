@@ -7,6 +7,7 @@
 PipelineInstanceRecord::PipelineInstanceRecord(PipelineType type, const std::string_view& srcPath,
 											   const Json::Value& instanceNode)
 	: m_type(type) {
+	m_name = asStringOr(instanceNode, "name", "");
 	if (type == PipelineType::Graphics) {
 		deserializeVertexInput(srcPath, instanceNode["vertex-input"]);
 		deserializeInputAssembly(srcPath, instanceNode["input-assembly"]);
@@ -52,7 +53,7 @@ void PipelineInstanceRecord::verifyVertexShader(const std::string_view& srcPath,
 		auto varIterator =
 			std::find_if(m_instanceVertexInputConfig.attributes.begin(), m_instanceVertexInputConfig.attributes.end(),
 						 [variable](const auto& attrib) { return attrib.location == variable->location; });
-		if (varIterator == m_instanceVertexInputConfig.attributes.end()) {
+		if (varIterator == m_instanceVertexInputConfig.attributes.end() && variable->location != ~0U) {
 			std::cout << srcPath << ": Error: Unbound vertex attribute at location " << variable->location << ".\n";
 			m_isValid = false;
 		}
@@ -505,6 +506,10 @@ VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::stri
 																 const Json::Value& config) {
 	VkStencilOp failOp, passOp, depthFailOp;
 	VkCompareOp compareOp;
+
+	if(config.type() == Json::nullValue) {
+		return VkStencilOpState {};
+	}
 
 	if (config.type() != Json::objectValue) {
 		std::cout << srcPath << ": Error: Invalid stencil state structure value.\n";

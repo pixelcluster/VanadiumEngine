@@ -54,6 +54,20 @@ namespace vanadium::graphics {
 		return m_continuousTransfers.addElement(transfers);
 	}
 
+	void GPUTransferManager::destroyTransfer(GPUTransferHandle handle) {
+		for (auto& transfer : m_continuousTransfers[handle]) {
+			if (transfer.needsStagingBuffer) {
+				auto bufferHandle = transfer.stagingBuffer.bufferHandle;
+				auto& allocationRange = transfer.stagingBuffer.allocationResult.allocationRange;
+				freeToRanges(m_stagingBuffers[bufferHandle].freeRangesOffsetSorted,
+							 m_stagingBuffers[bufferHandle].freeRangesSizeSorted, allocationRange.offset,
+							 allocationRange.size);
+			}
+		}
+		m_resourceAllocator->destroyBuffer(m_continuousTransfers[handle].back().dstBuffer);
+		m_continuousTransfers.removeElement(handle);
+	}
+
 	AsyncBufferTransferHandle GPUTransferManager::createAsyncBufferTransfer(void* data, size_t size,
 																			BufferResourceHandle dstBuffer,
 																			size_t offset,
@@ -495,11 +509,15 @@ namespace vanadium::graphics {
 	}
 
 	StagingBufferAllocation GPUTransferManager::allocateStagingBufferArea(VkDeviceSize size) {
-		for (auto& block : m_stagingBuffers) {
+		for (auto iterator = m_stagingBuffers.begin(); iterator != m_stagingBuffers.end(); ++iterator) {
+			auto& block = *iterator;
 			bool isCoherent = m_resourceAllocator->bufferMemoryCapabilities(block.buffer).hostCoherent;
 			auto allocResult =
 				allocateFromRanges(block.freeRangesOffsetSorted, block.freeRangesSizeSorted,
 								   isCoherent ? 0 : m_context->properties().limits.nonCoherentAtomSize, size);
+			if (allocResult.has_value()) {
+				return { .bufferHandle = m_stagingBuffers.handle(iterator), .allocationResult = allocResult.value() };
+			}
 		}
 
 		VkBufferCreateInfo newBufferCreateInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -585,12 +603,22 @@ namespace vanadium::graphics {
 	void GPUTransferManager::finalizeAsyncBufferTransfer(AsyncBufferTransferHandle handle) {
 		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
 		m_bufferFinalizationBarriers.push_back(m_asyncBufferTransfers[handle].acquireBarrier);
+
+		auto bufferHandle = m_asyncBufferTransfers[handle].stagingBufferAllocation.bufferHandle;
+		auto& allocationRange = m_asyncBufferTransfers[handle].stagingBufferAllocation.allocationResult.allocationRange;
+		freeToRanges(m_stagingBuffers[bufferHandle].freeRangesOffsetSorted,
+					 m_stagingBuffers[bufferHandle].freeRangesSizeSorted, allocationRange.offset, allocationRange.size);
 		m_asyncBufferTransfers.removeElement(handle);
 	}
 
 	void GPUTransferManager::finalizeAsyncImageTransfer(AsyncImageTransferHandle handle) {
 		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
 		m_imageFinalizationBarriers.push_back(m_asyncImageTransfers[handle].acquireBarrier);
+
+		auto bufferHandle = m_asyncImageTransfers[handle].stagingBufferAllocation.bufferHandle;
+		auto& allocationRange = m_asyncImageTransfers[handle].stagingBufferAllocation.allocationResult.allocationRange;
+		freeToRanges(m_stagingBuffers[bufferHandle].freeRangesOffsetSorted,
+					 m_stagingBuffers[bufferHandle].freeRangesSizeSorted, allocationRange.offset, allocationRange.size);
 		m_asyncImageTransfers.removeElement(handle);
 	}
 } // namespace vanadium::graphics

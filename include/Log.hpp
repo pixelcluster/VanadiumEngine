@@ -26,7 +26,7 @@ namespace vanadium {
         std::exit(exitCode);
     }
 
-    void assertFatal(bool value, const char* message) {
+    inline void assertFatal(bool value, const char* message) {
         if(!value) {
             logFatal(message);
         }

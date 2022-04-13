@@ -1,5 +1,5 @@
 #include <Debug.hpp>
-#include <graphics/framegraph/RenderTargetSurface.hpp>
+#include <graphics/RenderTargetSurface.hpp>
 #include <graphics/helper/DebugHelper.hpp>
 #include <volk.h>
 
@@ -58,7 +58,7 @@ namespace vanadium::graphics {
 												 .components = info.components,
 												 .subresourceRange = info.subresourceRange };
 			vkCreateImageView(m_context->device(), &createInfo, nullptr, &view);
-            m_imageViews[i].insert(robin_hood::pair<const ImageResourceViewInfo, VkImageView>(info, view));
+			m_imageViews[i].insert(robin_hood::pair<const ImageResourceViewInfo, VkImageView>(info, view));
 		}
 	}
 

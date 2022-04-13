@@ -1,5 +1,6 @@
 #include <execution>
 #include <fstream>
+#include <graphics/helper/DebugHelper.hpp>
 #include <graphics/helper/ErrorHelper.hpp>
 #include <graphics/pipelines/PipelineLibrary.hpp>
 #include <helper/WholeFileReader.hpp>
@@ -25,8 +26,7 @@ namespace vanadium::graphics {
 		  viewportConfig(std::forward<decltype(viewportConfig)>(other.viewportConfig)),
 		  viewport(std::forward<decltype(viewport)>(other.viewport)),
 		  scissorRect(std::forward<decltype(scissorRect)>(other.scissorRect)),
-		  pipelineCreateInfo(std::forward<decltype(pipelineCreateInfo)>(other.pipelineCreateInfo)),
-		  layout(std::forward<decltype(layout)>(other.layout)) {
+		  pipelineCreateInfo(std::forward<decltype(pipelineCreateInfo)>(other.pipelineCreateInfo)) {
 		vertexInputConfig.pVertexAttributeDescriptions = attribDescriptions.data();
 		vertexInputConfig.pVertexBindingDescriptions = bindingDescriptions.data();
 		colorBlendConfig.pAttachments = colorAttachmentBlendConfigs.data();
@@ -53,11 +53,11 @@ namespace vanadium::graphics {
 		}
 	}
 
-	void PipelineLibrary::create(const std::string& libraryFileName, DeviceContext* context) {
+	void PipelineLibrary::create(const std::string_view& libraryFileName, DeviceContext* context) {
 		m_deviceContext = context;
 
-		m_buffer = readFile(libraryFileName.c_str(), &m_fileSize);
-		assertFatal(m_fileSize > 0, "PipelineLibrary: Invalid pipeline library file!\n");
+		m_buffer = readFile(libraryFileName.data(), &m_fileSize);
+		assertFatal(m_fileSize > 0, "PipelineLibrary: Could not open pipeline file!\n");
 		uint64_t headerReadOffset;
 		uint32_t version = readBuffer<uint32_t>(headerReadOffset);
 
@@ -82,8 +82,9 @@ namespace vanadium::graphics {
 														 .descriptorType = readBuffer<VkDescriptorType>(offset),
 														 .descriptorCount = readBuffer<uint32_t>(offset),
 														 .stageFlags = readBuffer<VkShaderStageFlags>(offset) };
+				bool usesImmutableSamplers = readBuffer<bool>(offset);
 				uint32_t immutableSamplerCount = readBuffer<uint32_t>(offset);
-				if (immutableSamplerCount > 0) {
+				if (usesImmutableSamplers) {
 					for (uint32_t j = 0; j < immutableSamplerCount; ++j) {
 						VkSamplerCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 														   .magFilter = readBuffer<VkFilter>(offset),
@@ -108,6 +109,7 @@ namespace vanadium::graphics {
 					binding.pImmutableSamplers =
 						m_immutableSamplers.data() + m_immutableSamplers.size() - immutableSamplerCount;
 				}
+				bindings.push_back(binding);
 			}
 
 			VkDescriptorSetLayoutCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -115,10 +117,7 @@ namespace vanadium::graphics {
 														   .pBindings = bindings.data() };
 			VkDescriptorSetLayout layout;
 			verifyResult(vkCreateDescriptorSetLayout(m_deviceContext->device(), &createInfo, nullptr, &layout));
-			m_descriptorSetLayouts.push_back( {
-				.layout = layout, 
-				.bindingInfos = std::move(bindings)
-			});
+			m_descriptorSetLayouts.push_back({ .layout = layout, .bindingInfos = std::move(bindings) });
 		}
 
 		headerReadOffset = setLayoutOffsets.back();
@@ -140,25 +139,37 @@ namespace vanadium::graphics {
 					break;
 			}
 		}
+		delete[] reinterpret_cast<char*>(m_buffer);
 	}
 
-	void PipelineLibrary::createForPass(const RenderPassSignature& signature,
+	void PipelineLibrary::createForPass(const RenderPassSignature& signature, VkRenderPass pass,
 										const std::vector<uint32_t>& pipelineIDs) {
 		std::for_each(std::execution::par_unseq, pipelineIDs.begin(), pipelineIDs.end(),
-					  [this, &signature](const auto& id) {
+					  [this, &signature, pass](const auto& id) {
+						  m_graphicsInstances[id].pipelineCreateInfo.renderPass = pass;
 						  VkPipeline pipeline;
 						  verifyResult(vkCreateGraphicsPipelines(m_deviceContext->device(), VK_NULL_HANDLE, 1,
 																 &m_graphicsInstances[id].pipelineCreateInfo, nullptr,
 																 &pipeline));
+
+						  if constexpr (vanadiumGPUDebug) {
+							  setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE, pipeline,
+											m_graphicsInstances[id].name + " (Signature hash " +
+												std::to_string(robin_hood::hash<RenderPassSignature>()(signature)) +
+												")");
+						  }
 						  m_graphicsInstances[id].pipelines.insert(
 							  robin_hood::pair<const RenderPassSignature, VkPipeline>(signature, pipeline));
+						  m_graphicsInstances[id].pipelineCreateInfo.renderPass = VK_NULL_HANDLE;
 					  });
 	}
 
 	void PipelineLibrary::createGraphicsPipeline(uint64_t& bufferOffset) {
 		uint32_t shaderCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
+		std::vector<VkShaderModule> shaderModules;
 		stageCreateInfos.reserve(shaderCount);
+		shaderModules.reserve(shaderCount);
 
 		for (uint32_t i = 0; i < shaderCount; ++i) {
 			VkShaderStageFlags stageFlags = readBuffer<uint32_t>(bufferOffset);
@@ -171,8 +182,9 @@ namespace vanadium::graphics {
 			VkShaderModule shaderModule;
 			verifyResult(vkCreateShaderModule(m_deviceContext->device(), &createInfo, nullptr, &shaderModule));
 
-			bufferOffset = shaderSize;
+			bufferOffset += shaderSize;
 
+			shaderModules.push_back(shaderModule);
 			stageCreateInfos.push_back({ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 										 .module = shaderModule,
 										 .pName = "main" });
@@ -180,10 +192,13 @@ namespace vanadium::graphics {
 
 		uint32_t setLayoutCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<VkDescriptorSetLayout> setLayouts;
+		std::vector<uint32_t> setLayoutIndices;
 		setLayouts.reserve(setLayoutCount);
+		setLayoutIndices.reserve(setLayoutCount);
 
 		for (uint32_t i = 0; i < setLayoutCount; ++i) {
-			setLayouts.push_back(m_descriptorSetLayouts[readBuffer<uint32_t>(bufferOffset)].layout);
+			setLayoutIndices.push_back(readBuffer<uint32_t>(bufferOffset));
+			setLayouts.push_back(m_descriptorSetLayouts[setLayoutIndices.back()].layout);
 		}
 
 		uint32_t pushConstantRangeCount = readBuffer<uint32_t>(bufferOffset);
@@ -204,6 +219,11 @@ namespace vanadium::graphics {
 		VkPipelineLayout layout;
 		verifyResult(vkCreatePipelineLayout(m_deviceContext->device(), &pipelineLayoutCreateInfo, nullptr, &layout));
 
+		m_archetypes.push_back({ .type = PipelineType::Graphics,
+								 .shaderModules = std::move(shaderModules),
+								 .setLayoutIndices = std::move(setLayoutIndices),
+								 .pushConstantRanges = std::move(pushConstantRanges) });
+
 		uint32_t instanceCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<uint64_t> instanceOffsets;
 		std::vector<std::string> instanceNames;
@@ -216,11 +236,13 @@ namespace vanadium::graphics {
 
 		for (auto& offset : instanceOffsets) {
 			PipelineLibraryGraphicsInstance instance;
+			instance.archetypeID = m_archetypes.size() - 1ULL;
 
 			uint32_t nameSize = readBuffer<uint32_t>(offset);
 			std::string name = std::string(nameSize, ' ');
 			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
 			std::memcpy(name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset), nameSize);
+			offset += nameSize;
 
 			instance.name = std::move(name);
 
@@ -357,6 +379,11 @@ namespace vanadium::graphics {
 											  .pDynamicState = &instance.dynamicStateConfig,
 											  .layout = layout };
 
+			if constexpr (vanadiumGPUDebug) {
+				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE, instance.pipelineCreateInfo.layout,
+							  instance.name + " Pipeline Layout");
+			}
+
 			m_graphicsInstances.push_back(std::move(instance));
 		}
 	}
@@ -374,7 +401,7 @@ namespace vanadium::graphics {
 		VkShaderModule shaderModule;
 		verifyResult(vkCreateShaderModule(m_deviceContext->device(), &createInfo, nullptr, &shaderModule));
 
-		bufferOffset = shaderSize;
+		bufferOffset += shaderSize;
 
 		VkPipelineShaderStageCreateInfo stageInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 													  .module = shaderModule,
@@ -382,10 +409,13 @@ namespace vanadium::graphics {
 
 		uint32_t setLayoutCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<VkDescriptorSetLayout> setLayouts;
+		std::vector<uint32_t> setLayoutIndices;
 		setLayouts.reserve(setLayoutCount);
+		setLayoutIndices.reserve(setLayoutCount);
 
 		for (uint32_t i = 0; i < setLayoutCount; ++i) {
-			setLayouts.push_back(m_descriptorSetLayouts[readBuffer<uint32_t>(bufferOffset)].layout);
+			setLayoutIndices.push_back(readBuffer<uint32_t>(bufferOffset));
+			setLayouts.push_back(m_descriptorSetLayouts[setLayoutIndices.back()].layout);
 		}
 
 		uint32_t pushConstantRangeCount = readBuffer<uint32_t>(bufferOffset);
@@ -406,6 +436,11 @@ namespace vanadium::graphics {
 		VkPipelineLayout layout;
 		verifyResult(vkCreatePipelineLayout(m_deviceContext->device(), &pipelineLayoutCreateInfo, nullptr, &layout));
 
+		m_archetypes.push_back({ .type = PipelineType::Compute,
+								 .shaderModules = {},
+								 .setLayoutIndices = std::move(setLayoutIndices),
+								 .pushConstantRanges = std::move(pushConstantRanges) });
+
 		uint32_t instanceCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<uint64_t> instanceOffsets;
 		std::vector<std::string> instanceNames;
@@ -421,12 +456,14 @@ namespace vanadium::graphics {
 		char* specializationData;
 
 		for (auto& offset : instanceOffsets) {
-			PipelineLibraryComputeInstance instance;
+			PipelineLibraryComputeInstance instance = { .archetypeID =
+															static_cast<uint32_t>(m_archetypes.size() - 1ULL) };
 
 			uint32_t nameSize = readBuffer<uint32_t>(offset);
 			std::string name = std::string(nameSize, ' ');
 			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
 			std::memcpy(name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset), nameSize);
+			offset += nameSize;
 
 			uint32_t specializationStageCount = readBuffer<uint32_t>(offset);
 			for (uint32_t i = 0; i < specializationStageCount; ++i) {
@@ -461,6 +498,12 @@ namespace vanadium::graphics {
 			instance.layout = layout;
 			m_computeInstances.push_back(std::move(instance));
 
+			if constexpr (vanadiumGPUDebug) {
+				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE, instance.pipeline, instance.name);
+				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE, instance.layout,
+							  instance.name + " Pipeline Layout");
+			}
+
 			vkDestroyShaderModule(m_deviceContext->device(), shaderModule, nullptr);
 			delete[] specializationData;
 		}
@@ -474,5 +517,19 @@ namespace vanadium::graphics {
 				 .compareMask = readBuffer<uint32_t>(offset),
 				 .writeMask = readBuffer<uint32_t>(offset),
 				 .reference = readBuffer<uint32_t>(offset) };
+	}
+
+	void PipelineLibrary::destroy() {
+		for (auto& archetype : m_archetypes) {
+			for (auto& shader : archetype.shaderModules) {
+				vkDestroyShaderModule(m_deviceContext->device(), shader, nullptr);
+			}
+		}
+		for (auto& instance : m_graphicsInstances) {
+			vkDestroyPipelineLayout(m_deviceContext->device(), instance.pipelineCreateInfo.layout, nullptr);
+			for (auto& signaturePair : instance.pipelines) {
+				vkDestroyPipeline(m_deviceContext->device(), signaturePair.second, nullptr);
+			}
+		}
 	}
 } // namespace vanadium::graphics

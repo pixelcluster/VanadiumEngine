@@ -10,11 +10,11 @@ file(GLOB_RECURSE CPP_SOURCES CONFIGURE_DEPENDS
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
 
-add_custom_target(shaders vcp "--working-dir" "${CMAKE_CURRENT_SOURCE_DIR}/shaders" "project.json" "-o" "${CMAKE_CURRENT_BINARY_DIR}/shaders.vcp")
-
 add_executable(ExampleHelloWorld ${CPP_SOURCES} ${HEADERS})
 
 target_include_directories(ExampleHelloWorld PUBLIC "include")
 target_link_libraries(ExampleHelloWorld VanadiumEngine)
 
-add_dependencies(ExampleHelloWorld shaders)
+vanadium_init_vcp()
+vanadium_add_vcp_shader("project.json")
+vanadium_compile_vcp_shaders(ExampleHelloWorld)

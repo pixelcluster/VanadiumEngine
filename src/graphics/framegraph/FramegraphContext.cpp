@@ -37,27 +37,21 @@ template <typename T, T fullRangeValue> bool isCompletelyContained(T offset1, T 
 }
 
 namespace vanadium::graphics {
-	void FramegraphContext::create(DeviceContext* context, GPUResourceAllocator* resourceAllocator,
-								   GPUDescriptorSetAllocator* descriptorSetAllocator,
-								   GPUTransferManager* transferManager, RenderTargetSurface* targetSurface) {
-		m_gpuContext = context;
-		m_resourceAllocator = resourceAllocator;
-		m_descriptorSetAllocator = descriptorSetAllocator;
-		m_transferManager = transferManager;
-		m_targetSurface = targetSurface;
+	void FramegraphContext::create(const RenderContext& context) {
+		m_context = context;
 
 		VkCommandPoolCreateInfo poolCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 												   .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-												   .queueFamilyIndex = m_gpuContext->graphicsQueueFamilyIndex() };
+												   .queueFamilyIndex = m_context.deviceContext->graphicsQueueFamilyIndex() };
 
 		for (size_t i = 0; i < frameInFlightCount; ++i) {
 			verifyResult(
-				vkCreateCommandPool(m_gpuContext->device(), &poolCreateInfo, nullptr, &m_frameCommandPools[i]));
+				vkCreateCommandPool(m_context.deviceContext->device(), &poolCreateInfo, nullptr, &m_frameCommandPools[i]));
 			VkCommandBufferAllocateInfo allocateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 														 .commandPool = m_frameCommandPools[i],
 														 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 														 .commandBufferCount = 1 };
-			verifyResult(vkAllocateCommandBuffers(m_gpuContext->device(), &allocateInfo, &m_frameCommandBuffers[i]));
+			verifyResult(vkAllocateCommandBuffers(m_context.deviceContext->device(), &allocateInfo, &m_frameCommandBuffers[i]));
 		}
 	}
 
@@ -76,7 +70,7 @@ namespace vanadium::graphics {
 		for (auto& node : m_nodes) {
 			for (auto& infos : node.resourceViewInfos) {
 				for (auto& info : infos.second) {
-					m_resourceAllocator->requestImageView(m_images[infos.first].resourceHandle, info);
+					m_context.resourceAllocator->requestImageView(m_images[infos.first].resourceHandle, info);
 				}
 			}
 			node.node->initResources(this);
@@ -267,7 +261,7 @@ namespace vanadium::graphics {
 				return;
 			}
 			nodeIterator->swapchainResourceViewInfos.push_back(info);
-			m_targetSurface->addRequestedView(info);
+			m_context.targetSurface->addRequestedView(info);
 		}
 	}
 
@@ -323,7 +317,7 @@ namespace vanadium::graphics {
 				printf("Trying to get handle of non-created buffer");
 			}
 		}
-		return m_resourceAllocator->nativeBufferHandle(m_buffers[handle].resourceHandle);
+		return m_context.resourceAllocator->nativeBufferHandle(m_buffers[handle].resourceHandle);
 	}
 
 	VkImage FramegraphContext::nativeImageHandle(FramegraphImageHandle handle) {
@@ -332,7 +326,7 @@ namespace vanadium::graphics {
 				printf("Trying to get handle of non-created image!");
 			}
 		}
-		return m_resourceAllocator->nativeImageHandle(m_images[handle].resourceHandle);
+		return m_context.resourceAllocator->nativeImageHandle(m_images[handle].resourceHandle);
 	}
 
 	VkImageView FramegraphContext::imageView(FramegraphNode* node, FramegraphImageHandle handle, size_t index) {
@@ -344,7 +338,7 @@ namespace vanadium::graphics {
 		}
 
 		size_t nodeIndex = nodeIterator - m_nodes.begin();
-		return m_resourceAllocator->requestImageView(m_images[handle].resourceHandle,
+		return m_context.resourceAllocator->requestImageView(m_images[handle].resourceHandle,
 													 nodeIterator->resourceViewInfos[handle][index]);
 	}
 
@@ -360,7 +354,7 @@ namespace vanadium::graphics {
 			printf("getting swapchain image view of node that doesn't use swapchain images!\n");
 			return VK_NULL_HANDLE;
 		} else
-			return m_targetSurface->currentTargetView(nodeIterator->swapchainResourceViewInfos[index]);
+			return m_context.targetSurface->currentTargetView(nodeIterator->swapchainResourceViewInfos[index]);
 	}
 
 	VkBufferUsageFlags FramegraphContext::bufferUsageFlags(FramegraphBufferHandle handle) {
@@ -382,7 +376,7 @@ namespace vanadium::graphics {
 
 		size_t nodeIndex = 0;
 
-		FramegraphNodeContext nodeContext = { .frameIndex = frameIndex, .targetSurface = m_targetSurface };
+		FramegraphNodeContext nodeContext = { .frameIndex = frameIndex, .targetSurface = m_context.targetSurface };
 
 		if (m_barrierGenerator.frameStartBarrierCount()) {
 			VkMemoryBarrier memoryBarrier = { .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
@@ -418,7 +412,7 @@ namespace vanadium::graphics {
 				views.reserve(viewInfos.second.size());
 				for (auto& info : viewInfos.second) {
 					views.push_back(
-						m_resourceAllocator->requestImageView(m_images[viewInfos.first].resourceHandle, info));
+						m_context.resourceAllocator->requestImageView(m_images[viewInfos.first].resourceHandle, info));
 				}
 				nodeContext.resourceImageViews.insert(
 					robin_hood::pair<FramegraphImageHandle, std::vector<VkImageView>>(viewInfos.first, views));
@@ -426,7 +420,7 @@ namespace vanadium::graphics {
 
 			if (!node.swapchainResourceViewInfos.empty()) {
 				for (auto& info : node.swapchainResourceViewInfos)
-					nodeContext.targetImageViews.push_back(m_targetSurface->currentTargetView(info));
+					nodeContext.targetImageViews.push_back(m_context.targetSurface->currentTargetView(info));
 			}
 
 			node.node->recordCommands(this, frameCommandBuffer, nodeContext);
@@ -449,7 +443,7 @@ namespace vanadium::graphics {
 												   .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 												   .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 												   .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-												   .image = m_targetSurface->currentTargetImage(),
+												   .image = m_context.targetSurface->currentTargetImage(),
 												   .subresourceRange = accessRange };
 
 		vkCmdPipelineBarrier(frameCommandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
@@ -482,7 +476,7 @@ namespace vanadium::graphics {
 										  .usage = usage,
 										  .sharingMode = VK_SHARING_MODE_EXCLUSIVE };
 		m_buffers[handle].resourceHandle =
-			m_resourceAllocator->createBuffer(createInfo, {}, { .deviceLocal = true }, false);
+			m_context.resourceAllocator->createBuffer(createInfo, {}, { .deviceLocal = true }, false);
 	}
 
 	void FramegraphContext::createImage(FramegraphImageHandle handle) {
@@ -500,7 +494,7 @@ namespace vanadium::graphics {
 										 .tiling = parameters.tiling,
 										 .usage = usage,
 										 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
-		m_images[handle].resourceHandle = m_resourceAllocator->createImage(createInfo, {}, { .deviceLocal = true });
+		m_images[handle].resourceHandle = m_context.resourceAllocator->createImage(createInfo, {}, { .deviceLocal = true });
 	}
 
 	void FramegraphContext::updateDependencyInfo() {
@@ -512,6 +506,6 @@ namespace vanadium::graphics {
 	void FramegraphContext::updateBarriers() {
 		m_barrierGenerator.generateBarrierInfo(m_firstFrameFlag, &FramegraphContext::nativeBufferHandle,
 											   &FramegraphContext::nativeImageHandle, this,
-											   m_targetSurface->currentTargetImage());
+											   m_context.targetSurface->currentTargetImage());
 	}
 } // namespace vanadium::graphics

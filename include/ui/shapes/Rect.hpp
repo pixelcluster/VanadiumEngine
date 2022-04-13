@@ -1,0 +1,75 @@
+#pragma once
+
+#include <graphics/RenderContext.hpp>
+#include <ui/ShapeRegistry.hpp>
+#include <vector>
+
+namespace vanadium::ui::shapes {
+
+	class RectShape;
+
+	class RectShapeRegistry : public ShapeRegistry {
+	  public:
+		RectShapeRegistry(const graphics::RenderContext& context, VkRenderPass uiRenderPass,
+						  const graphics::RenderPassSignature& uiRenderPassSignature);
+
+		void addShape(Shape* shape, uint32_t childDepth) override;
+		void removeShape(Shape* shape) override;
+		void renderShapes(VkCommandBuffer commandBuffers, uint32_t frameIndex, uint32_t childDepth, const graphics::RenderPassSignature& uiRenderPassSignature) override;
+		void prepareFrame(uint32_t frameIndex) override;
+		void destroy(const graphics::RenderPassSignature& uiRenderPassSignature) override;
+
+	  private:
+		constexpr static size_t m_initialShapeDataCapacity = 50;
+		void allocateBuffer();
+
+		struct RegistryEntry {
+			uint32_t childDepth;
+			RectShape* shape;
+		};
+		struct ShapeData {
+			Vector2 position;
+			Vector2 size;
+			Vector4 color;
+		};
+
+		size_t m_descriptorSetRevisionCount[graphics::frameInFlightCount];
+		size_t m_bufferRevisionCount;
+
+		size_t m_maxShapeDataCapacity;
+		graphics::GPUTransferHandle m_shapeDataTransfer;
+		std::vector<ShapeData> m_shapeData;
+
+		uint32_t m_rectPipelineID;
+		VkDescriptorSet m_shapeDataSets[graphics::frameInFlightCount];
+		std::vector<graphics::DescriptorSetAllocation> m_shapeDataSetAllocations;
+		graphics::DescriptorSetAllocationInfo m_setAllocationInfo;
+
+		graphics::RenderContext m_context;
+		std::vector<RegistryEntry> m_shapes;
+	};
+
+	class RectShape : public Shape {
+	  public:
+		RectShape(Vector2 pos, Vector2 size, Vector4 color);
+		~RectShape();
+
+		const Vector2& size() const { return m_size; }
+		const Vector4& color() const { return m_color; }
+		Vector2& size() { return m_size; }
+		Vector4& color() { return m_color; }
+
+		static size_t vertexDataSize() { return sizeof(m_vertexData); };
+		static size_t indexDataSize() { return sizeof(m_indexData); }
+		static void writeVertexData(void* data) { std::memcpy(data, m_vertexData, sizeof(m_vertexData)); }
+		static void writeIndexData(void* data) { std::memcpy(data, m_indexData, sizeof(m_indexData)); }
+
+	  private:
+		static constexpr Vector2 m_vertexData[] = { { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f } };
+		static constexpr uint32_t m_indexData[] = { 0, 2, 3, 3, 1, 0 };
+
+		Vector2 m_size;
+		Vector4 m_color;
+	};
+
+} // namespace vanadium::ui::shapes

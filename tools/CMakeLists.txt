@@ -44,3 +44,27 @@ if(MSVC)
 	target_compile_options(vcp PUBLIC "/bigobj")
 endif()
 target_link_libraries(vcp jsoncpp_static)
+
+function(vanadium_init_vcp)
+	set(VANADIUM_STD_VCP_SHADERS "" PARENT_SCOPE)
+endfunction()
+
+function(vanadium_init_vcp_project)
+	set(VANADIUM_VCP_SHADERS "" PARENT_SCOPE)
+	set(VANADIUM_VCP_FILE_PATH "./shaders.vcp" PARENT_SCOPE)
+endfunction()
+
+macro(vanadium_add_vcp_shader FILE)
+	get_filename_component(FULLPATH ${FILE} ABSOLUTE)
+	list(APPEND VANADIUM_VCP_SHADERS ${FULLPATH})
+endmacro()
+
+macro(vanadium_add_std_vcp_shader FILE)
+	get_filename_component(FULLPATH ${FILE} ABSOLUTE)
+	list(APPEND VANADIUM_STD_VCP_SHADERS ${FULLPATH})
+endmacro()
+
+function(vanadium_compile_vcp_shaders TARGETNAME)
+	add_custom_target(shaders_${TARGETNAME} vcp ${VANADIUM_STD_VCP_SHADERS} ${VANADIUM_VCP_SHADERS} "-o" "${CMAKE_CURRENT_BINARY_DIR}/${VANADIUM_VCP_FILE_PATH}")
+	add_dependencies(${TARGETNAME} shaders_${TARGETNAME})
+endfunction()

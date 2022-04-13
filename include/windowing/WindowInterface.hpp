@@ -19,39 +19,39 @@ namespace vanadium::windowing {
 
 	enum class KeyState { Pressed = 2, Held = 4, Released = 1 };
 
-	KeyStateFlags operator|(const KeyState& one, const KeyState& other) {
+	inline KeyStateFlags operator|(const KeyState& one, const KeyState& other) {
 		return static_cast<KeyStateFlags>(one) | static_cast<KeyStateFlags>(other);
 	}
 
-	KeyStateFlags operator&(const KeyState& one, const KeyState& other) {
+	inline KeyStateFlags operator&(const KeyState& one, const KeyState& other) {
 		return static_cast<KeyStateFlags>(one) & static_cast<KeyStateFlags>(other);
 	}
 
-	KeyStateFlags operator^(const KeyState& one, const KeyState& other) {
+	inline KeyStateFlags operator^(const KeyState& one, const KeyState& other) {
 		return static_cast<KeyStateFlags>(one) ^ static_cast<KeyStateFlags>(other);
 	}
 
-	KeyStateFlags operator|(const KeyStateFlags& one, const KeyState& other) {
+	inline KeyStateFlags operator|(const KeyStateFlags& one, const KeyState& other) {
 		return one | static_cast<KeyStateFlags>(other);
 	}
 
-	KeyStateFlags operator&(const KeyStateFlags& one, const KeyState& other) {
+	inline KeyStateFlags operator&(const KeyStateFlags& one, const KeyState& other) {
 		return one & static_cast<KeyStateFlags>(other);
 	}
 
-	KeyStateFlags operator^(const KeyStateFlags& one, const KeyState& other) {
+	inline KeyStateFlags operator^(const KeyStateFlags& one, const KeyState& other) {
 		return one ^ static_cast<KeyStateFlags>(other);
 	}
 
-	KeyStateFlags operator|(const KeyState& one, const KeyStateFlags& other) {
+	inline KeyStateFlags operator|(const KeyState& one, const KeyStateFlags& other) {
 		return static_cast<KeyStateFlags>(one) | other;
 	}
 
-	KeyStateFlags operator&(const KeyState& one, const KeyStateFlags& other) {
+	inline KeyStateFlags operator&(const KeyState& one, const KeyStateFlags& other) {
 		return static_cast<KeyStateFlags>(one) & other;
 	}
 
-	KeyStateFlags operator^(const KeyState& one, const KeyStateFlags& other) {
+	inline KeyStateFlags operator^(const KeyState& one, const KeyStateFlags& other) {
 		return static_cast<KeyStateFlags>(one) ^ other;
 	}
 
@@ -66,39 +66,39 @@ namespace vanadium::windowing {
 		NumLock = GLFW_MOD_NUM_LOCK
 	};
 
-	KeyModifierFlags operator|(const KeyModifier& one, const KeyModifier& other) {
+	inline KeyModifierFlags operator|(const KeyModifier& one, const KeyModifier& other) {
 		return static_cast<KeyModifierFlags>(one) | static_cast<KeyModifierFlags>(other);
 	}
 
-	KeyModifierFlags operator&(const KeyModifier& one, const KeyModifier& other) {
+	inline KeyModifierFlags operator&(const KeyModifier& one, const KeyModifier& other) {
 		return static_cast<KeyModifierFlags>(one) & static_cast<KeyModifierFlags>(other);
 	}
 
-	KeyModifierFlags operator^(const KeyModifier& one, const KeyModifier& other) {
+	inline KeyModifierFlags operator^(const KeyModifier& one, const KeyModifier& other) {
 		return static_cast<KeyModifierFlags>(one) ^ static_cast<KeyModifierFlags>(other);
 	}
 
-	KeyModifierFlags operator|(const KeyModifierFlags& one, const KeyModifier& other) {
+	inline KeyModifierFlags operator|(const KeyModifierFlags& one, const KeyModifier& other) {
 		return one | static_cast<KeyModifierFlags>(other);
 	}
 
-	KeyModifierFlags operator&(const KeyModifierFlags& one, const KeyModifier& other) {
+	inline KeyModifierFlags operator&(const KeyModifierFlags& one, const KeyModifier& other) {
 		return one & static_cast<KeyModifierFlags>(other);
 	}
 
-	KeyModifierFlags operator^(const KeyModifierFlags& one, const KeyModifier& other) {
+	inline KeyModifierFlags operator^(const KeyModifierFlags& one, const KeyModifier& other) {
 		return one ^ static_cast<KeyModifierFlags>(other);
 	}
 
-	KeyModifierFlags operator|(const KeyModifier& one, const KeyModifierFlags& other) {
+	inline KeyModifierFlags operator|(const KeyModifier& one, const KeyModifierFlags& other) {
 		return static_cast<KeyModifierFlags>(one) | other;
 	}
 
-	KeyModifierFlags operator&(const KeyModifier& one, const KeyModifierFlags& other) {
+	inline KeyModifierFlags operator&(const KeyModifier& one, const KeyModifierFlags& other) {
 		return static_cast<KeyModifierFlags>(one) & other;
 	}
 
-	KeyModifierFlags operator^(const KeyModifier& one, const KeyModifierFlags& other) {
+	inline KeyModifierFlags operator^(const KeyModifier& one, const KeyModifierFlags& other) {
 		return static_cast<KeyModifierFlags>(one) ^ other;
 	}
 
@@ -133,7 +133,7 @@ namespace vanadium::windowing {
 		}
 	};
 
-	void emptyListenerDestroyCallback(void*) {}
+	inline void emptyListenerDestroyCallback(void*) {}
 
 } // namespace vanadium::windowing
 
@@ -174,12 +174,14 @@ namespace vanadium::windowing {
 
 		void windowSize(uint32_t& width, uint32_t& height);
 
+		bool shouldClose();
+
 	  private:
 		GLFWwindow* m_window;
 
 		robin_hood::unordered_flat_map<KeyListenerData, KeyListenerParams> m_keyListeners;
 		std::vector<SizeListenerParams> m_sizeListeners;
 
-		static uint32_t glfwWindowCount;
+		static uint32_t m_glfwWindowCount;
 	};
 } // namespace vanadium::windowing

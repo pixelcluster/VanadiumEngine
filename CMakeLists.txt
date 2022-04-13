@@ -7,13 +7,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 option(USE_TESTS "Build and run tests" ON)
 
-
 if(${USE_TESTS}) 
 	enable_testing()
 endif()
 
 if(UNIX AND NOT APPLE)
-	option(USE_WAYLAND "Use Wayland instead of X11" ON)
+	option(USE_WAYLAND "Use Wayland instead of X11" OFF)
 	if(USE_WAYLAND)
 		set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WAYLAND_KHR)
 		add_compile_definitions(VK_USE_PLATFORM_WAYLAND_KHR)
@@ -21,8 +20,8 @@ if(UNIX AND NOT APPLE)
 		set(GLFW_USE_WAYLAND TRUE)
 		set(GLFW_BUILD_WAYLAND TRUE)
 	else()
-		set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_XLIB_KHR)
-		add_compile_definitions(VK_USE_PLATFORM_XLIB_KHR)
+		set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_XLIB_KHR VK_USE_PLATFORM_XCB_KHR)
+		add_compile_definitions(VK_USE_PLATFORM_XLIB_KHR VK_USE_PLATFORM_XCB_KHR)
 	endif()
 elseif(WIN32)
 	set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
@@ -36,7 +35,8 @@ add_subdirectory(dependencies/jsoncpp EXCLUDE_FROM_ALL)
 add_subdirectory(dependencies/robin-hood)
 
 add_subdirectory(tools)
-
+vanadium_init_vcp()
+include(src/ui/shaders/CMakeLists.txt)
 
 if("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
 	set(VANADIUM_DEBUG true CACHE BOOL "Enable debug utilities")
@@ -63,3 +63,8 @@ target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "
 target_link_libraries(VanadiumEngine volk::volk glfw robin_hood)
 
 add_subdirectory(examples)
+
+# test
+vanadium_init_vcp_project()
+vanadium_add_vcp_shader("examples/helloworld/shaders/project.json")
+vanadium_compile_vcp_shaders(VanadiumEngine)

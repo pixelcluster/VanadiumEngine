@@ -3,6 +3,8 @@
 
 namespace vanadium::windowing {
 
+	uint32_t WindowInterface::m_glfwWindowCount = 0;
+
 	void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 		WindowInterface* interface = std::launder(reinterpret_cast<WindowInterface*>(glfwGetWindowUserPointer(window)));
 		KeyState state;
@@ -25,12 +27,16 @@ namespace vanadium::windowing {
 			interface->invokeKeyListeners(static_cast<uint32_t>(key), static_cast<KeyModifierFlags>(mods), state);
 	}
 
+	void errorCallback(int code, const char* desc) {
+		logError("GLFW Error: %s%s", desc, "\n");
+	}
+
 	WindowInterface::WindowInterface(const std::optional<WindowingSettingOverride>& override, const char* name) {
 		WindowingSettingOverride value =
 			override.value_or(WindowingSettingOverride{ .width = 640, .height = 480, .createFullScreen = false });
-		if (!glfwWindowCount) {
-			assertFatal(!glfwInit(), "GLFW initialization failed!\n");
-		}
+		
+		glfwSetErrorCallback(errorCallback);
+		assertFatal(glfwInit(), "GLFW initialization failed!\n");
 
 		GLFWmonitor* monitor = value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -42,12 +48,12 @@ namespace vanadium::windowing {
 
 		assertFatal(m_window, "Couldn't create window!\n");
 
-		++glfwWindowCount;
+		++m_glfwWindowCount;
 	}
 
 	WindowInterface::~WindowInterface() {
 		glfwDestroyWindow(m_window);
-		if (!(--glfwWindowCount)) {
+		if (!(--m_glfwWindowCount)) {
 			glfwTerminate();
 		}
 	}
@@ -93,5 +99,9 @@ namespace vanadium::windowing {
 		glfwGetFramebufferSize(m_window, &glfwWidth, &glfwHeight);
 		width = static_cast<uint32_t>(glfwWidth);
 		height = static_cast<uint32_t>(glfwHeight);
+	}
+
+	bool WindowInterface::shouldClose() {
+		return glfwWindowShouldClose(m_window);
 	}
 } // namespace vanadium::windowing

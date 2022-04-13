@@ -1,10 +1,7 @@
 #pragma once
 
 #include <concepts>
-#include <graphics/framegraph/RenderTargetSurface.hpp>
-#include <graphics/util/GPUDescriptorSetAllocator.hpp>
-#include <graphics/util/GPUResourceAllocator.hpp>
-#include <graphics/util/GPUTransferManager.hpp>
+#include <graphics/RenderContext.hpp>
 #include <robin_hood.h>
 
 #include <graphics/framegraph/QueueBarrierGenerator.hpp>
@@ -79,9 +76,7 @@ namespace vanadium::graphics {
 	  public:
 		FramegraphContext() {}
 
-		void create(DeviceContext* context, GPUResourceAllocator* resourceAllocator,
-					GPUDescriptorSetAllocator* descriptorSetAllocator, GPUTransferManager* transferManager,
-					RenderTargetSurface* targetSurface);
+		void create(const RenderContext& context);
 
 		template <std::derived_from<FramegraphNode> T, typename... Args>
 		requires(std::constructible_from<T, Args...>) T* appendNode(Args... constructorArgs);
@@ -110,10 +105,7 @@ namespace vanadium::graphics {
 		void invalidateBuffer(FramegraphBufferHandle handle, BufferResourceHandle newHandle);
 		void invalidateImage(FramegraphImageHandle handle, ImageResourceHandle newHandle);
 
-		DeviceContext* gpuContext() { return m_gpuContext; }
-		GPUResourceAllocator* resourceAllocator() { return m_resourceAllocator; }
-		GPUDescriptorSetAllocator* descriptorSetAllocator() { return m_descriptorSetAllocator; }
-		GPUTransferManager* transferManager() { return m_transferManager; }
+		const RenderContext& renderContext() { return m_context; }
 
 		FramegraphBufferResource bufferResource(FramegraphBufferHandle handle) const;
 		FramegraphImageResource imageResource(FramegraphImageHandle handle) const;
@@ -146,11 +138,7 @@ namespace vanadium::graphics {
 		void updateDependencyInfo();
 		void updateBarriers();
 
-		DeviceContext* m_gpuContext;
-		GPUResourceAllocator* m_resourceAllocator;
-		GPUDescriptorSetAllocator* m_descriptorSetAllocator;
-		GPUTransferManager* m_transferManager;
-		RenderTargetSurface* m_targetSurface;
+		RenderContext m_context;
 
 		QueueBarrierGenerator m_barrierGenerator;
 

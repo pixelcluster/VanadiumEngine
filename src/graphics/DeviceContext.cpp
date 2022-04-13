@@ -9,9 +9,18 @@
 #include <volk.h>
 #include <Log.hpp>
 
-const char* platformSurfaceExtensionName() {
+const char* platformSurfaceExtensionName(const std::vector<VkExtensionProperties>& instanceExtensions) {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 	return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+#elif defined(VK_USE_PLATFORM_XCB_KHR) && defined(VK_USE_PLATFORM_XLIB_KHR)
+	if(std::find_if(instanceExtensions.begin(), instanceExtensions.end(), [](const auto& properties) {
+		return !strcmp(properties.extensionName, VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+	}) != instanceExtensions.end()) {
+		return VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+	}
+	else {
+		return VK_KHR_XLIB_SURFACE_EXTENSION_NAME;
+	}
 #elif defined(VK_USE_PLATFORM_XCB_KHR)
 	return VK_KHR_XCB_SURFACE_EXTENSION_NAME;
 #elif defined(VK_USE_PLATFORM_XLIB_KHR)
@@ -41,11 +50,12 @@ namespace vanadium::graphics {
 
 		std::vector<const char*> instanceExtensionNames;
 		instanceExtensionNames.reserve(4);
-		instanceExtensionNames.push_back(platformSurfaceExtensionName());
-		instanceExtensionNames.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 
 		std::vector<VkExtensionProperties> availableInstanceExtensions =
 			enumerate<const char*, VkExtensionProperties>(nullptr, vkEnumerateInstanceExtensionProperties);
+
+		instanceExtensionNames.push_back(platformSurfaceExtensionName(availableInstanceExtensions));
+		instanceExtensionNames.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 		for (auto& extensionProperties : availableInstanceExtensions) {
 			if (!strcmp(extensionProperties.extensionName, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)) {
 				instanceExtensionNames.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
@@ -73,6 +83,7 @@ namespace vanadium::graphics {
 		instanceCreateInfo.ppEnabledExtensionNames = instanceExtensionNames.data();
 
 		verifyResult(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
+		volkLoadInstanceOnly(m_instance);
 
 		if constexpr (vanadiumGPUDebug) {
 			vkCreateDebugUtilsMessengerEXT(m_instance, &debugUtilsMessengerCreateInfo, nullptr, &m_debugMessenger);
@@ -190,4 +201,18 @@ namespace vanadium::graphics {
 			verifyResult(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameCompletionFences[i]));
 		}
 	}
+
+	void DeviceContext::destroy() {
+		for(auto& fence : m_frameCompletionFences) {
+			vkDestroyFence(m_device, fence, nullptr);
+		}
+
+		if constexpr (vanadiumGPUDebug) {
+			vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+		}
+
+		vkDestroyDevice(m_device, nullptr);
+		vkDestroyInstance(m_instance, nullptr);
+	}
+
 } // namespace vanadium::graphics
