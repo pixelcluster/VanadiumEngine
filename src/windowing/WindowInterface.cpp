@@ -42,6 +42,11 @@ namespace vanadium::windowing {
 		assertFatal(glfwInit(), "GLFW initialization failed!\n");
 
 		GLFWmonitor* monitor = value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
+		if(value.createFullScreen && (value.width == 0 || value.height == 0)) {
+			const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
+			value.width = vidmode->width;
+			value.height = vidmode->height;
+		}
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		m_window =
 			glfwCreateWindow(static_cast<int>(value.width), static_cast<int>(value.height), name, monitor, nullptr);

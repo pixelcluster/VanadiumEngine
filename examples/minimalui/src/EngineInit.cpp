@@ -8,6 +8,9 @@ vanadium::ui::shapes::RectShape* shapes[25 * 25];
 void configureEngine(vanadium::EngineConfig& config) {
 	config.setAppName("Vanadium Minimal UI");
 	config.addStartupFlag(vanadium::EngineStartupFlag::UIOnly);
+    /*config.overrideWindowSettings(vanadium::windowing::WindowingSettingOverride {
+        .createFullScreen = true
+    });*/
 }
 
 void init(vanadium::Engine& engine) {
