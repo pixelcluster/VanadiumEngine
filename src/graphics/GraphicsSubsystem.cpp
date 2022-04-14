@@ -2,6 +2,7 @@
 #include <volk.h>
 
 namespace vanadium::graphics {
+
 	GraphicsSubsystem::GraphicsSubsystem(const std::string_view& appName,
 										 const std::string_view& pipelineLibraryFileName, uint32_t appVersion,
 										 windowing::WindowInterface& interface)
@@ -21,7 +22,16 @@ namespace vanadium::graphics {
 		m_framegraphContext.create(m_context);
 	}
 
-	void GraphicsSubsystem::setupFramegraphResources() { m_framegraphContext.setupResources(); }
+	void GraphicsSubsystem::setupFramegraphResources() {
+		m_framegraphContext.setupResources();
+		m_surface.createSwapchain(m_deviceContext.physicalDevice(), m_deviceContext.device(),
+								  m_framegraphContext.targetImageUsageFlags());
+		m_renderTargetSurface.create(m_surface.swapchainImages(m_deviceContext.device()),
+									 { .width = m_surface.imageWidth(),
+									   .height = m_surface.imageHeight(),
+									   .format = m_surface.swapchainImageFormat() });
+		m_framegraphContext.initResources();
+	}
 
 	bool GraphicsSubsystem::tickFrame() {
 		++frameIndex %= frameInFlightCount;
@@ -35,6 +45,7 @@ namespace vanadium::graphics {
 										 { .width = m_surface.imageWidth(),
 										   .height = m_surface.imageHeight(),
 										   .format = m_surface.swapchainImageFormat() });
+			m_framegraphContext.handleSwapchainResize(m_surface.imageWidth(), m_surface.imageHeight());
 		}
 
 		uint32_t imageIndex = m_surface.tryAcquire(m_deviceContext.device(), frameIndex);
@@ -60,7 +71,7 @@ namespace vanadium::graphics {
 
 			m_surface.tryPresent(m_deviceContext.graphicsQueue(), imageIndex, frameIndex);
 
-			if(!m_surface.canRender()) {
+			if (!m_surface.canRender()) {
 				m_surface.updateActualSize(m_deviceContext.physicalDevice());
 			}
 		}

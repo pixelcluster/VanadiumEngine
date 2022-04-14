@@ -14,6 +14,7 @@ namespace vanadium::graphics {
 		~GraphicsSubsystem();
 
 		FramegraphContext& framegraphContext() { return m_framegraphContext; }
+		const RenderContext& context() { return m_context; }
 
 		void setupFramegraphResources();
 		// returns if rendering is possible, if false, waitEvents should be called

@@ -32,14 +32,12 @@ namespace vanadium::windowing {
 		interface->invokeSizeListeners(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 	}
 
-	void errorCallback(int code, const char* desc) {
-		logError("GLFW Error: %s%s", desc, "\n");
-	}
+	void errorCallback(int code, const char* desc) { logError("GLFW Error: %s%s", desc, "\n"); }
 
 	WindowInterface::WindowInterface(const std::optional<WindowingSettingOverride>& override, const char* name) {
 		WindowingSettingOverride value =
 			override.value_or(WindowingSettingOverride{ .width = 640, .height = 480, .createFullScreen = false });
-		
+
 		glfwSetErrorCallback(errorCallback);
 		assertFatal(glfwInit(), "GLFW initialization failed!\n");
 
@@ -58,10 +56,10 @@ namespace vanadium::windowing {
 	}
 
 	WindowInterface::~WindowInterface() {
-		for(auto& listener : m_keyListeners) {
+		for (auto& listener : m_keyListeners) {
 			listener.second.listenerDestroyCallback(listener.second.userData);
 		}
-		for(auto& listener : m_sizeListeners) {
+		for (auto& listener : m_sizeListeners) {
 			listener.listenerDestroyCallback(listener.userData);
 		}
 		glfwDestroyWindow(m_window);
@@ -70,9 +68,19 @@ namespace vanadium::windowing {
 		}
 	}
 
-	void WindowInterface::pollEvents() { glfwPollEvents(); }
+	void WindowInterface::pollEvents() {
+		glfwPollEvents();
+		float newTime = static_cast<float>(glfwGetTime());
+		m_deltaTime = newTime - m_elapsedTime;
+		m_elapsedTime = newTime;
+	}
 
-	void WindowInterface::waitEvents() { glfwWaitEvents(); }
+	void WindowInterface::waitEvents() {
+		glfwWaitEvents();
+		float newTime = static_cast<float>(glfwGetTime());
+		m_deltaTime = newTime - m_elapsedTime;
+		m_elapsedTime = newTime;
+	}
 
 	void WindowInterface::addKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
 										 const KeyListenerParams& params) {
@@ -107,7 +115,7 @@ namespace vanadium::windowing {
 	}
 
 	void WindowInterface::invokeSizeListeners(uint32_t newWidth, uint32_t newHeight) {
-		for(auto& listener : m_sizeListeners) {
+		for (auto& listener : m_sizeListeners) {
 			listener.eventCallback(newWidth, newHeight, listener.userData);
 		}
 	}
@@ -119,7 +127,5 @@ namespace vanadium::windowing {
 		height = static_cast<uint32_t>(glfwHeight);
 	}
 
-	bool WindowInterface::shouldClose() {
-		return glfwWindowShouldClose(m_window);
-	}
+	bool WindowInterface::shouldClose() { return glfwWindowShouldClose(m_window); }
 } // namespace vanadium::windowing

@@ -440,7 +440,7 @@ void PipelineInstanceRecord::deserializeRasterization(const std::string_view& sr
 									  .frontFace = frontFace,
 									  .depthBiasEnable = asBoolOr(config, "depth-bias-enable", false),
 									  .depthBiasConstantFactor = asFloatOr(config, "depth-bias-constant-factor", 0.0f),
-									  .depthBiasClamp = asFloatOr(config, "depth-bias-clamp", FLT_MAX),
+									  .depthBiasClamp = asFloatOr(config, "depth-bias-clamp", 0.0),
 									  .depthBiasSlopeFactor = asFloatOr(config, "depth-bias-slope-factor", 1.0f),
 									  .lineWidth = asFloatOr(config, "line-width", 1.0f) };
 }

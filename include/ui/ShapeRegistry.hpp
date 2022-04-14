@@ -13,6 +13,6 @@ namespace vanadium::ui {
 		uint32_t maxChildDepth() const { return m_maxChildDepth; }
 
 	  protected:
-		uint32_t m_maxChildDepth;
+		uint32_t m_maxChildDepth = 0;
 	};
 } // namespace vanadium::ui

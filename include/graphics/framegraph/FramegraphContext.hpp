@@ -81,7 +81,15 @@ namespace vanadium::graphics {
 		template <std::derived_from<FramegraphNode> T, typename... Args>
 		requires(std::constructible_from<T, Args...>) T* appendNode(Args... constructorArgs);
 
+		// node must have been allocated with new, and you must call node->create() yourself
+		template <std::derived_from<FramegraphNode> T> void appendExistingNode(T* node);
+
+		//setupResources and initResources should be called together
+		//setupResources determines usage information and barriers
+		//At the time setupResources is called, swapchain formats are potentially unknown!
 		void setupResources();
+		//initResources handles initialization when usage etc. is known
+		void initResources();
 
 		FramegraphBufferHandle declareTransientBuffer(FramegraphNode* creator,
 													  const FramegraphBufferCreationParameters& parameters,
@@ -164,5 +172,9 @@ namespace vanadium::graphics {
 		// FramegraphNode might not be defined at this point, but T will contain all of its methods
 		reinterpret_cast<T*>(m_nodes.back().node)->create(this);
 		return reinterpret_cast<T*>(m_nodes.back().node);
+	}
+
+	template <std::derived_from<FramegraphNode> T> inline void FramegraphContext::appendExistingNode(T* node) {
+		m_nodes.push_back({ .node = node });
 	}
 } // namespace vanadium::graphics

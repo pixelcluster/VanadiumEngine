@@ -15,7 +15,8 @@ namespace vanadium::ui::shapes {
 
 		void addShape(Shape* shape, uint32_t childDepth) override;
 		void removeShape(Shape* shape) override;
-		void renderShapes(VkCommandBuffer commandBuffers, uint32_t frameIndex, uint32_t childDepth, const graphics::RenderPassSignature& uiRenderPassSignature) override;
+		void renderShapes(VkCommandBuffer commandBuffers, uint32_t frameIndex, uint32_t childDepth,
+						  const graphics::RenderPassSignature& uiRenderPassSignature) override;
 		void prepareFrame(uint32_t frameIndex) override;
 		void destroy(const graphics::RenderPassSignature& uiRenderPassSignature) override;
 
@@ -51,8 +52,10 @@ namespace vanadium::ui::shapes {
 
 	class RectShape : public Shape {
 	  public:
-		RectShape(Vector2 pos, Vector2 size, Vector4 color);
-		~RectShape();
+		using ShapeRegistry = RectShapeRegistry;
+
+		RectShape(Vector2 pos, Vector2 size, Vector4 color) : Shape("Rect", pos), m_size(size), m_color(color) {}
+		~RectShape() override {}
 
 		const Vector2& size() const { return m_size; }
 		const Vector4& color() const { return m_color; }

@@ -1,5 +1,5 @@
 #pragma once
-//needed because this header is included as part of PCH, and other parts of this project need GLFW with Vulkan
+// needed because this header is included as part of PCH, and other parts of this project need GLFW with Vulkan
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
@@ -177,8 +177,14 @@ namespace vanadium::windowing {
 
 		bool shouldClose();
 
+		float deltaTime() const { return m_deltaTime; }
+		float elapsedTime() const { return m_elapsedTime; }
+
 	  private:
 		GLFWwindow* m_window;
+
+		float m_deltaTime;
+		float m_elapsedTime;
 
 		robin_hood::unordered_flat_map<KeyListenerData, KeyListenerParams> m_keyListeners;
 		std::vector<SizeListenerParams> m_sizeListeners;

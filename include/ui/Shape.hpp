@@ -8,11 +8,11 @@
 #include <string_view>
 
 namespace vanadium::ui {
-	//Subclasses need to define a Registry typedef that points to a subclass of ShapeRegistry
-	//For a subclass Foo, the type Foo::Registry must be a subclass of ShapeRegistry
+	// Subclasses need to define a Registry typedef that points to a subclass of ShapeRegistry
+	// For a subclass Foo, the type Foo::Registry must be a subclass of ShapeRegistry
 	class Shape {
 	  public:
-		virtual ~Shape() = 0;
+		virtual ~Shape() {}
 
 		Vector2 position() const { return m_position; }
 		Vector2& position() { return m_position; }
@@ -21,8 +21,6 @@ namespace vanadium::ui {
 
 		bool dirtyFlag() const { return m_dirtyFlag; }
 		void clearDirtyFlag() { m_dirtyFlag = false; }
-
-		virtual void render() = 0;
 
 	  protected:
 		Shape(const std::string_view& typeName, const Vector2& relativePos);

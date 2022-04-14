@@ -9,6 +9,7 @@
 namespace vanadium::graphics {
 	PipelineLibraryGraphicsInstance::PipelineLibraryGraphicsInstance(PipelineLibraryGraphicsInstance&& other)
 		: archetypeID(std::forward<decltype(archetypeID)>(other.archetypeID)),
+		  name(std::forward<decltype(name)>(other.name)),
 		  shaderStageCreateInfos(std::forward<decltype(shaderStageCreateInfos)>(other.shaderStageCreateInfos)),
 		  stageSpecializations(std::forward<decltype(stageSpecializations)>(other.stageSpecializations)),
 		  attribDescriptions(std::forward<decltype(attribDescriptions)>(other.attribDescriptions)),
@@ -173,7 +174,7 @@ namespace vanadium::graphics {
 		shaderModules.reserve(shaderCount);
 
 		for (uint32_t i = 0; i < shaderCount; ++i) {
-			VkShaderStageFlags stageFlags = readBuffer<uint32_t>(bufferOffset);
+			VkShaderStageFlagBits stageFlags = readBuffer<VkShaderStageFlagBits>(bufferOffset);
 			uint32_t shaderSize = readBuffer<uint32_t>(bufferOffset);
 			assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
 			VkShaderModuleCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -187,6 +188,7 @@ namespace vanadium::graphics {
 
 			shaderModules.push_back(shaderModule);
 			stageCreateInfos.push_back({ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+										 .stage = stageFlags,
 										 .module = shaderModule,
 										 .pName = "main" });
 		}
@@ -354,6 +356,10 @@ namespace vanadium::graphics {
 				stageIterator->pSpecializationInfo = &instance.stageSpecializations.back().specializationInfo;
 			}
 
+			instance.shaderStageCreateInfos = stageCreateInfos;
+
+			instance.scissorRect = { .offset = {}, .extent = { .width = INT32_MAX, .height = INT32_MAX } };
+
 			instance.viewportConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 										.viewportCount = 1,
 										.pViewports = &instance.viewport,
@@ -520,8 +526,23 @@ namespace vanadium::graphics {
 				 .reference = readBuffer<uint32_t>(offset) };
 	}
 
+	uint32_t PipelineLibrary::findGraphicsPipeline(const std::string_view& name) {
+		auto iterator = std::find_if(m_graphicsInstances.begin(), m_graphicsInstances.end(),
+									 [name](const auto& instance) { return instance.name == name; });
+		if (iterator == m_graphicsInstances.end())
+			return ~0U;
+		return iterator - m_graphicsInstances.begin();
+	}
+	uint32_t PipelineLibrary::findComputePipeline(const std::string_view& name) {
+		auto iterator = std::find_if(m_computeInstances.begin(), m_computeInstances.end(),
+									 [name](const auto& instance) { return instance.name == name; });
+		if (iterator == m_computeInstances.end())
+			return ~0U;
+		return iterator - m_computeInstances.begin();
+	}
+
 	void PipelineLibrary::destroy() {
-		for(auto& layout : m_descriptorSetLayouts) {
+		for (auto& layout : m_descriptorSetLayouts) {
 			vkDestroyDescriptorSetLayout(m_deviceContext->device(), layout.layout, nullptr);
 		}
 		for (auto& archetype : m_archetypes) {

@@ -96,10 +96,10 @@ namespace vanadium::graphics {
 														 .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 														 .presentMode = VK_PRESENT_MODE_FIFO_KHR,
 														 .clipped = VK_TRUE,
-														 .oldSwapchain = m_swapchain };
+														 .oldSwapchain = oldSwapchain };
 		verifyResult(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &m_swapchain));
-
 		vkDestroySwapchainKHR(device, oldSwapchain, nullptr);
+
 		m_canRender = true;
 		m_swapchainDirtyFlag = false;
 	}

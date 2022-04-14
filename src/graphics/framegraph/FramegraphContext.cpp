@@ -61,7 +61,9 @@ namespace vanadium::graphics {
 		for (auto& node : m_nodes) {
 			node.node->setupResources(this);
 		}
+	}
 
+	void FramegraphContext::initResources() {
 		for (auto handle : m_transientBuffers) {
 			createBuffer(handle);
 		}
@@ -75,7 +77,15 @@ namespace vanadium::graphics {
 					m_context.resourceAllocator->requestImageView(m_images[infos.first].resourceHandle, info);
 				}
 			}
+			for(auto& info : node.swapchainResourceViewInfos) {
+				m_context.targetSurface->addRequestedView(info);
+			}
 			node.node->initResources(this);
+		}
+
+		for (auto& node : m_nodes) {
+			node.node->handleWindowResize(this, m_context.targetSurface->properties().width,
+										  m_context.targetSurface->properties().height);
 		}
 
 		updateDependencyInfo();
@@ -263,7 +273,6 @@ namespace vanadium::graphics {
 				return;
 			}
 			nodeIterator->swapchainResourceViewInfos.push_back(info);
-			m_context.targetSurface->addRequestedView(info);
 		}
 	}
 
@@ -464,7 +473,7 @@ namespace vanadium::graphics {
 	}
 
 	void FramegraphContext::destroy() {
-		for(auto& commandPool : m_frameCommandPools) {
+		for (auto& commandPool : m_frameCommandPools) {
 			vkDestroyCommandPool(m_context.deviceContext->device(), commandPool, nullptr);
 		}
 		for (auto& node : m_nodes) {
