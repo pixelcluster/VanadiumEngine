@@ -49,6 +49,8 @@ class PipelineArchetypeRecord {
 
 	PipelineType type() const { return m_pipelineType; }
 
+	void freeShaders();
+
   private:
 	bool m_isValid = false;
 

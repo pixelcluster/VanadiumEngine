@@ -27,6 +27,11 @@ namespace vanadium::windowing {
 			interface->invokeKeyListeners(static_cast<uint32_t>(key), static_cast<KeyModifierFlags>(mods), state);
 	}
 
+	void sizeCallback(GLFWwindow* window, int width, int height) {
+		WindowInterface* interface = std::launder(reinterpret_cast<WindowInterface*>(glfwGetWindowUserPointer(window)));
+		interface->invokeSizeListeners(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+	}
+
 	void errorCallback(int code, const char* desc) {
 		logError("GLFW Error: %s%s", desc, "\n");
 	}
@@ -45,6 +50,7 @@ namespace vanadium::windowing {
 
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetKeyCallback(m_window, keyCallback);
+		glfwSetFramebufferSizeCallback(m_window, sizeCallback);
 
 		assertFatal(m_window, "Couldn't create window!\n");
 
@@ -52,6 +58,12 @@ namespace vanadium::windowing {
 	}
 
 	WindowInterface::~WindowInterface() {
+		for(auto& listener : m_keyListeners) {
+			listener.second.listenerDestroyCallback(listener.second.userData);
+		}
+		for(auto& listener : m_sizeListeners) {
+			listener.listenerDestroyCallback(listener.userData);
+		}
 		glfwDestroyWindow(m_window);
 		if (!(--m_glfwWindowCount)) {
 			glfwTerminate();
@@ -91,6 +103,12 @@ namespace vanadium::windowing {
 				(listener.first.keyStateMask & state)) {
 				listener.second.eventCallback(keyCode, modifiers, state, listener.second.userData);
 			}
+		}
+	}
+
+	void WindowInterface::invokeSizeListeners(uint32_t newWidth, uint32_t newHeight) {
+		for(auto& listener : m_sizeListeners) {
+			listener.eventCallback(newWidth, newHeight, listener.userData);
 		}
 	}
 

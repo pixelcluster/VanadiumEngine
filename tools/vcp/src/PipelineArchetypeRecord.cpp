@@ -534,3 +534,9 @@ void PipelineArchetypeRecord::serialize(void* data) {
 		data = offsetVoidPtr(data, sizeof(uint32_t));
 	}
 }
+
+void PipelineArchetypeRecord::freeShaders() {
+	for(auto& shader : m_compiledShaders) {
+		delete[] reinterpret_cast<char*>(shader.data);
+	}
+}

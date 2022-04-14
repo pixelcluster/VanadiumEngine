@@ -330,6 +330,7 @@ namespace vanadium::graphics {
 				  .beforeLayout = info.preserveAcrossFrames ? lastModification.finishLayout : VK_IMAGE_LAYOUT_UNDEFINED,
 				  .afterLayout = read.startLayout,
 				  .image = image });
+			return;
 		}
 		auto& match = matchOptional.value();
 

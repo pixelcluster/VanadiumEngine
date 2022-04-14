@@ -169,6 +169,7 @@ namespace vanadium::windowing {
 		void removeSizeListener(const SizeListenerParams& params);
 
 		void invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state);
+		void invokeSizeListeners(uint32_t newWidth, uint32_t newHeight);
 
 		GLFWwindow* internalHandle() { return m_window; }
 

@@ -4,8 +4,9 @@ namespace vanadium {
 	Engine::Engine(const EngineConfig& config)
 		: m_startupFlags(config.startupFlags()), m_windowInterface(config.settingsOverrides(), config.appName().data()),
 		  m_graphicsSubsystem(config.appName(), config.pipelineLibraryFileName(), config.appVersion(),
-							  m_windowInterface,
-							  !(config.startupFlags() & static_cast<uint32_t>(EngineStartupFlag::Disable3D))) {}
+							  m_windowInterface) {}
+
+	void Engine::afterUserInit() { m_graphicsSubsystem.setupFramegraphResources(); }
 
 	bool Engine::tickFrame() {
 		if (m_lastRenderSuccessful)

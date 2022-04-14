@@ -56,9 +56,10 @@ namespace vanadium::graphics {
 	void PipelineLibrary::create(const std::string_view& libraryFileName, DeviceContext* context) {
 		m_deviceContext = context;
 
+		m_fileSize = 5;
 		m_buffer = readFile(libraryFileName.data(), &m_fileSize);
 		assertFatal(m_fileSize > 0, "PipelineLibrary: Could not open pipeline file!\n");
-		uint64_t headerReadOffset;
+		uint64_t headerReadOffset = 0;
 		uint32_t version = readBuffer<uint32_t>(headerReadOffset);
 
 		assertFatal(version == pipelineFileVersion, "PipelineLibrary: Invalid pipeline file version!\n");
@@ -520,6 +521,9 @@ namespace vanadium::graphics {
 	}
 
 	void PipelineLibrary::destroy() {
+		for(auto& layout : m_descriptorSetLayouts) {
+			vkDestroyDescriptorSetLayout(m_deviceContext->device(), layout.layout, nullptr);
+		}
 		for (auto& archetype : m_archetypes) {
 			for (auto& shader : archetype.shaderModules) {
 				vkDestroyShaderModule(m_deviceContext->device(), shader, nullptr);

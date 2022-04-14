@@ -1,18 +1,4 @@
 #pragma once
 
-#define True true
-#define TRUE true
-#define ON true
-#define False false
-#define FALSE false
-#define OFF false
-
 constexpr bool vanadiumDebug = ${VANADIUM_DEBUG};
 constexpr bool vanadiumGPUDebug = ${VANADIUM_GPU_DEBUG};
-
-#undef True
-#undef TRUE
-#undef ON
-#undef False
-#undef FALSE
-#undef OFF

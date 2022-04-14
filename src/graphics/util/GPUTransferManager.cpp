@@ -491,9 +491,10 @@ namespace vanadium::graphics {
 			m_resourceAllocator->destroyBuffer(transfer.stagingBuffer);
 			imageBarriers.push_back(barrier);
 		}
-		vkCmdPipelineBarrier(commandBuffer, srcStageFlags, dstStageFlags, 0, 0, nullptr,
-							 static_cast<uint32_t>(bufferBarriers.size()), bufferBarriers.data(),
-							 static_cast<uint32_t>(imageBarriers.size()), imageBarriers.data());
+		if (bufferBarriers.size() > 0 && imageBarriers.size() > 0)
+			vkCmdPipelineBarrier(commandBuffer, srcStageFlags, dstStageFlags, 0, 0, nullptr,
+								 static_cast<uint32_t>(bufferBarriers.size()), bufferBarriers.data(),
+								 static_cast<uint32_t>(imageBarriers.size()), imageBarriers.data());
 
 		verifyResult(vkEndCommandBuffer(commandBuffer));
 

@@ -37,6 +37,10 @@ namespace vanadium::graphics {
 
 	void WindowSurface::createSwapchain(VkPhysicalDevice physicalDevice, VkDevice device,
 										VkImageUsageFlags usageFlags) {
+		vkDeviceWaitIdle(device);
+		if (usageFlags == 0)
+			usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
 		if (m_acquireSemaphores.empty()) {
 			m_acquireSemaphores.resize(m_frameInFlightCount);
 			m_presentSemaphores.resize(m_frameInFlightCount);
@@ -64,7 +68,7 @@ namespace vanadium::graphics {
 		verifyResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, m_surface, &surfaceCapabilities));
 
 		m_actualWidth = std::clamp(m_suggestedWidth, surfaceCapabilities.minImageExtent.width,
-								   surfaceCapabilities.maxImageExtent.height);
+								   surfaceCapabilities.maxImageExtent.width);
 		m_actualHeight = std::clamp(m_suggestedHeight, surfaceCapabilities.minImageExtent.height,
 									surfaceCapabilities.maxImageExtent.height);
 
@@ -96,6 +100,8 @@ namespace vanadium::graphics {
 		verifyResult(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &m_swapchain));
 
 		vkDestroySwapchainKHR(device, oldSwapchain, nullptr);
+		m_canRender = true;
+		m_swapchainDirtyFlag = false;
 	}
 
 	std::vector<VkImage> WindowSurface::swapchainImages(VkDevice device) {
@@ -106,6 +112,16 @@ namespace vanadium::graphics {
 		m_suggestedWidth = width;
 		m_suggestedHeight = height;
 		m_swapchainDirtyFlag = true;
+	}
+
+	void WindowSurface::updateActualSize(VkPhysicalDevice physicalDevice) {
+		VkSurfaceCapabilitiesKHR surfaceCapabilities;
+		verifyResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, m_surface, &surfaceCapabilities));
+
+		m_actualWidth = std::clamp(m_suggestedWidth, surfaceCapabilities.minImageExtent.width,
+								   surfaceCapabilities.maxImageExtent.width);
+		m_actualHeight = std::clamp(m_suggestedHeight, surfaceCapabilities.minImageExtent.height,
+									surfaceCapabilities.maxImageExtent.height);
 	}
 
 	bool WindowSurface::refreshSwapchain(VkPhysicalDevice physicalDevice, VkDevice device,
@@ -119,10 +135,8 @@ namespace vanadium::graphics {
 	}
 
 	uint32_t WindowSurface::tryAcquire(VkDevice device, uint32_t frameIndex) {
-		if (m_lastFailedPresentIndex.has_value()) {
-			uint32_t result = m_lastFailedPresentIndex.value();
-			m_lastFailedPresentIndex = std::nullopt;
-			return result;
+		if (!m_canRender) {
+			return 0;
 		}
 		uint32_t imageIndex;
 		VkResult result = vkAcquireNextImageKHR(device, m_swapchain, UINT64_MAX, m_acquireSemaphores[frameIndex],
@@ -130,11 +144,6 @@ namespace vanadium::graphics {
 		switch (result) {
 			case VK_ERROR_OUT_OF_DATE_KHR:
 				m_canRender = false;
-				m_swapchainDirtyFlag = true;
-				break;
-			case VK_SUBOPTIMAL_KHR:
-				m_canRender = true;
-				m_swapchainDirtyFlag = true;
 				break;
 			default:
 				verifyResult(result);
@@ -156,12 +165,6 @@ namespace vanadium::graphics {
 		switch (result) {
 			case VK_ERROR_OUT_OF_DATE_KHR:
 				m_canRender = false;
-				m_swapchainDirtyFlag = true;
-				m_lastFailedPresentIndex = imageIndex;
-				break;
-			case VK_SUBOPTIMAL_KHR:
-				m_canRender = true;
-				m_swapchainDirtyFlag = true;
 				break;
 			default:
 				verifyResult(result);
@@ -170,10 +173,10 @@ namespace vanadium::graphics {
 	}
 
 	void WindowSurface::destroy(VkDevice device, VkInstance instance) {
-		for(auto& semaphore : m_acquireSemaphores) {
+		for (auto& semaphore : m_acquireSemaphores) {
 			vkDestroySemaphore(device, semaphore, nullptr);
 		}
-		for(auto& semaphore : m_presentSemaphores) {
+		for (auto& semaphore : m_presentSemaphores) {
 			vkDestroySemaphore(device, semaphore, nullptr);
 		}
 		vkDestroySwapchainKHR(device, m_swapchain, nullptr);

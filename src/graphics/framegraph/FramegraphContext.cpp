@@ -42,16 +42,18 @@ namespace vanadium::graphics {
 
 		VkCommandPoolCreateInfo poolCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 												   .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-												   .queueFamilyIndex = m_context.deviceContext->graphicsQueueFamilyIndex() };
+												   .queueFamilyIndex =
+													   m_context.deviceContext->graphicsQueueFamilyIndex() };
 
 		for (size_t i = 0; i < frameInFlightCount; ++i) {
-			verifyResult(
-				vkCreateCommandPool(m_context.deviceContext->device(), &poolCreateInfo, nullptr, &m_frameCommandPools[i]));
+			verifyResult(vkCreateCommandPool(m_context.deviceContext->device(), &poolCreateInfo, nullptr,
+											 &m_frameCommandPools[i]));
 			VkCommandBufferAllocateInfo allocateInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 														 .commandPool = m_frameCommandPools[i],
 														 .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 														 .commandBufferCount = 1 };
-			verifyResult(vkAllocateCommandBuffers(m_context.deviceContext->device(), &allocateInfo, &m_frameCommandBuffers[i]));
+			verifyResult(
+				vkAllocateCommandBuffers(m_context.deviceContext->device(), &allocateInfo, &m_frameCommandBuffers[i]));
 		}
 	}
 
@@ -103,7 +105,7 @@ namespace vanadium::graphics {
 		m_buffers[handle].usageFlags |= usage.usageFlags;
 		m_barrierGenerator.addNodeBufferAccess(
 			nodeIterator - m_nodes.begin(),
-			NodeBufferAccess{ .subresourceAccesses = usage.subresourceAccesses, .buffer = handle  });
+			NodeBufferAccess{ .subresourceAccesses = usage.subresourceAccesses, .buffer = handle });
 		return handle;
 	}
 
@@ -157,7 +159,7 @@ namespace vanadium::graphics {
 		m_buffers[bufferHandle].usageFlags |= usage.usageFlags;
 		m_barrierGenerator.addNodeBufferAccess(
 			nodeIterator - m_nodes.begin(),
-			NodeBufferAccess{ .subresourceAccesses = usage.subresourceAccesses , .buffer = handle });
+			NodeBufferAccess{ .subresourceAccesses = usage.subresourceAccesses, .buffer = handle });
 		return bufferHandle;
 	}
 
@@ -169,7 +171,7 @@ namespace vanadium::graphics {
 			std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
 		if (nodeIterator == m_nodes.end()) {
 			printf("invalid node as creator!\n");
-			return ~0U ;
+			return ~0U;
 		}
 		size_t nodeIndex = nodeIterator - m_nodes.begin();
 
@@ -177,7 +179,7 @@ namespace vanadium::graphics {
 		m_images[imageHandle].usage |= usage.usageFlags;
 		m_barrierGenerator.addNodeImageAccess(
 			nodeIterator - m_nodes.begin(),
-			NodeImageAccess{  .subresourceAccesses = usage.subresourceAccesses ,.image = handle});
+			NodeImageAccess{ .subresourceAccesses = usage.subresourceAccesses, .image = handle });
 		if (!usage.viewInfos.empty()) {
 			nodeIterator->resourceViewInfos.insert(
 				robin_hood::pair<FramegraphImageHandle, std::vector<ImageResourceViewInfo>>(imageHandle,
@@ -206,7 +208,7 @@ namespace vanadium::graphics {
 		m_buffers[handle].usageFlags |= usage.usageFlags;
 		m_barrierGenerator.addNodeBufferAccess(
 			nodeIterator - m_nodes.begin(),
-			NodeBufferAccess{  .subresourceAccesses = usage.subresourceAccesses, .buffer = handle });
+			NodeBufferAccess{ .subresourceAccesses = usage.subresourceAccesses, .buffer = handle });
 	}
 
 	void FramegraphContext::declareReferencedImage(FramegraphNode* user, FramegraphImageHandle handle,
@@ -230,7 +232,7 @@ namespace vanadium::graphics {
 		m_images[handle].usage |= usage.usageFlags;
 		m_barrierGenerator.addNodeImageAccess(
 			nodeIterator - m_nodes.begin(),
-			NodeImageAccess{ .subresourceAccesses = usage.subresourceAccesses, .image = handle  });
+			NodeImageAccess{ .subresourceAccesses = usage.subresourceAccesses, .image = handle });
 		if (!usage.viewInfos.empty()) {
 			if (nodeIterator == m_nodes.end()) {
 				printf("invalid node as creator!\n");
@@ -339,7 +341,7 @@ namespace vanadium::graphics {
 
 		size_t nodeIndex = nodeIterator - m_nodes.begin();
 		return m_context.resourceAllocator->requestImageView(m_images[handle].resourceHandle,
-													 nodeIterator->resourceViewInfos[handle][index]);
+															 nodeIterator->resourceViewInfos[handle][index]);
 	}
 
 	VkImageView FramegraphContext::targetImageView(FramegraphNode* node, uint32_t index) {
@@ -368,8 +370,9 @@ namespace vanadium::graphics {
 	VkCommandBuffer FramegraphContext::recordFrame(uint32_t frameIndex) {
 		updateBarriers();
 
-		VkCommandBuffer frameCommandBuffer = m_frameCommandBuffers[frameIndex];
+		vkResetCommandPool(m_context.deviceContext->device(), m_frameCommandPools[frameIndex], 0);
 
+		VkCommandBuffer frameCommandBuffer = m_frameCommandBuffers[frameIndex];
 		VkCommandBufferBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 											   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
 		verifyResult(vkBeginCommandBuffer(frameCommandBuffer, &beginInfo));
@@ -383,8 +386,8 @@ namespace vanadium::graphics {
 											  .srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
 											  .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT };
 
-			vkCmdPipelineBarrier(frameCommandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-								 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 1, &memoryBarrier, 0, nullptr,
+			vkCmdPipelineBarrier(frameCommandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+								 VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &memoryBarrier, 0, nullptr,
 								 static_cast<uint32_t>(m_barrierGenerator.frameStartBarrierCount()),
 								 m_barrierGenerator.frameStartBarriers().data());
 		}
@@ -461,6 +464,9 @@ namespace vanadium::graphics {
 	}
 
 	void FramegraphContext::destroy() {
+		for(auto& commandPool : m_frameCommandPools) {
+			vkDestroyCommandPool(m_context.deviceContext->device(), commandPool, nullptr);
+		}
 		for (auto& node : m_nodes) {
 			node.node->destroy(this);
 		}
@@ -494,7 +500,8 @@ namespace vanadium::graphics {
 										 .tiling = parameters.tiling,
 										 .usage = usage,
 										 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
-		m_images[handle].resourceHandle = m_context.resourceAllocator->createImage(createInfo, {}, { .deviceLocal = true });
+		m_images[handle].resourceHandle =
+			m_context.resourceAllocator->createImage(createInfo, {}, { .deviceLocal = true });
 	}
 
 	void FramegraphContext::updateDependencyInfo() {

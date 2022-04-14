@@ -136,6 +136,7 @@ void PipelineInstanceRecord::serialize(void* data) {
 	data = offsetVoidPtr(data, sizeof(uint32_t));
 	std::memcpy(data, m_name.c_str(), m_name.size());
 	data = offsetVoidPtr(data, m_name.size());
+
 	if (m_type == PipelineType::Graphics) {
 		uint32_t attribCount = static_cast<uint32_t>(m_instanceVertexInputConfig.attributes.size());
 		std::memcpy(data, &attribCount, sizeof(uint32_t));
@@ -231,7 +232,7 @@ void PipelineInstanceRecord::serialize(void* data) {
 		for (auto& attachment : m_instanceColorAttachmentBlendConfigs) {
 			bool blendEnable = attachment.blendEnable;
 			std::memcpy(data, &blendEnable, sizeof(bool));
-			data = offsetVoidPtr(data, sizeof(uint32_t));
+			data = offsetVoidPtr(data, sizeof(bool));
 			std::memcpy(data, &attachment.srcColorBlendFactor, sizeof(uint32_t));
 			data = offsetVoidPtr(data, sizeof(uint32_t));
 			std::memcpy(data, &attachment.dstColorBlendFactor, sizeof(uint32_t));

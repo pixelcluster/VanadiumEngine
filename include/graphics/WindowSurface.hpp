@@ -27,6 +27,7 @@ namespace vanadium::graphics {
 		uint32_t imageHeight() const { return m_actualHeight; }
 
 		void setSuggestedSize(uint32_t suggestedWidth, uint32_t suggestedHeight);
+		void updateActualSize(VkPhysicalDevice physicalDevice);
 
 		// returns whether the swapchain data was changed
 		bool refreshSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkImageUsageFlags usageFlags);
@@ -46,8 +47,6 @@ namespace vanadium::graphics {
 
 		uint32_t m_suggestedWidth = 0, m_suggestedHeight = 0;
 		uint32_t m_actualWidth = 0, m_actualHeight = 0;
-
-		std::optional<uint32_t> m_lastFailedPresentIndex;
 
 		size_t m_frameInFlightCount;
 		std::vector<VkSemaphore> m_acquireSemaphores;

@@ -26,7 +26,7 @@ namespace vanadium {
 		void setPipelineLibraryFileName(const std::string_view& name) { m_pipelineLibraryFileName = name; }
 
 	  private:
-		uint32_t m_startupFlags;
+		uint32_t m_startupFlags = 0;
 		std::string_view m_appName;
 		std::string_view m_pipelineLibraryFileName = "./shaders.vcp";
 		uint32_t m_appVersion;
@@ -39,6 +39,13 @@ namespace vanadium {
 		Engine(const EngineConfig& config);
 
 		bool tickFrame();
+
+		void afterUserInit();
+
+		template <std::derived_from<graphics::FramegraphNode> T, typename... Args>
+		requires(std::constructible_from<T, Args...>) T* addFramegraphPass(Args&&... constructorArgs) {
+			return m_graphicsSubsystem.framegraphContext().appendNode<T, Args...>(constructorArgs...);
+		}
 
 	  private:
 		uint32_t m_startupFlags;

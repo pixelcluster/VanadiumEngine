@@ -10,5 +10,6 @@ int main() {
     configureEngine(config);
     vanadium::Engine engine = vanadium::Engine(config);
     init(engine);
+    engine.afterUserInit();
     while(onFrame(engine) && engine.tickFrame()) {}
 }

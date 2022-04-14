@@ -229,7 +229,8 @@ int main(int argc, char** argv) {
 	currentFileOffset += sizeof(uint64_t) * options.fileNames.size();
 	for (auto& record : records) {
 		path filePath = absolute(options.fileNames[fileNameIndex]);
-		auto shaders = record.archetypeRecord.retrieveCompileResults(filePath.string(), localRecordPaths[fileNameIndex].string());
+		auto shaders =
+			record.archetypeRecord.retrieveCompileResults(filePath.string(), localRecordPaths[fileNameIndex].string());
 
 		outStream.write(reinterpret_cast<char*>(&currentFileOffset), sizeof(uint64_t));
 		record.totalRecordSize = 0;
@@ -257,7 +258,13 @@ int main(int argc, char** argv) {
 			outStream.close();
 			remove(options.outFile);
 			remove_all(tempDirPath);
+			for (auto& shader : shaders) {
+				spvReflectDestroyShaderModule(&shader.shader);
+			}
 			return EXIT_FAILURE;
+		}
+		for (auto& shader : shaders) {
+			spvReflectDestroyShaderModule(&shader.shader);
 		}
 		++fileNameIndex;
 	}
@@ -288,6 +295,7 @@ int main(int argc, char** argv) {
 		currentFileOffset += record.totalRecordSize;
 
 		delete[] reinterpret_cast<char*>(dstData);
+		record.archetypeRecord.freeShaders();
 	}
 
 	remove_all(tempDirPath);
