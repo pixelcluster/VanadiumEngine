@@ -64,7 +64,7 @@ void PipelineInstanceRecord::verifyFragmentShader(const std::string_view& srcPat
 												  const SpvReflectShaderModule& shader) {
 	SpvReflectResult result;
 	uint32_t outputVariableCount;
-	result = spvReflectEnumerateInputVariables(&shader, &outputVariableCount, nullptr);
+	result = spvReflectEnumerateOutputVariables(&shader, &outputVariableCount, nullptr);
 
 	if (result != SPV_REFLECT_RESULT_SUCCESS) {
 		std::cout << srcPath << ": Error: Internal error when verifying fragment shader.\n";
@@ -73,7 +73,7 @@ void PipelineInstanceRecord::verifyFragmentShader(const std::string_view& srcPat
 
 	auto outputVariables = std::vector<SpvReflectInterfaceVariable*>(outputVariableCount);
 
-	result = spvReflectEnumerateInputVariables(&shader, &outputVariableCount, outputVariables.data());
+	result = spvReflectEnumerateOutputVariables(&shader, &outputVariableCount, outputVariables.data());
 	if (result != SPV_REFLECT_RESULT_SUCCESS) {
 		std::cout << srcPath << ": Error: Internal error when verifying fragment shader.\n";
 		return;

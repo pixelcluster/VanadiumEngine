@@ -20,8 +20,10 @@ namespace vanadium::graphics {
 		// returns if rendering is possible, if false, waitEvents should be called
 		bool tickFrame();
 
+		uint32_t frameIndex() { return m_frameIndex; }
+
 	  private:
-		uint32_t frameIndex = 0;
+		uint32_t m_frameIndex = 0;
 
 		WindowSurface m_surface;
 		DeviceContext m_deviceContext;

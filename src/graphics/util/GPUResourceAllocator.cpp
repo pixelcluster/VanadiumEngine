@@ -548,30 +548,38 @@ namespace vanadium::graphics {
 			size_t freeBlockCount = 0;
 
 		blockFreeStart:
+			auto iterator = type.blocks.begin();
 			for (auto& block : type.blocks) {
 				if (block.maxAllocatableSize == block.originalSize) {
 					if (block.originalSize > m_blockSize) {
 						vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
+						type.blocks.removeElement(type.blocks.handle(iterator));
 						// no way to handle iterator invalidation gracefully, restart loop
 						goto blockFreeStart;
 					} else if (++freeBlockCount > 1) {
 						vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
+						type.blocks.removeElement(type.blocks.handle(iterator));
 						goto blockFreeStart;
 					}
 				}
+				++iterator;
 			}
 		imageBlockFreeStart:
+			auto imageIterator = type.imageBlocks.begin();
 			for (auto& block : type.imageBlocks) {
 				if (block.maxAllocatableSize == block.originalSize) {
 					if (block.originalSize > m_blockSize) {
 						vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
+						type.imageBlocks.removeElement(type.imageBlocks.handle(imageIterator));
 						// no way to handle iterator invalidation gracefully, restart loop
 						goto imageBlockFreeStart;
 					} else if (++freeBlockCount > 1) {
 						vkFreeMemory(m_context->device(), block.memoryHandle, nullptr);
+						type.imageBlocks.removeElement(type.imageBlocks.handle(imageIterator));
 						goto imageBlockFreeStart;
 					}
 				}
+				++imageIterator;
 			}
 		}
 

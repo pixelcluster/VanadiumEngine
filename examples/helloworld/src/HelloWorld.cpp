@@ -1,25 +1,30 @@
-#include <modules/gpu/VGPUModule.hpp>
-#include <modules/window/VGLFWWindowModule.hpp>
-#include <modules/VertexBufferUpdateModule.hpp>
-
+#include <Engine.hpp>
 #include <framegraph_nodes/SwapchainClearNode.hpp>
 #include <framegraph_nodes/HelloTriangleNode.hpp>
+#include <VertexBufferUpdater.hpp>
 
-int main() {
-	VEngine engine;
-	VWindowModule* windowModule = engine.createModule<VGLFWWindowModule>(640, 480, "Vanadium Hello World");
-	VGPUModule* gpuModule = engine.createModule<VGPUModule>("Vanadium Hello World", 0, windowModule);
-	VertexBufferUpdateModule* bufferModule = engine.createModule<VertexBufferUpdateModule>(gpuModule, windowModule);
+void configureEngine(vanadium::EngineConfig& config) {
+	config.setAppName("Vanadium Minimal UI");
+	VertexBufferUpdater* updater = new VertexBufferUpdater;
+	config.setUserPointer(updater);
+	config.addCustomFramegraphNode<SwapchainClearNode>();
+	config.addCustomFramegraphNode<HelloTriangleNode>(updater);
+}
 
-	SwapchainClearNode* clearNode = gpuModule->framegraphContext().addFramegraphPass<SwapchainClearNode>();
-	gpuModule->framegraphContext().addFramegraphPass<HelloTriangleNode>(bufferModule->vertexBufferHandle());
 
-	engine.activateModule(windowModule);
-	engine.activateModule(gpuModule);
-	engine.activateModule(bufferModule);
+void preFramegraphInit(vanadium::Engine& engine) {
+	VertexBufferUpdater* updater = std::launder(reinterpret_cast<VertexBufferUpdater*>(engine.userPointer()));
+	updater->init(engine.graphicsSubsystem());
+}
 
-	engine.addModuleDependency(windowModule, bufferModule);
-	engine.addModuleDependency(windowModule, gpuModule);
-	engine.addModuleDependency(bufferModule, gpuModule);
-	engine.run();
+void init(vanadium::Engine& engine) {}
+
+bool onFrame(vanadium::Engine& engine) {
+	VertexBufferUpdater* updater = std::launder(reinterpret_cast<VertexBufferUpdater*>(engine.userPointer()));
+	updater->update(engine.graphicsSubsystem(), engine.elapsedTime());
+	return true;
+}
+
+void destroy(vanadium::Engine& engine) {
+
 }

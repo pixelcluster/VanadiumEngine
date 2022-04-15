@@ -96,12 +96,14 @@ namespace vanadium::graphics {
 		const DescriptorSetLayoutInfo& graphicsPipelineSet(uint32_t id, uint32_t setIndex) {
 			return m_descriptorSetLayouts[m_archetypes[m_graphicsInstances[id].archetypeID].setLayoutIndices[setIndex]];
 		}
+		std::vector<DescriptorSetLayoutInfo> graphicsPipelineSets(uint32_t id);
 		VkPipelineLayout graphicsPipelineLayout(uint32_t id) {
 			return m_graphicsInstances[id].pipelineCreateInfo.layout;
 		}
 		const DescriptorSetLayoutInfo& computePipelineSet(uint32_t id, uint32_t setIndex) {
 			return m_descriptorSetLayouts[m_archetypes[m_computeInstances[id].archetypeID].setLayoutIndices[setIndex]];
 		}
+		std::vector<DescriptorSetLayoutInfo> computePipelineSets(uint32_t id);
 		VkPipelineLayout computePipelineLayout(uint32_t id) {
 			return m_computeInstances[id].layout;
 		}

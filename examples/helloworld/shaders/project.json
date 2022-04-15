@@ -4,123 +4,58 @@
     "vert": "./triangle.vert",
     "frag": "./triangle.frag",
     "sets": [
-      {
-        "bindings": [
-          {
-            "binding": 0,
-            "type": "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
-            "count": 1,
-            "stages": "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT"
-          }
-        ]
-      },
-      {
-        "bindings": [
-          {
-            "binding": 0,
-            "type": "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
-            "count": 1,
-            "stages": "VK_SHADER_STAGE_FRAGMENT_BIT",
-            "immutable-samplers": true
-          },
-          {
-            "binding": 1,
-            "type": "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
-            "count": 1,
-            "stages": "VK_SHADER_STAGE_FRAGMENT_BIT",
-            "immutable-samplers": true
-          }
-        ]
-      }
+      {}
     ]
   },
   "instances": [
     {
-      "name": "Planet pipeline",
+      "name": "Hello Triangle",
       "vertex-input": {
         "attributes": [
           {
-            "format": "VK_FORMAT_R32G32B32A32_SFLOAT",
+            "format": "VK_FORMAT_R32G32_SFLOAT",
             "location": 0,
             "binding": 0,
             "offset": 0
           },
           {
-            "format": "VK_FORMAT_R32G32_SFLOAT",
+            "format": "VK_FORMAT_R32G32B32_SFLOAT",
             "location": 1,
             "binding": 0,
-            "offset": 16
+            "offset": 8
           }
         ],
         "bindings": [
           {
             "binding": 0,
-            "stride": 24,
+            "stride": 20,
             "input-rate": "VK_VERTEX_INPUT_RATE_VERTEX"
           }
         ]
       },
       "input-assembly": {
-        "topology": "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST",
-        "primitve-restart": false
+        "topology": "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST"
       },
       "rasterization": {
-        "depth-clamp": false,
-        "rasterizer-discard": false,
         "cull-mode": "VK_CULL_MODE_BACK_BIT",
         "polygon-mode": "VK_POLYGON_MODE_FILL",
-        "front-face": "VK_FRONT_FACE_COUNTER_CLOCKWISE",
-        "depth-bias-enable": false,
-        "depth-bias-constant-factor": 0.0,
-        "depth-bias-clamp": 9999999.9,
-        "depth-bias-slope-factor": 1.0,
-        "line-width": 1
+        "front-face": "VK_FRONT_FACE_COUNTER_CLOCKWISE"
       },
       "multisample": {
         "sampleCount": "VK_SAMPLE_COUNT_1_BIT"
       },
       "depth-stencil": {
-        "depth-test": true,
-        "depth-writes": true,
-        "depth-compare-op": "VK_COMPARE_OP_LESS",
-        "depth-bounds-test": true,
-        "stencil-test": false,
-        "front": {
-          "fail": "VK_STENCIL_OP_KEEP",
-          "pass": "VK_STENCIL_OP_REPLACE",
-          "depth-fail": "VK_STENCIL_OP_KEEP",
-          "compare-op": "VK_COMPARE_OP_LESS",
-          "compare-mask": 255,
-          "write-mask": 255,
-          "reference": 1
-        },
-        "back": {
-          "fail": "VK_STENCIL_OP_KEEP",
-          "pass": "VK_STENCIL_OP_REPLACE",
-          "depth-fail": "VK_STENCIL_OP_KEEP",
-          "compare-op": "VK_COMPARE_OP_LESS",
-          "compare-mask": 255,
-          "write-mask": 255,
-          "reference": 2
-        },
-        "depth-bounds-min": 0,
-        "depth-bounds-max": 0
+        "depth-test": false,
+        "depth-writes": false,
+        "depth-bounds-test": false,
+        "stencil-test": false
       },
       "color-blend": {
         "logic-op-enable": false,
-        "logic-op": "VK_LOGIC_OP_NO_OP",
-        "blend-constants": [ 0, 0.5, 0.1, 1 ]
+        "blend-constants": [ 0, 0, 0, 0 ]
       },
       "attachment-blend": [
-        {
-          "src-color-factor": "VK_BLEND_FACTOR_SRC_ALPHA",
-          "dst-color-factor": "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA",
-          "src-alpha-factor": "VK_BLEND_FACTOR_SRC_ALPHA",
-          "dst-alpha-factor": "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA",
-          "color-blend-op": "VK_BLEND_OP_ADD",
-          "alpha-blend-op": "VK_BLEND_OP_ADD",
-          "components": "VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_R_BIT"
-        }
+        {}
       ]
     }
   ]

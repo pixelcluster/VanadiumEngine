@@ -2,14 +2,75 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <numbers>
 
+#include <graphics/helper/DescriptorSetAllocateInfoGenerator.hpp>
 #include <graphics/helper/ErrorHelper.hpp>
 #include <graphics/helper/TextureImageLoader.hpp>
 #include <volk.h>
 
-DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, PlanetRenderNode* renderNode,
-										 VWindowModule* windowModule) {
-	m_gpuModule = gpuModule;
-	m_windowModule = windowModule;
+void forwardKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
+	if (state == vanadium::windowing::KeyState::Released) {
+		generator->setForwardState(false);
+	} else
+		generator->setForwardState(true);
+}
+void backKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
+	if (state == vanadium::windowing::KeyState::Released) {
+		generator->setBackState(false);
+	} else
+		generator->setBackState(true);
+}
+void rightKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
+	if (state == vanadium::windowing::KeyState::Released) {
+		generator->setRightState(false);
+	} else
+		generator->setRightState(true);
+}
+void leftKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
+	if (state == vanadium::windowing::KeyState::Released) {
+		generator->setLeftState(false);
+	} else
+		generator->setLeftState(true);
+}
+void mouseKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
+	if (state == vanadium::windowing::KeyState::Released) {
+		generator->mouseRelease();
+	} else
+		generator->mousePress();
+}
+
+DataGenerator::DataGenerator(vanadium::graphics::GraphicsSubsystem& subsystem,
+							 vanadium::windowing::WindowInterface& interface, PlanetRenderNode* renderNode) {
+	interface.addKeyListener(GLFW_KEY_W, 0,
+							 vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
+							 { .eventCallback = forwardKey,
+							   .listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,
+							   .userData = this });
+	interface.addKeyListener(GLFW_KEY_S, 0,
+							 vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
+							 { .eventCallback = backKey,
+							   .listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,
+							   .userData = this });
+	interface.addKeyListener(GLFW_KEY_A, 0,
+							 vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
+							 { .eventCallback = rightKey,
+							   .listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,
+							   .userData = this });
+	interface.addKeyListener(GLFW_KEY_D, 0,
+							 vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
+							 { .eventCallback = leftKey,
+							   .listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,
+							   .userData = this });
+	interface.addMouseKeyListener(GLFW_MOUSE_BUTTON_LEFT, 0,
+								  vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
+								  { .eventCallback = mouseKey,
+									.listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,
+									.userData = this });
+
 	m_pointBuffer = new VertexData[totalPointCount];
 	m_indexBuffer = new uint32_t[totalIndexCount];
 
@@ -99,95 +160,60 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, PlanetRenderNode
 												VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 											.sharingMode = VK_SHARING_MODE_EXCLUSIVE };
 	m_vertexBufferHandle =
-		m_gpuModule->resourceAllocator().createBuffer(bufferCreateInfo, {}, { .deviceLocal = true }, false);
+		subsystem.context().resourceAllocator->createBuffer(bufferCreateInfo, {}, { .deviceLocal = true }, false);
 
-	m_gpuModule->transferManager().submitOneTimeTransfer(sizeof(VertexData) * totalPointCount, m_vertexBufferHandle,
-														 m_pointBuffer, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-														 VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
+	subsystem.context().transferManager->submitOneTimeTransfer(
+		sizeof(VertexData) * totalPointCount, m_vertexBufferHandle, m_pointBuffer, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+		VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
 	bufferCreateInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 						 .size = sizeof(uint32_t) * totalIndexCount,
 						 .usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 						 .sharingMode = VK_SHARING_MODE_EXCLUSIVE };
 	m_indexBufferHandle =
-		m_gpuModule->resourceAllocator().createBuffer(bufferCreateInfo, {}, { .deviceLocal = true }, false);
+		subsystem.context().resourceAllocator->createBuffer(bufferCreateInfo, {}, { .deviceLocal = true }, false);
 
-	m_gpuModule->transferManager().submitOneTimeTransfer(sizeof(uint32_t) * totalIndexCount, m_indexBufferHandle,
-														 m_indexBuffer, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-														 VK_ACCESS_INDEX_READ_BIT);
+	subsystem.context().transferManager->submitOneTimeTransfer(sizeof(uint32_t) * totalIndexCount, m_indexBufferHandle,
+															   m_indexBuffer, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+															   VK_ACCESS_INDEX_READ_BIT);
 
-	m_sceneDataTransfer =
-		m_gpuModule->transferManager().createTransfer(sizeof(CameraSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-													  VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
+	m_sceneDataTransfer = subsystem.context().transferManager->createTransfer(
+		sizeof(CameraSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+		VK_ACCESS_SHADER_READ_BIT);
 
-	m_texHandle =
-		loadTexture("./resources/earth_tex.jpg", &m_gpuModule->resourceAllocator(), &m_gpuModule->transferManager(),
-					VK_IMAGE_USAGE_SAMPLED_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
-					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	m_seaMaskTexHandle =
-		loadTexture("./resources/earth_bathymetry.jpg", &m_gpuModule->resourceAllocator(),
-					&m_gpuModule->transferManager(), VK_IMAGE_USAGE_SAMPLED_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-					VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	m_texHandle = loadTexture("./resources/earth_tex.jpg", subsystem.context().resourceAllocator,
+							  subsystem.context().transferManager, VK_IMAGE_USAGE_SAMPLED_BIT,
+							  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
+							  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	m_seaMaskTexHandle = loadTexture("./resources/earth_bathymetry.jpg", subsystem.context().resourceAllocator,
+									 subsystem.context().transferManager, VK_IMAGE_USAGE_SAMPLED_BIT,
+									 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
+									 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-	VkSamplerCreateInfo samplerCreateInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-											  .magFilter = VK_FILTER_LINEAR,
-											  .minFilter = VK_FILTER_LINEAR,
-											  .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-											  .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-											  .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-											  .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT };
-	verifyResult(vkCreateSampler(m_gpuModule->context().device(), &samplerCreateInfo, nullptr, &m_textureSampler));
+	VkImageView view = subsystem.context().resourceAllocator->requestImageView(
+		m_texHandle,
+		vanadium::graphics::ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+												   .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+																		 .baseMipLevel = 0,
+																		 .levelCount = VK_REMAINING_MIP_LEVELS,
+																		 .baseArrayLayer = 0,
+																		 .layerCount = 1 } });
+	VkImageView seaMaskView = subsystem.context().resourceAllocator->requestImageView(
+		m_seaMaskTexHandle,
+		vanadium::graphics::ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
+												   .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+																		 .baseMipLevel = 0,
+																		 .levelCount = VK_REMAINING_MIP_LEVELS,
+																		 .baseArrayLayer = 0,
+																		 .layerCount = 1 } });
 
-	VkDescriptorSetLayoutBinding uboBinding = { .binding = 0,
-												.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-												.descriptorCount = 1,
-												.stageFlags =
-													VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT };
-	VkDescriptorSetLayoutCreateInfo setLayoutCreateInfo = {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 1, .pBindings = &uboBinding
-	};
-	verifyResult(vkCreateDescriptorSetLayout(m_gpuModule->context().device(), &setLayoutCreateInfo, nullptr,
-											 &m_sceneDataSetLayout));
+	m_planetPipelineID = subsystem.context().pipelineLibrary->findGraphicsPipeline("Planet Drawing");
 
-	VkDescriptorSetLayoutBinding texBindings[] = { { .binding = 0,
-													 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-													 .descriptorCount = 1,
-													 .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-													 .pImmutableSamplers = &m_textureSampler },
-												   { .binding = 1,
-													 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-													 .descriptorCount = 1,
-													 .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-													 .pImmutableSamplers = &m_textureSampler } };
-	VkDescriptorSetLayoutCreateInfo texSetLayoutCreateInfo = {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 2, .pBindings = texBindings
-	};
-	verifyResult(vkCreateDescriptorSetLayout(m_gpuModule->context().device(), &texSetLayoutCreateInfo, nullptr,
-											 &m_textureSetLayout));
+	auto allocations = subsystem.context().descriptorSetAllocator->allocateDescriptorSets(
+		vanadium::graphics::allocationInfosForPipeline(subsystem.context().pipelineLibrary,
+													   vanadium::graphics::PipelineType::Graphics, m_planetPipelineID));
 
-	VkImageView view = m_gpuModule->resourceAllocator().requestImageView(
-		m_texHandle, ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
-											 .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-																   .baseMipLevel = 0,
-																   .levelCount = VK_REMAINING_MIP_LEVELS,
-																   .baseArrayLayer = 0,
-																   .layerCount = 1 } });
-	VkImageView seaMaskView = m_gpuModule->resourceAllocator().requestImageView(
-		m_seaMaskTexHandle, ImageResourceViewInfo{ .viewType = VK_IMAGE_VIEW_TYPE_2D,
-													.subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-																		  .baseMipLevel = 0,
-																		  .levelCount = VK_REMAINING_MIP_LEVELS,
-																		  .baseArrayLayer = 0,
-																		  .layerCount = 1 } });
-
-	auto allocations = m_gpuModule->descriptorSetAllocator().allocateDescriptorSets(
-		{ { .typeInfos = { { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .count = 1 } },
-			.layout = m_sceneDataSetLayout },
-		  { .typeInfos = { { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .count = 1 },
-						   { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .count = 1 } },
-			.layout = m_textureSetLayout } });
-
-	VkDescriptorBufferInfo info = { .buffer = m_gpuModule->resourceAllocator().nativeBufferHandle(
-										m_gpuModule->transferManager().dstBufferHandle(m_sceneDataTransfer)),
+	VkDescriptorBufferInfo info = { .buffer = subsystem.context().resourceAllocator->nativeBufferHandle(
+										subsystem.context().transferManager->dstBufferHandle(m_sceneDataTransfer)),
 									.offset = 0,
 									.range = VK_WHOLE_SIZE };
 
@@ -216,73 +242,64 @@ DataGeneratorModule::DataGeneratorModule(VGPUModule* gpuModule, PlanetRenderNode
 											.descriptorCount = 1,
 											.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 											.pImageInfo = &seaMaskImageInfo } };
-	vkUpdateDescriptorSets(m_gpuModule->context().device(), 3, setWrites, 0, nullptr);
+	vkUpdateDescriptorSets(subsystem.context().deviceContext->device(), 3, setWrites, 0, nullptr);
 
 	renderNode->setupObjects(m_vertexBufferHandle, m_indexBufferHandle, m_sceneDataSetLayout, allocations[0].set,
 							 m_textureSetLayout, allocations[1].set, totalIndexCount);
 }
 
-void DataGeneratorModule::onCreate(VEngine& engine) {}
-
-void DataGeneratorModule::onActivate(VEngine& engine) {}
-
-void DataGeneratorModule::onExecute(VEngine& engine) {
+void DataGenerator::update(vanadium::graphics::GraphicsSubsystem& subsystem,
+						   vanadium::windowing::WindowInterface& interface) {
 	float sinTheta = sinf(m_camTheta);
 	float cosTheta = cosf(m_camTheta);
 	float sinPhi = sinf(m_camPhi);
 	float cosPhi = cosf(m_camPhi);
+
 	glm::vec3 directionCartesian = glm::vec3(cosPhi * sinTheta, cosTheta, -sinPhi * sinTheta);
 	glm::vec3 right = glm::vec3(sinPhi, 0.0f, cosPhi);
+	glm::vec3 camUp = glm::cross(directionCartesian, right);
 
-	if (m_windowModule->keyCharState('W') != VKeyState::Released) {
-		m_camPos += directionCartesian * 1.0f * static_cast<float>(m_windowModule->deltaTime());
+	if (m_movingForward) {
+		m_camPos += directionCartesian * interface.deltaTime();
 	}
-	if (m_windowModule->keyCharState('S') != VKeyState::Released) {
-		m_camPos -= directionCartesian * 1.0f * static_cast<float>(m_windowModule->deltaTime());
+	if (m_movingBack) {
+		m_camPos -= directionCartesian * interface.deltaTime();
 	}
-	if (m_windowModule->keyCharState('A') != VKeyState::Released) {
-		m_camPos += right * 1.0f * static_cast<float>(m_windowModule->deltaTime());
+	if (m_movingRight) {
+		m_camPos += right * interface.deltaTime();
 	}
-	if (m_windowModule->keyCharState('D') != VKeyState::Released) {
-		m_camPos -= right * 1.0f * static_cast<float>(m_windowModule->deltaTime());
+	if (m_movingLeft) {
+		m_camPos -= right * interface.deltaTime();
 	}
 
-	switch (m_windowModule->mouseKeyState(0)) {
-		case VKeyState::Pressed:
-			if (m_lastMouseValid) {
-				float deltaX = m_windowModule->mouseX() - m_lastMouseX;
-				float deltaY = m_windowModule->mouseY() - m_lastMouseY;
+	if (m_mousePressed) {
+		vanadium::Vector2 mousePos = interface.mousePos();
+		if (m_lastMouseValid) {
+			float deltaX = mousePos.x - m_lastMouseX;
+			float deltaY = mousePos.y - m_lastMouseY;
 
-				m_camPhi += deltaX * 0.2f * static_cast<float>(m_windowModule->deltaTime());
-				m_camTheta += deltaY * 0.2f * static_cast<float>(m_windowModule->deltaTime());
-			}
-			m_lastMouseX = m_windowModule->mouseX();
-			m_lastMouseY = m_windowModule->mouseY();
-			m_lastMouseValid = true;
-			break;
-		default:
-			m_lastMouseValid = false;
-			break;
-	}
+			m_camPhi += deltaX * 0.2f * interface.deltaTime();
+			m_camTheta += deltaY * 0.2f * interface.deltaTime();
+		}
+		m_lastMouseX = mousePos.x;
+		m_lastMouseY = mousePos.y;
+		m_lastMouseValid = true;
+	} else
+		m_lastMouseValid = false;
 
 	constexpr float vFoV = glm::radians(65.0f);
 	float tanHalfFoV = tanf(vFoV * 0.5);
-	float aspectRatio = static_cast<float>(m_windowModule->width()) / static_cast<float>(m_windowModule->height());
-	glm::vec3 camUp = glm::cross(directionCartesian, right);
+	uint32_t width, height;
+	interface.windowSize(width, height);
+	float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
 
 	CameraSceneData sceneData = { .viewProjection = glm::perspective(vFoV, aspectRatio, 0.0f, 200.0f) *
 													glm::lookAt(m_camPos, m_camPos + directionCartesian, camUp),
 								  .camPos = glm::vec4(m_camPos, 1.0f) };
-	m_gpuModule->transferManager().updateTransferData(m_sceneDataTransfer, &sceneData);
+	subsystem.context().transferManager->updateTransferData(m_sceneDataTransfer, subsystem.frameIndex(), &sceneData);
 }
 
-void DataGeneratorModule::onDeactivate(VEngine& engine) {
-	vkDestroyDescriptorSetLayout(m_gpuModule->context().device(), m_sceneDataSetLayout, nullptr);
-	vkDestroyDescriptorSetLayout(m_gpuModule->context().device(), m_textureSetLayout, nullptr);
-	vkDestroySampler(m_gpuModule->context().device(), m_textureSampler, nullptr);
-}
-
-void DataGeneratorModule::onDestroy(VEngine& engine) {
+void DataGenerator::destroy(vanadium::graphics::GraphicsSubsystem& subsystem) {
 	delete[] m_pointBuffer;
 	delete[] m_indexBuffer;
 }

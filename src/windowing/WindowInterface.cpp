@@ -27,6 +27,29 @@ namespace vanadium::windowing {
 			interface->invokeKeyListeners(static_cast<uint32_t>(key), static_cast<KeyModifierFlags>(mods), state);
 	}
 
+	void mouseKeyCallback(GLFWwindow* window, int button, int action, int mods) {
+		WindowInterface* interface = std::launder(reinterpret_cast<WindowInterface*>(glfwGetWindowUserPointer(window)));
+		KeyState state;
+
+		switch (action) {
+			case GLFW_RELEASE:
+				state = KeyState::Released;
+				break;
+			case GLFW_PRESS:
+				state = KeyState::Pressed;
+				break;
+			case GLFW_REPEAT:
+				state = KeyState::Held;
+				break;
+			default:
+				state = KeyState::Pressed;
+				break;
+		}
+		if (button != GLFW_KEY_UNKNOWN)
+			interface->invokeMouseKeyListeners(static_cast<uint32_t>(button), static_cast<KeyModifierFlags>(mods),
+											   state);
+	}
+
 	void sizeCallback(GLFWwindow* window, int width, int height) {
 		WindowInterface* interface = std::launder(reinterpret_cast<WindowInterface*>(glfwGetWindowUserPointer(window)));
 		interface->invokeSizeListeners(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
@@ -42,7 +65,7 @@ namespace vanadium::windowing {
 		assertFatal(glfwInit(), "GLFW initialization failed!\n");
 
 		GLFWmonitor* monitor = value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
-		if(value.createFullScreen && (value.width == 0 || value.height == 0)) {
+		if (value.createFullScreen && (value.width == 0 || value.height == 0)) {
 			const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
 			value.width = vidmode->width;
 			value.height = vidmode->height;
@@ -54,6 +77,7 @@ namespace vanadium::windowing {
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetKeyCallback(m_window, keyCallback);
 		glfwSetFramebufferSizeCallback(m_window, sizeCallback);
+		glfwSetMouseButtonCallback(m_window, mouseKeyCallback);
 
 		assertFatal(m_window, "Couldn't create window!\n");
 
@@ -101,6 +125,21 @@ namespace vanadium::windowing {
 		}
 	}
 
+	void WindowInterface::addMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+											  const KeyListenerParams& params) {
+		m_mouseKeyListeners.insert(
+			{ KeyListenerData{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask }, params });
+	}
+
+	void WindowInterface::removeMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask,
+												 KeyStateFlags stateMask) {
+		auto iterator = m_mouseKeyListeners.find(
+			KeyListenerData{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask });
+		if (iterator != m_mouseKeyListeners.end()) {
+			m_mouseKeyListeners.erase(iterator);
+		}
+	}
+
 	void WindowInterface::addSizeListener(const SizeListenerParams& params) { m_sizeListeners.push_back(params); }
 
 	void WindowInterface::removeSizeListener(const SizeListenerParams& params) {
@@ -112,8 +151,19 @@ namespace vanadium::windowing {
 
 	void WindowInterface::invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state) {
 		for (auto& listener : m_keyListeners) {
-			if (listener.first.keyCode == keyCode && (listener.first.modifierMask & modifiers) &&
-				(listener.first.keyStateMask & state)) {
+			if (listener.first.keyCode == keyCode &&
+				((listener.first.modifierMask & modifiers) || listener.first.modifierMask == 0) &&
+				((listener.first.keyStateMask & state) || listener.first.keyStateMask == 0)) {
+				listener.second.eventCallback(keyCode, modifiers, state, listener.second.userData);
+			}
+		}
+	}
+
+	void WindowInterface::invokeMouseKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state) {
+		for (auto& listener : m_mouseKeyListeners) {
+			if (listener.first.keyCode == keyCode &&
+				((listener.first.modifierMask & modifiers) || listener.first.modifierMask == 0) &&
+				((listener.first.keyStateMask & state) || listener.first.keyStateMask == 0)) {
 				listener.second.eventCallback(keyCode, modifiers, state, listener.second.userData);
 			}
 		}
@@ -130,6 +180,12 @@ namespace vanadium::windowing {
 		glfwGetFramebufferSize(m_window, &glfwWidth, &glfwHeight);
 		width = static_cast<uint32_t>(glfwWidth);
 		height = static_cast<uint32_t>(glfwHeight);
+	}
+
+	Vector2 WindowInterface::mousePos() const {
+		double x, y;
+		glfwGetCursorPos(m_window, &x, &y);
+		return Vector2(static_cast<float>(x), static_cast<float>(y));
 	}
 
 	bool WindowInterface::shouldClose() { return glfwWindowShouldClose(m_window); }

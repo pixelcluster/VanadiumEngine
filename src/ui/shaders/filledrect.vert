@@ -18,7 +18,7 @@ const vec2 positions[] = {
 };
 
 const uint indices[] = {
-    0, 2, 3, 1, 0
+    0, 3, 2, 1, 3, 0
 };
 
 layout(location = 0) out vec4 outColor;

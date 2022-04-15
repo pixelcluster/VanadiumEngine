@@ -1,5 +1,4 @@
 #include <Engine.hpp>
-#include <SwapchainClearNode.hpp>
 #include <cmath>
 #include <ui/shapes/Rect.hpp>
 
@@ -11,6 +10,10 @@ void configureEngine(vanadium::EngineConfig& config) {
     /*config.overrideWindowSettings(vanadium::windowing::WindowingSettingOverride {
         .createFullScreen = true
     });*/
+}
+
+void preFramegraphInit(vanadium::Engine& engine) {
+
 }
 
 void init(vanadium::Engine& engine) {
@@ -41,3 +44,5 @@ bool onFrame(vanadium::Engine& engine) {
 	}
 	return true;
 }
+
+void destroy(vanadium::Engine& engine) {}

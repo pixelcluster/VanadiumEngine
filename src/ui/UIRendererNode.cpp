@@ -72,13 +72,6 @@ namespace vanadium::ui {
 
 	void UIRendererNode::recordCommands(graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 										const graphics::FramegraphNodeContext& nodeContext) {
-		if (nodeContext.frameIndex == m_framebufferDeletionFrameIndex) {
-			for (auto& framebuffer : m_oldImageFramebuffers) {
-				vkDestroyFramebuffer(m_renderContext.deviceContext->device(), framebuffer, nullptr);
-			}
-			m_oldImageFramebuffers.clear();
-			m_framebufferDeletionFrameIndex = ~0U;
-		}
 		for (auto& registry : m_shapeRegistries) {
 			registry.second->prepareFrame(nodeContext.frameIndex);
 		}
@@ -109,19 +102,12 @@ namespace vanadium::ui {
 		}
 
 		vkCmdEndRenderPass(targetCommandBuffer);
-		m_lastRenderedFrameIndex = nodeContext.frameIndex;
 	}
 
 	void UIRendererNode::handleWindowResize(graphics::FramegraphContext* context, uint32_t width, uint32_t height) {
-		if (!m_imageFramebuffers.empty()) {
-			m_oldImageFramebuffers.reserve(m_oldImageFramebuffers.size() + m_imageFramebuffers.size());
-
 			for(auto& framebuffer : m_imageFramebuffers) {
-				m_oldImageFramebuffers.push_back(framebuffer);
+				vkDestroyFramebuffer(m_renderContext.deviceContext->device(), framebuffer, nullptr);
 			}
-
-			m_framebufferDeletionFrameIndex = m_lastRenderedFrameIndex;
-		}
 		m_imageFramebuffers.clear();
 
 		m_imageFramebuffers.reserve(m_renderContext.targetSurface->currentImageCount());

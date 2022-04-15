@@ -15,6 +15,6 @@ add_executable(ExampleHelloWorld ${CPP_SOURCES} ${HEADERS})
 target_include_directories(ExampleHelloWorld PUBLIC "include")
 target_link_libraries(ExampleHelloWorld VanadiumEngine)
 
-vanadium_init_vcp()
-vanadium_add_vcp_shader("project.json")
+vanadium_init_vcp_project()
+vanadium_add_vcp_shader("shaders/project.json")
 vanadium_compile_vcp_shaders(ExampleHelloWorld)

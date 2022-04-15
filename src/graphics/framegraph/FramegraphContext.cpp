@@ -408,15 +408,6 @@ namespace vanadium::graphics {
 				vkCmdBeginDebugUtilsLabelEXT(frameCommandBuffer, &label);
 			}
 
-			if (m_barrierGenerator.bufferBarrierCount(nodeIndex) || m_barrierGenerator.imageBarrierCount(nodeIndex)) {
-				vkCmdPipelineBarrier(frameCommandBuffer, m_barrierGenerator.srcStages(nodeIndex),
-									 m_barrierGenerator.dstStages(nodeIndex), 0, 0, nullptr,
-									 static_cast<uint32_t>(m_barrierGenerator.bufferBarrierCount(nodeIndex)),
-									 m_barrierGenerator.bufferBarriers(nodeIndex).data(),
-									 static_cast<uint32_t>(m_barrierGenerator.imageBarrierCount(nodeIndex)),
-									 m_barrierGenerator.imageBarriers(nodeIndex).data());
-			}
-
 			nodeContext.resourceImageViews.clear();
 			nodeContext.targetImageViews.clear();
 			for (auto& viewInfos : node.resourceViewInfos) {
@@ -436,6 +427,15 @@ namespace vanadium::graphics {
 			}
 
 			node.node->recordCommands(this, frameCommandBuffer, nodeContext);
+
+			if (m_barrierGenerator.bufferBarrierCount(nodeIndex) || m_barrierGenerator.imageBarrierCount(nodeIndex)) {
+				vkCmdPipelineBarrier(frameCommandBuffer, m_barrierGenerator.srcStages(nodeIndex),
+									 m_barrierGenerator.dstStages(nodeIndex), 0, 0, nullptr,
+									 static_cast<uint32_t>(m_barrierGenerator.bufferBarrierCount(nodeIndex)),
+									 m_barrierGenerator.bufferBarriers(nodeIndex).data(),
+									 static_cast<uint32_t>(m_barrierGenerator.imageBarrierCount(nodeIndex)),
+									 m_barrierGenerator.imageBarriers(nodeIndex).data());
+			}
 
 			if constexpr (vanadiumGPUDebug) {
 				vkCmdEndDebugUtilsLabelEXT(frameCommandBuffer);

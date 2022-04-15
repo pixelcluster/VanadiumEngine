@@ -2,20 +2,20 @@
 
 #include <graphics/framegraph/FramegraphNode.hpp>
 
-class SwapchainClearNode : public FramegraphNode {
+class SwapchainClearNode : public vanadium::graphics::FramegraphNode {
   public:
 	SwapchainClearNode() { m_name = "Swapchain clearing"; }
 
-	void create(FramegraphContext* context) override {}
+	void create(vanadium::graphics::FramegraphContext* context) override {}
 
-	void setupResources(FramegraphContext* context) override;
+	void setupResources(vanadium::graphics::FramegraphContext* context) override;
 
-	void initResources(FramegraphContext* context) override {}
+	void initResources(vanadium::graphics::FramegraphContext* context) override {}
 
-	void recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-						const FramegraphNodeContext& nodeContext) override;
+	void recordCommands(vanadium::graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+						const vanadium::graphics::FramegraphNodeContext& nodeContext) override;
 
-	void destroy(FramegraphContext* context) override {}
+	void destroy(vanadium::graphics::FramegraphContext* context) override {}
 
   private:
 };

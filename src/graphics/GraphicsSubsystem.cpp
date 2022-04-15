@@ -34,8 +34,7 @@ namespace vanadium::graphics {
 	}
 
 	bool GraphicsSubsystem::tickFrame() {
-		++frameIndex %= frameInFlightCount;
-		vkWaitForFences(m_deviceContext.device(), 1, &m_deviceContext.frameCompletionFence(frameIndex), VK_TRUE,
+		vkWaitForFences(m_deviceContext.device(), 1, &m_deviceContext.frameCompletionFence(m_frameIndex), VK_TRUE,
 						UINT64_MAX);
 
 		if (m_surface.swapchainDirtyFlag()) {
@@ -48,33 +47,34 @@ namespace vanadium::graphics {
 			m_framegraphContext.handleSwapchainResize(m_surface.imageWidth(), m_surface.imageHeight());
 		}
 
-		uint32_t imageIndex = m_surface.tryAcquire(m_deviceContext.device(), frameIndex);
+		uint32_t imageIndex = m_surface.tryAcquire(m_deviceContext.device(), m_frameIndex);
 		if (m_surface.canRender()) {
-			vkResetFences(m_deviceContext.device(), 1, &m_deviceContext.frameCompletionFence(frameIndex));
+			vkResetFences(m_deviceContext.device(), 1, &m_deviceContext.frameCompletionFence(m_frameIndex));
 
 			m_renderTargetSurface.setTargetImageIndex(imageIndex);
 
-			VkCommandBuffer commandBuffers[2]{ m_transferManager.recordTransfers(frameIndex),
-											   m_framegraphContext.recordFrame(frameIndex) };
+			VkCommandBuffer commandBuffers[2]{ m_transferManager.recordTransfers(m_frameIndex),
+											   m_framegraphContext.recordFrame(m_frameIndex) };
 
 			VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 			VkSubmitInfo submitInfo = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 										.waitSemaphoreCount = 1,
-										.pWaitSemaphores = &m_surface.acquireSemaphore(frameIndex),
+										.pWaitSemaphores = &m_surface.acquireSemaphore(m_frameIndex),
 										.pWaitDstStageMask = &waitFlags,
 										.commandBufferCount = 2,
 										.pCommandBuffers = commandBuffers,
 										.signalSemaphoreCount = 1,
-										.pSignalSemaphores = &m_surface.presentSemaphore(frameIndex) };
+										.pSignalSemaphores = &m_surface.presentSemaphore(m_frameIndex) };
 			vkQueueSubmit(m_deviceContext.graphicsQueue(), 1, &submitInfo,
-						  m_deviceContext.frameCompletionFence(frameIndex));
+						  m_deviceContext.frameCompletionFence(m_frameIndex));
 
-			m_surface.tryPresent(m_deviceContext.graphicsQueue(), imageIndex, frameIndex);
+			m_surface.tryPresent(m_deviceContext.graphicsQueue(), imageIndex, m_frameIndex);
 
 			if (!m_surface.canRender()) {
 				m_surface.updateActualSize(m_deviceContext.physicalDevice());
 			}
 		}
+		++m_frameIndex %= frameInFlightCount;
 		return m_surface.canRender() || (m_surface.imageWidth() > 0 && m_surface.imageHeight() > 0);
 	}
 

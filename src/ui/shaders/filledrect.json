@@ -1,7 +1,7 @@
 {
   "archetype": {
     "type": "Graphics",
-    "vert": "./rect.vert",
+    "vert": "./filledrect.vert",
     "frag": "./rect.frag",
     "sets": [
       {
@@ -18,13 +18,13 @@
   },
   "instances": [
     {
-      "name": "UI Rect",
+      "name": "UI Filled Rect",
       "vertex-input": {
         "attributes": [],
         "bindings": []
       },
       "input-assembly": {
-        "topology": "VK_PRIMITIVE_TOPOLOGY_LINE_STRIP",
+        "topology": "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST",
         "primitve-restart": false
       },
       "rasterization": {
@@ -32,8 +32,7 @@
         "rasterizer-discard": false,
         "cull-mode": "VK_CULL_MODE_BACK_BIT",
         "polygon-mode": "VK_POLYGON_MODE_FILL",
-        "front-face": "VK_FRONT_FACE_COUNTER_CLOCKWISE",
-        "line-width": 1.0
+        "front-face": "VK_FRONT_FACE_COUNTER_CLOCKWISE"
       },
       "multisample": {
         "sampleCount": "VK_SAMPLE_COUNT_1_BIT"

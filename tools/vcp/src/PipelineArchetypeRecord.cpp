@@ -72,7 +72,11 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 	m_setLayoutIndices.reserve(archetypeRoot["sets"].size());
 
 	for (auto& set : archetypeRoot["sets"]) {
-		if (!set["bindings"].isArray()) {
+		if(set["bindings"].isNull()) {
+			++setIndex;
+			continue;
+		}
+		else if (!set["bindings"].isArray()) {
 			std::cout << srcPath << ": Error: Invalid descriptor bindings for set " << setIndex << "." << std::endl;
 			return;
 		} else {
@@ -81,7 +85,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 			for (auto& bindingNode : set["bindings"]) {
 				if (!(bindingNode["binding"].isUInt() && bindingNode["type"].isString() &&
 					  bindingNode["count"].isUInt() && bindingNode["stages"].isString() &&
-					  (bindingNode["immutable-samplers"].isBool() || bindingNode["immutable-samplers"].isNull()))) {
+					  (bindingNode["immutable-samplers"].isArray() || bindingNode["immutable-samplers"].isNull()))) {
 					std::cout << srcPath << ": Error: Invalid descriptor binding at index " << bindingIndex
 							  << " for set " << setIndex << "." << std::endl;
 					return;

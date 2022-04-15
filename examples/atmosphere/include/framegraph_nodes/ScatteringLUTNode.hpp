@@ -18,41 +18,35 @@ struct TransmittanceComputeData {
 	float groundRadius;
 };
 
-class ScatteringLUTNode : public FramegraphNode {
+class ScatteringLUTNode : public vanadium::graphics::FramegraphNode {
   public:
 	ScatteringLUTNode() { m_name = "Scattering LUT \"pre\"computation"; }
 
-	virtual void create(FramegraphContext* context);
+	virtual void create(vanadium::graphics::FramegraphContext* context);
 
-	virtual void setupResources(FramegraphContext* context) {}
+	virtual void setupResources(vanadium::graphics::FramegraphContext* context);
 
-	virtual void initResources(FramegraphContext* context);
+	virtual void initResources(vanadium::graphics::FramegraphContext* context);
 
-	virtual void recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-								const FramegraphNodeContext& nodeContext);
+	virtual void recordCommands(vanadium::graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+								const vanadium::graphics::FramegraphNodeContext& nodeContext);
 
-	virtual void handleWindowResize(FramegraphContext* context, uint32_t width, uint32_t height) {}
+	virtual void handleWindowResize(vanadium::graphics::FramegraphContext* context, uint32_t width, uint32_t height) {}
 
-	virtual void destroy(FramegraphContext* context);
+	virtual void destroy(vanadium::graphics::FramegraphContext* context);
 
-	FramegraphImageHandle transmittanceLUTHandle() { return m_transmittanceLUTHandle; }
-	FramegraphImageHandle skyViewLUTHandle() { return m_skyViewLUTHandle; }
-	FramegraphImageHandle aerialPerspectiveLUTHandle() { return m_aerialPerspectiveLUTHandle; }
-	FramegraphImageHandle multiscatterLUTHandle() { return m_multiscatterLUTHandle; }
+	vanadium::graphics::FramegraphImageHandle transmittanceLUTHandle() { return m_transmittanceLUTHandle; }
+	vanadium::graphics::FramegraphImageHandle skyViewLUTHandle() { return m_skyViewLUTHandle; }
+	vanadium::graphics::FramegraphImageHandle aerialPerspectiveLUTHandle() { return m_aerialPerspectiveLUTHandle; }
+	vanadium::graphics::FramegraphImageHandle multiscatterLUTHandle() { return m_multiscatterLUTHandle; }
 
   private:
-	FramegraphImageHandle m_transmittanceLUTHandle;
-	FramegraphImageHandle m_skyViewLUTHandle;
-	FramegraphImageHandle m_aerialPerspectiveLUTHandle;
-	FramegraphImageHandle m_multiscatterLUTHandle;
+	vanadium::graphics::FramegraphImageHandle m_transmittanceLUTHandle;
+	vanadium::graphics::FramegraphImageHandle m_skyViewLUTHandle;
+	vanadium::graphics::FramegraphImageHandle m_aerialPerspectiveLUTHandle;
+	vanadium::graphics::FramegraphImageHandle m_multiscatterLUTHandle;
 
-	VkPipeline m_transmittanceComputationPipeline;
-
-	VkDescriptorSetLayout m_pipelineOutputLayout;
-	VkPipelineLayout m_transmittanceComputationPipelineLayout;
-	VkPipelineLayout m_skyViewComputationPipelineLayout;
-	VkPipelineLayout m_aerialPerspectiveComputationPipelineLayout;
-	VkPipelineLayout m_multiscatterComputationPipelineLayout;
+	uint32_t m_transmittanceComputationID;
 
 	VkDescriptorSet m_transmittanceComputationOutputSet;
 	VkDescriptorSet m_skyViewComputationOutputSet;

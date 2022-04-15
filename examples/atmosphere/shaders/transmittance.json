@@ -1,0 +1,30 @@
+{
+    "archetype": {
+        "type": "Compute",
+        "comp": "./transmittance.comp",
+        "sets": [
+            {
+                "bindings": [
+                    {
+                        "binding": 0,
+                        "type": "VK_DESCRIPTOR_TYPE_STORAGE_IMAGE",
+                        "count": 1,
+                        "stages": "VK_SHADER_STAGE_COMPUTE_BIT"
+                    }
+                ]
+            }
+        ],
+        "push-constants": [
+            {
+                "offset": 0,
+                "size": 96,
+                "stages": "VK_SHADER_STAGE_COMPUTE_BIT"
+            }
+        ]
+    },
+    "instances": [
+        {
+            "name": "Transmittance Precomputation"
+        }
+    ]
+}

@@ -49,6 +49,9 @@ namespace vanadium::graphics {
 
 	void RenderTargetSurface::addRequestedView(const ImageResourceViewInfo& info) {
 		for (size_t i = 0; i < m_images.size(); ++i) {
+			if(m_imageViews[i].find(info) != m_imageViews[i].end()) {
+				continue;
+			}
 			VkImageView view;
 			VkImageViewCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 												 .flags = info.flags,

@@ -7,6 +7,8 @@
 #include <robin_hood.h>
 #include <vector>
 
+#include <math/Vector.hpp>
+
 namespace vanadium::windowing {
 
 	struct WindowingSettingOverride {
@@ -165,11 +167,18 @@ namespace vanadium::windowing {
 							const KeyListenerParams& params);
 		void removeKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask);
 
+		void addMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+								 const KeyListenerParams& params);
+		void removeMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask);
+
 		void addSizeListener(const SizeListenerParams& params);
 		void removeSizeListener(const SizeListenerParams& params);
 
 		void invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state);
+		void invokeMouseKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state);
 		void invokeSizeListeners(uint32_t newWidth, uint32_t newHeight);
+
+		Vector2 mousePos() const;
 
 		GLFWwindow* internalHandle() { return m_window; }
 
@@ -187,6 +196,7 @@ namespace vanadium::windowing {
 		float m_elapsedTime;
 
 		robin_hood::unordered_flat_map<KeyListenerData, KeyListenerParams> m_keyListeners;
+		robin_hood::unordered_flat_map<KeyListenerData, KeyListenerParams> m_mouseKeyListeners;
 		std::vector<SizeListenerParams> m_sizeListeners;
 
 		static uint32_t m_glfwWindowCount;

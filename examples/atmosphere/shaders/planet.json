@@ -1,0 +1,104 @@
+{
+    "archetype": {
+        "type": "Graphics",
+        "vert": "./planet.vert",
+        "frag": "./planet.frag",
+        "sets": [
+            {
+                "bindings": [
+                    {
+                        "binding": 0,
+                        "type": "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
+                        "count": 1,
+                        "stages": "VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT"
+                    }
+                ]
+            },
+            {
+                "bindings": [
+                    {
+                        "binding": 0,
+                        "type": "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
+                        "count": 1,
+                        "stages": "VK_SHADER_STAGE_FRAGMENT_BIT",
+                        "immutable-samplers": [
+                            {
+                                "min-filter": "VK_FILTER_LINEAR",
+                                "mag-filter": "VK_FILTER_LINEAR"
+                            }
+                        ]
+                    },
+                    {
+                        "binding": 1,
+                        "type": "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
+                        "count": 1,
+                        "stages": "VK_SHADER_STAGE_FRAGMENT_BIT",
+                        "immutable-samplers": [
+                            {
+                                "min-filter": "VK_FILTER_LINEAR",
+                                "mag-filter": "VK_FILTER_LINEAR"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "instances": [
+        {
+            "name": "Planet Drawing",
+            "vertex-input": {
+                "attributes": [
+                    {
+                        "format": "VK_FORMAT_R32G32B32_SFLOAT",
+                        "location": 0,
+                        "binding": 0,
+                        "offset": 0
+                    },
+                    {
+                        "format": "VK_FORMAT_R32G32_SFLOAT",
+                        "location": 1,
+                        "binding": 0,
+                        "offset": 12
+                    }
+                ],
+                "bindings": [
+                    {
+                        "binding": 0,
+                        "stride": 20,
+                        "input-rate": "VK_VERTEX_INPUT_RATE_VERTEX"
+                    }
+                ]
+            },
+            "input-assembly": {
+                "topology": "VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST"
+            },
+            "rasterization": {
+                "cull-mode": "VK_CULL_MODE_BACK_BIT",
+                "polygon-mode": "VK_POLYGON_MODE_FILL",
+                "front-face": "VK_FRONT_FACE_COUNTER_CLOCKWISE"
+            },
+            "multisample": {
+                "sampleCount": "VK_SAMPLE_COUNT_1_BIT"
+            },
+            "depth-stencil": {
+                "depth-test": false,
+                "depth-writes": false,
+                "depth-bounds-test": false,
+                "stencil-test": false
+            },
+            "color-blend": {
+                "logic-op-enable": false,
+                "blend-constants": [
+                    0,
+                    0,
+                    0,
+                    0
+                ]
+            },
+            "attachment-blend": [
+                {}
+            ]
+        }
+    ]
+}

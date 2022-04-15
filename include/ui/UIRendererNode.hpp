@@ -48,10 +48,6 @@ namespace vanadium::ui {
 		graphics::ImageResourceViewInfo m_swapchainImageResourceViewInfo;
 		std::vector<VkFramebuffer> m_imageFramebuffers;
 
-		size_t m_lastRenderedFrameIndex = ~0U;
-		size_t m_framebufferDeletionFrameIndex = ~0U;
-		std::vector<VkFramebuffer> m_oldImageFramebuffers;
-
 		robin_hood::unordered_map<size_t, ShapeRegistry*> m_shapeRegistries;
 
 		Vector4 m_backgroundClearColor = Vector4(0.0f);

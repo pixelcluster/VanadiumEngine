@@ -44,7 +44,7 @@ else()
 	set(VANADIUM_DEBUG false CACHE BOOL "Enable debug utilities")
 endif()
 
-set(VANADIUM_GPU_DEBUG false CACHE BOOL "Enable debug utilities for GPU modules")
+set(VANADIUM_GPU_DEBUG true CACHE BOOL "Enable debug utilities for GPU modules")
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/Debug.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/include/Debug.hpp")
 

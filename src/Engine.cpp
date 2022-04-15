@@ -7,10 +7,14 @@ namespace vanadium {
 							  m_windowInterface),
 		  m_uiSubsystem(m_graphicsSubsystem.context(),
 						config.startupFlags() & static_cast<uint32_t>(EngineStartupFlag::UIOnly), Vector4(1.0f)) {
+		m_userPointer = config.userPointer();
 		for (auto& node : config.customFramegraphNodes()) {
 			node->create(&m_graphicsSubsystem.framegraphContext());
 			m_graphicsSubsystem.framegraphContext().appendExistingNode(node);
 		}
+	}
+
+	void Engine::initFramegraph() {
 		m_uiSubsystem.addRendererNode(m_graphicsSubsystem.framegraphContext());
 		m_graphicsSubsystem.setupFramegraphResources();
 	}

@@ -4,30 +4,30 @@
 #include <glm/glm.hpp>
 #include <graphics/framegraph/FramegraphNode.hpp>
 
-class PlanetRenderNode : public FramegraphNode {
+class PlanetRenderNode : public vanadium::graphics::FramegraphNode {
   public:
 	PlanetRenderNode();
 
-	void create(FramegraphContext* context);
+	void create(vanadium::graphics::FramegraphContext* context);
 
-	void setupObjects(BufferResourceHandle vertexDataBuffer, BufferResourceHandle indexDataBuffer,
+	void setupObjects(vanadium::graphics::BufferResourceHandle vertexDataBuffer, vanadium::graphics::BufferResourceHandle indexDataBuffer,
 					  VkDescriptorSetLayout sceneDataLayout, VkDescriptorSet sceneDataSet,
 					  VkDescriptorSetLayout texSetLayout, VkDescriptorSet texSet, uint32_t indexCount);
 
-	void setupResources(FramegraphContext* context);
+	void setupResources(vanadium::graphics::FramegraphContext* context);
 
-	void initResources(FramegraphContext* context);
+	void initResources(vanadium::graphics::FramegraphContext* context);
 
-	void recordCommands(FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-						const FramegraphNodeContext& nodeContext);
+	void recordCommands(vanadium::graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+						const vanadium::graphics::FramegraphNodeContext& nodeContext);
 
-	void handleWindowResize(FramegraphContext* context, uint32_t width, uint32_t height);
+	void handleWindowResize(vanadium::graphics::FramegraphContext* context, uint32_t width, uint32_t height);
 
-	void destroy(FramegraphContext* context);
+	void destroy(vanadium::graphics::FramegraphContext* context);
 
   private:
-	BufferResourceHandle m_vertexData;
-	BufferResourceHandle m_indexData;
+	vanadium::graphics::BufferResourceHandle m_vertexData;
+	vanadium::graphics::BufferResourceHandle m_indexData;
 
 	uint32_t m_indexCount;
 
@@ -38,8 +38,8 @@ class PlanetRenderNode : public FramegraphNode {
 	VkDescriptorSetLayout m_texSetLayout;
 	VkDescriptorSet m_texSet;
 
-	VkPipeline m_graphicsPipeline;
-	VkPipelineLayout m_pipelineLayout;
+	uint32_t m_pipelineID;
+	vanadium::graphics::RenderPassSignature m_passSignature;
 	VkRenderPass m_renderPass;
 
 	uint32_t m_width, m_height;

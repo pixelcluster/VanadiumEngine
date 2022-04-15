@@ -7,11 +7,11 @@
 
 namespace vanadium::ui::shapes {
 
-	class RectShape;
+	class FilledRectShape;
 
-	class RectShapeRegistry : public ShapeRegistry {
+	class FilledRectShapeRegistry : public ShapeRegistry {
 	  public:
-		RectShapeRegistry(const graphics::RenderContext& context, VkRenderPass uiRenderPass,
+		FilledRectShapeRegistry(const graphics::RenderContext& context, VkRenderPass uiRenderPass,
 						  const graphics::RenderPassSignature& uiRenderPassSignature);
 
 		void addShape(Shape* shape, uint32_t childDepth) override;
@@ -24,7 +24,7 @@ namespace vanadium::ui::shapes {
 	  private:
 		struct RegistryEntry {
 			uint32_t childDepth;
-			RectShape* shape;
+			FilledRectShape* shape;
 		};
 		struct ShapeData {
 			Vector2 position;
@@ -39,12 +39,12 @@ namespace vanadium::ui::shapes {
 		std::vector<RegistryEntry> m_shapes;
 	};
 
-	class RectShape : public Shape {
+	class FilledRectShape : public Shape {
 	  public:
-		using ShapeRegistry = RectShapeRegistry;
+		using ShapeRegistry = FilledRectShapeRegistry;
 
-		RectShape(Vector2 pos, Vector2 size, Vector4 color) : Shape("Rect", pos), m_size(size), m_color(color) {}
-		~RectShape() override {}
+		FilledRectShape(Vector2 pos, Vector2 size, Vector4 color) : Shape("Rect", pos), m_size(size), m_color(color) {}
+		~FilledRectShape() override {}
 
 		const Vector2& size() const { return m_size; }
 		const Vector4& color() const { return m_color; }

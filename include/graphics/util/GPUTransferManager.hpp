@@ -27,7 +27,7 @@ namespace vanadium::graphics {
 
 	struct GPUTransfer {
 		BufferResourceHandle dstBuffer;
-		StagingBufferAllocation stagingBuffer;
+		std::vector<StagingBufferAllocation> stagingBuffers;
 		bool needsStagingBuffer;
 		VkDeviceSize bufferSize;
 
@@ -113,7 +113,7 @@ namespace vanadium::graphics {
 								 VkDeviceSize size, VkPipelineStageFlags usageStageFlags,
 								 VkAccessFlags usageAccessFlags, VkImageLayout dstUsageLayout);
 
-		BufferResourceHandle dstBufferHandle(GPUTransferHandle handle, uint32_t frameIndex);
+		BufferResourceHandle dstBufferHandle(GPUTransferHandle handle);
 
 		void updateTransferData(GPUTransferHandle transfer, uint32_t frameIndex, const void* data);
 
@@ -144,7 +144,7 @@ namespace vanadium::graphics {
 		VkCommandBuffer m_transferCommandBuffers[frameInFlightCount];
 		VkCommandPool m_transferCommandPools[frameInFlightCount];
 
-		Slotmap<std::vector<GPUTransfer>> m_continuousTransfers;
+		Slotmap<GPUTransfer> m_continuousTransfers;
 		std::vector<GPUTransfer> m_oneTimeTransfers;
 		std::vector<GPUImageTransfer> m_imageTransfers;
 

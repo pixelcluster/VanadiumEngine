@@ -162,6 +162,7 @@ namespace vanadium::graphics {
 					std::make_move_iterator(info.imageBarriers.end()));
 				info.imageBarriers.clear();
 			}
+			++nodeIndex;
 		}
 	}
 

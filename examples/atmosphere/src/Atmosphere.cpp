@@ -1,27 +1,32 @@
-#include <VEngine.hpp>
-#include <modules/gpu/VGPUModule.hpp>
-#include <modules/window/VGLFWWindowModule.hpp>
+#include <Engine.hpp>
 
 #include <DataGeneratorModule.hpp>
 #include <framegraph_nodes/PlanetRenderNode.hpp>
 #include <framegraph_nodes/ScatteringLUTNode.hpp>
 
-int main() {
-	VEngine engine;
-	VWindowModule* windowModule = engine.createModule<VGLFWWindowModule>(1280, 720, "Planet renderer");
-	VGPUModule* gpuModule = engine.createModule<VGPUModule>("Planet renderer", 0, windowModule);
+void configureEngine(vanadium::EngineConfig& config) {
+	config.setAppName("Vanadium Atmosphere");
+	config.addCustomFramegraphNode<ScatteringLUTNode>();
+	
+	config.setUserPointer(config.addCustomFramegraphNode<PlanetRenderNode>());
+}
 
-	ScatteringLUTNode* lutNode = gpuModule->framegraphContext().addFramegraphPass<ScatteringLUTNode>();
-	PlanetRenderNode* renderNode = gpuModule->framegraphContext().addFramegraphPass<PlanetRenderNode>();
 
-	DataGeneratorModule* bufferModule = engine.createModule<DataGeneratorModule>(gpuModule, renderNode, windowModule);
+void preFramegraphInit(vanadium::Engine& engine) {
+	PlanetRenderNode* node = std::launder(reinterpret_cast<PlanetRenderNode*>(engine.userPointer()));
+	DataGenerator* generator = new DataGenerator(engine.graphicsSubsystem(), engine.windowInterface(), node);
+	engine.setUserPointer(generator);
+}
 
-	engine.activateModule(windowModule);
-	engine.activateModule(gpuModule);
-	engine.activateModule(bufferModule);
+void init(vanadium::Engine& engine) {}
 
-	engine.addModuleDependency(windowModule, bufferModule);
-	engine.addModuleDependency(windowModule, gpuModule);
-	engine.addModuleDependency(bufferModule, gpuModule);
-	engine.run();
+bool onFrame(vanadium::Engine& engine) {
+	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(engine.userPointer()));
+	generator->update(engine.graphicsSubsystem(), engine.windowInterface());
+	return true;
+}
+
+void destroy(vanadium::Engine& engine) {
+	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(engine.userPointer()));
+	generator->destroy(engine.graphicsSubsystem());
 }
