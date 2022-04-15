@@ -142,6 +142,7 @@ namespace vanadium::ui {
 	void UIRendererNode::destroy(graphics::FramegraphContext* context) {
 		for (auto& registryPair : m_shapeRegistries) {
 			registryPair.second->destroy(m_uiPassSignature);
+			delete registryPair.second;
 		}
 		for (auto& framebuffer : m_imageFramebuffers) {
 			vkDestroyFramebuffer(m_renderContext.deviceContext->device(), framebuffer, nullptr);

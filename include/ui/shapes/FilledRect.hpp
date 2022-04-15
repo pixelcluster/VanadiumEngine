@@ -44,7 +44,6 @@ namespace vanadium::ui::shapes {
 		using ShapeRegistry = FilledRectShapeRegistry;
 
 		FilledRectShape(Vector2 pos, Vector2 size, Vector4 color) : Shape("Rect", pos), m_size(size), m_color(color) {}
-		~FilledRectShape() override {}
 
 		const Vector2& size() const { return m_size; }
 		const Vector4& color() const { return m_color; }

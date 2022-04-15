@@ -478,7 +478,9 @@ namespace vanadium::graphics {
 		}
 		for (auto& node : m_nodes) {
 			node.node->destroy(this);
+			delete node.node;
 		}
+		m_nodes.clear();
 	}
 
 	void FramegraphContext::createBuffer(FramegraphBufferHandle handle) {

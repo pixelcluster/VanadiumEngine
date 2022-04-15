@@ -6,6 +6,7 @@ namespace vanadium::graphics {
 
 	class FramegraphNode {
 	  public:
+		virtual ~FramegraphNode() {}
 		virtual void create(FramegraphContext* context) = 0;
 
 		virtual void setupResources(FramegraphContext* context) = 0;
