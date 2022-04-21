@@ -5,7 +5,7 @@ namespace vanadium::ui::shapes {
 
 	auto childDepthComparator = [](const auto& one, const auto& other) { return one.childDepth < other.childDepth; };
 
-	FilledRectShapeRegistry::FilledRectShapeRegistry(const graphics::RenderContext& context, VkRenderPass uiRenderPass,
+	FilledRectShapeRegistry::FilledRectShapeRegistry(UISubsystem*, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
 													 const graphics::RenderPassSignature& uiRenderPassSignature)
 		: m_rectPipelineID(context.pipelineLibrary->findGraphicsPipeline("UI Filled Rect")),
 		  m_dataManager(context, m_rectPipelineID) {

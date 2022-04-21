@@ -1,5 +1,7 @@
 #include <Engine.hpp>
 
+#include <hb.h>
+
 namespace vanadium {
 	Engine::Engine(const EngineConfig& config)
 		: m_startupFlags(config.startupFlags()), m_windowInterface(config.settingsOverrides(), config.appName().data()),

@@ -9,17 +9,18 @@
 
 namespace vanadium::ui {
 
+	class UISubsystem;
+
 	template <typename T>
 	concept RenderableShape = requires(T t) {
 		typename T::ShapeRegistry;
-	}
-	&&std::derived_from<T, Shape>;
+	} && std::derived_from<T, Shape>;
 
 	class UIRendererNode : public graphics::FramegraphNode {
 	  public:
-		UIRendererNode(const graphics::RenderContext& context) : m_renderContext(context) {}
-		UIRendererNode(const graphics::RenderContext& context, const Vector4& backgroundClearColor)
-			: m_renderContext(context), m_backgroundClearColor(backgroundClearColor) {}
+		UIRendererNode(UISubsystem* subsystem, const graphics::RenderContext& context) : m_subsystem(subsystem), m_renderContext(context) {}
+		UIRendererNode(UISubsystem* subsystem, const graphics::RenderContext& context, const Vector4& backgroundClearColor)
+			: m_subsystem(subsystem), m_renderContext(context), m_backgroundClearColor(backgroundClearColor) {}
 
 		void create(graphics::FramegraphContext* context) override;
 
@@ -43,6 +44,7 @@ namespace vanadium::ui {
 		graphics::RenderContext m_renderContext;
 		graphics::FramegraphContext* m_framegraphContext;
 		graphics::RenderPassSignature m_uiPassSignature;
+		UISubsystem* m_subsystem;
 		VkRenderPass m_uiRenderPass;
 
 		graphics::ImageResourceViewInfo m_swapchainImageResourceViewInfo;
@@ -59,7 +61,7 @@ namespace vanadium::ui {
 		if (m_shapeRegistries.find(shape->typenameHash()) == m_shapeRegistries.end()) {
 			m_shapeRegistries.insert(robin_hood::pair<size_t, ShapeRegistry*>(
 				shape->typenameHash(), new
-				typename T::ShapeRegistry(m_framegraphContext->renderContext(), m_uiRenderPass, m_uiPassSignature)));
+				typename T::ShapeRegistry(m_subsystem, m_framegraphContext->renderContext(), m_uiRenderPass, m_uiPassSignature)));
 		}
 		m_shapeRegistries[shape->typenameHash()]->addShape(shape, childDepth);
 		return shape;

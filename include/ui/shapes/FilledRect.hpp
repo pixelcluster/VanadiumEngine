@@ -11,7 +11,7 @@ namespace vanadium::ui::shapes {
 
 	class FilledRectShapeRegistry : public ShapeRegistry {
 	  public:
-		FilledRectShapeRegistry(const graphics::RenderContext& context, VkRenderPass uiRenderPass,
+		FilledRectShapeRegistry(UISubsystem*, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
 						  const graphics::RenderPassSignature& uiRenderPassSignature);
 
 		void addShape(Shape* shape, uint32_t childDepth) override;

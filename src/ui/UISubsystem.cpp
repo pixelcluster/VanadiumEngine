@@ -3,9 +3,9 @@
 namespace vanadium::ui {
 	UISubsystem::UISubsystem(const graphics::RenderContext& context, bool clearBackground, const Vector4& clearValue) {
 		if (clearBackground)
-			m_rendererNode = new UIRendererNode(context, clearBackground);
+			m_rendererNode = new UIRendererNode(this, context, clearBackground);
 		else
-			m_rendererNode = new UIRendererNode(context);
+			m_rendererNode = new UIRendererNode(this, context);
 	}
 
 	void UISubsystem::addRendererNode(graphics::FramegraphContext& context) {

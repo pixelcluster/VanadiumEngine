@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ui/UIRendererNode.hpp>
+#include <ui/FontRegistry.hpp>
 
 namespace vanadium::ui {
 	class UISubsystem {

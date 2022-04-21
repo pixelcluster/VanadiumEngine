@@ -131,7 +131,7 @@ namespace vanadium::graphics {
 			if (chosenGraphicsQueueFamilyIndex != -1U && chosenTransferQueueFamilyIndex != -1U) {
 				if (queueFamilyProperties[chosenTransferQueueFamilyIndex].queueFlags &
 					(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
-						logWarning("DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.");
+						logWarning("DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.\n");
 				}
 
 				chosenDevice = device;

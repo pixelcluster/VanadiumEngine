@@ -67,7 +67,7 @@ namespace vanadium {
 
 	  private:
 		uint32_t m_startupFlags;
-		bool m_lastRenderSuccessful;
+		bool m_lastRenderSuccessful = true;
 		void* m_userPointer;
 
 		windowing::WindowInterface m_windowInterface;
