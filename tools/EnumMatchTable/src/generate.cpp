@@ -38,7 +38,8 @@ EnumMap parseBasicEnums(const XMLElement* registry) {
 			name = nameC;
 		}
 		std::vector<std::string> blocklist = { "VkPipelineLayoutCreateFlagBits", "VkSemaphoreCreateFlagBits",
-											   "VkImageFormatConstraintsFlagBitsFUCHSIA", "VkShaderModuleCreateFlagBits" };
+											   "VkImageFormatConstraintsFlagBitsFUCHSIA",
+											   "VkShaderModuleCreateFlagBits" };
 
 		bool isNameAllowed = true;
 		for (auto& entry : blocklist) {
@@ -75,16 +76,28 @@ void writeEnums(const EnumMap& enumMap, std::ostream& outStream) {
 		addLine(outStream, "");
 		const VulkanEnum& enumValue = pair.second;
 
-		addLine(outStream, "static std::unordered_map<std::string_view, "s + pair.first + "> "s + pair.first + "FromString = {"s);
+		addLine(outStream, "inline "s + pair.first + " "s + pair.first + "FromString(const std::string_view& name) {"s);
 		++indentationLevel;
 		size_t valueIndex = 0;
 		for (const auto& value : enumValue.values()) {
-			addLine(outStream, "{ \""s + value.name + "\", "s + value.name + " }"s +
-								   ((valueIndex == enumValue.values().size() - 1) ? "" : ","));
+			addLine(outStream, (valueIndex != 0 ? "else if "s : "if "s) + "(name == \""s + value.name + "\") {");
+			++indentationLevel;
+			addLine(outStream, "return " + value.name + ";");
+			--indentationLevel;
+			addLine(outStream, "}");
 			++valueIndex;
 		}
+		if (valueIndex != 0) {
+			addLine(outStream, "else {");
+			++indentationLevel;
+		}
+		addLine(outStream, "return static_cast<"s + pair.first + ">(~0U);");
+		if (valueIndex != 0) {
+			--indentationLevel;
+			addLine(outStream, "}");
+		}
 		--indentationLevel;
-		addLine(outStream, "};");
+		addLine(outStream, "}");
 	}
 }
 

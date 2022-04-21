@@ -50,10 +50,10 @@ void PipelineInstanceRecord::verifyVertexShader(const std::string_view& srcPath,
 	}
 
 	for (auto& variable : inputVariables) {
-		auto varIterator =
+		auto var =
 			std::find_if(m_instanceVertexInputConfig.attributes.begin(), m_instanceVertexInputConfig.attributes.end(),
 						 [variable](const auto& attrib) { return attrib.location == variable->location; });
-		if (varIterator == m_instanceVertexInputConfig.attributes.end() && variable->location != ~0U) {
+		if (var == m_instanceVertexInputConfig.attributes.end() && variable->location != ~0U) {
 			std::cout << srcPath << ": Error: Unbound vertex attribute at location " << variable->location << ".\n";
 			m_isValid = false;
 		}
@@ -324,15 +324,12 @@ void PipelineInstanceRecord::deserializeVertexInput(const std::string_view& srcP
 	m_instanceVertexInputConfig.bindings.reserve(bindingNode.size());
 
 	for (auto& attrib : attribNode) {
-		VkFormat format;
-		auto formatIterator = VkFormatFromString.find(asCStringOr(attrib, "format", "VK_FORMAT_R32G32B32A32_SFLOAT"));
+		VkFormat format = VkFormatFromString(asCStringOr(attrib, "format", "VK_FORMAT_R32G32B32A32_SFLOAT"));
 
-		if (formatIterator == VkFormatFromString.end()) {
+		if (format == static_cast<VkFormat>(~0U)) {
 			std::cout << srcPath << ": Warning: Invalid Format! Choosing R32G32B32A32_SFLOAT, might cause errors...\n";
 			format = VK_FORMAT_R32G32B32A32_SFLOAT;
-		} else {
-			format = formatIterator->second;
-		}
+		} 
 
 		VkVertexInputAttributeDescription attribDescription = { .location = asUIntOr(attrib, "location", 0),
 																.binding = asUIntOr(attrib, "binding", 0),
@@ -347,16 +344,13 @@ void PipelineInstanceRecord::deserializeVertexInput(const std::string_view& srcP
 	}
 
 	for (auto& binding : bindingNode) {
-		VkVertexInputRate inputRate;
-		auto rateIterator =
-			VkVertexInputRateFromString.find(asCStringOr(binding, "input-rate", "VK_VERTEX_INPUT_RATE_VERTEX"));
+		VkVertexInputRate inputRate =
+			VkVertexInputRateFromString(asCStringOr(binding, "input-rate", "VK_VERTEX_INPUT_RATE_VERTEX"));
 
-		if (rateIterator == VkVertexInputRateFromString.end()) {
+		if (inputRate == static_cast<VkVertexInputRate>(~0U)) {
 			std::cout << srcPath
 					  << ": Warning: Invalid Input Rate! Choosing VERTEX, might cause unintended behaviour...\n";
 			inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-		} else {
-			inputRate = rateIterator->second;
 		}
 
 		VkVertexInputBindingDescription bindingDescription = { .binding = asUIntOr(binding, "binding", 0),
@@ -367,22 +361,18 @@ void PipelineInstanceRecord::deserializeVertexInput(const std::string_view& srcP
 }
 
 void PipelineInstanceRecord::deserializeInputAssembly(const std::string_view& srcPath, const Json::Value& config) {
-	VkPrimitiveTopology topology;
-
 	if (config.type() != Json::objectValue) {
 		std::cout << srcPath << ": Error: Invalid input assembly structure value.\n";
 		m_isValid = false;
 		return;
 	}
 
-	auto topologyIterator = VkPrimitiveTopologyFromString.find(config["topology"].asCString());
+	auto topology = VkPrimitiveTopologyFromString(config["topology"].asCString());
 
-	if (topologyIterator == VkPrimitiveTopologyFromString.end()) {
+	if (topology == static_cast<VkPrimitiveTopology>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Primitive Topology! Choosing TRIANGLE_LIST, might cause errors...\n";
 		topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-	} else {
-		topology = topologyIterator->second;
 	}
 
 	m_instanceInputAssemblyConfig = { .topology = topology,
@@ -390,47 +380,40 @@ void PipelineInstanceRecord::deserializeInputAssembly(const std::string_view& sr
 }
 
 void PipelineInstanceRecord::deserializeRasterization(const std::string_view& srcPath, const Json::Value& config) {
-	VkPolygonMode polygonMode;
-	VkCullModeFlags cullMode = 0;
-	VkFrontFace frontFace;
-
 	if (config.type() != Json::objectValue) {
 		std::cout << srcPath << ": Error: Invalid rasterization structure value.\n";
 		m_isValid = false;
 		return;
 	}
 
+	VkCullModeFlags cullMode;
 	std::string cullModeFlags = asStringOr(config, "cull-mode", "VK_CULL_MODE_BACK_BIT");
 	auto flags = splitString(cullModeFlags);
 	for (auto& flag : flags) {
-		auto flagIterator = VkCullModeFlagBitsFromString.find(flag);
-		if (flagIterator == VkCullModeFlagBitsFromString.end()) {
+		auto flagBit = VkCullModeFlagBitsFromString(flag);
+		if (flagBit == static_cast<VkCullModeFlagBits>(~0U)) {
 			std::cout << srcPath
 					  << ": Warning: Invalid Cull Mode flag bit specified. Ignoring bit. If flags are 0, "
 						 "VK_CULL_MODE_BACK_BIT is used.\n";
 		} else {
-			cullMode |= flagIterator->second;
+			cullMode |= flagBit;
 		}
 	}
 
-	auto polygonModeIterator =
-		VkPolygonModeFromString.find(asCStringOr(config, "polygon-mode", "VK_POLYGON_MODE_FILL"));
-	if (polygonModeIterator == VkPolygonModeFromString.end()) {
+	auto polygonMode =
+		VkPolygonModeFromString(asCStringOr(config, "polygon-mode", "VK_POLYGON_MODE_FILL"));
+	if (polygonMode == static_cast<VkPolygonMode>(~0U)) {
 		std::cout << srcPath << ": Warning: Invalid Polygon Mode specified. Choosing FILL, may cause errors...\n";
 		polygonMode = VK_POLYGON_MODE_FILL;
-	} else {
-		polygonMode = polygonModeIterator->second;
 	}
 
-	auto frontFaceIterator =
-		VkFrontFaceFromString.find(asCStringOr(config, "front-face", "VK_FRONT_FACE_COUNTER_CLOCKWISE"));
-	if (frontFaceIterator == VkFrontFaceFromString.end()) {
+	auto frontFace =
+		VkFrontFaceFromString(asCStringOr(config, "front-face", "VK_FRONT_FACE_COUNTER_CLOCKWISE"));
+	if (frontFace == static_cast<VkFrontFace>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Front Face specified. Choosing COUNTER_CLOCKWISE, may cause unintended "
 					 "behaviour...\n";
 		frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-	} else {
-		frontFace = frontFaceIterator->second;
 	}
 
 	m_instanceRasterizationConfig = { .depthClampEnable = asBoolOr(config, "depth-clamp", false),
@@ -458,13 +441,13 @@ void PipelineInstanceRecord::deserializeMultisample(const std::string_view& srcP
 	auto flags = splitString(sampleCountFlags);
 
 	for (auto& flag : flags) {
-		auto flagBitIterator = VkSampleCountFlagBitsFromString.find(flag);
-		if (flagBitIterator == VkSampleCountFlagBitsFromString.end()) {
+		auto flagBit = VkSampleCountFlagBitsFromString(flag);
+		if (flagBit == static_cast<VkSampleCountFlagBits>(~0U)) {
 			std::cout << srcPath
 					  << ": Warning: Invalid Sample Count Flag bit specified! Ignoring bit. If flags are 0, "
 						 "1_BIT is chosen.\n";
 		} else {
-			m_instanceMultisampleConfig |= flagBitIterator->second;
+			m_instanceMultisampleConfig |= flagBit;
 		}
 	}
 
@@ -474,22 +457,18 @@ void PipelineInstanceRecord::deserializeMultisample(const std::string_view& srcP
 }
 
 void PipelineInstanceRecord::deserializeDepthStencil(const std::string_view& srcPath, const Json::Value& config) {
-	VkCompareOp depthCompareOp;
-
 	if (config.type() != Json::objectValue) {
 		std::cout << srcPath << ": Error: Invalid depth/stencil structure value.\n";
 		m_isValid = false;
 		return;
 	}
 
-	auto compareOpIterator = VkCompareOpFromString.find(asCStringOr(config, "depth-compare-op", "VK_COMPARE_OP_LESS"));
-	if (compareOpIterator == VkCompareOpFromString.end()) {
+	auto depthCompareOp = VkCompareOpFromString(asCStringOr(config, "depth-compare-op", "VK_COMPARE_OP_LESS"));
+	if (depthCompareOp == static_cast<VkCompareOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Depth Compare Op specified. Choosing LESS, may cause "
 					 "unintended behaviour...\n";
 		depthCompareOp = VK_COMPARE_OP_LESS;
-	} else {
-		depthCompareOp = compareOpIterator->second;
 	}
 
 	m_instanceDepthStencilConfig = { .depthTestEnable = asBoolOr(config, "depth-test", true),
@@ -505,9 +484,6 @@ void PipelineInstanceRecord::deserializeDepthStencil(const std::string_view& src
 
 VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::string_view& srcPath,
 																 const Json::Value& config) {
-	VkStencilOp failOp, passOp, depthFailOp;
-	VkCompareOp compareOp;
-
 	if(config.type() == Json::nullValue) {
 		return VkStencilOpState {};
 	}
@@ -518,42 +494,36 @@ VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::stri
 		return {};
 	}
 
-	auto failOpIterator = VkStencilOpFromString.find(asCStringOr(config, "fail", "VK_STENCIL_OP_KEEP"));
-	if (failOpIterator == VkStencilOpFromString.end()) {
+	auto failOp = VkStencilOpFromString(asCStringOr(config, "fail", "VK_STENCIL_OP_KEEP"));
+	if (failOp == static_cast<VkStencilOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Stencil Fail Op specified. Choosing KEEP, may cause unintended behaviour...\n";
 		failOp = VK_STENCIL_OP_KEEP;
-	} else {
-		failOp = failOpIterator->second;
 	}
-	auto passOpIterator = VkStencilOpFromString.find(asCStringOr(config, "pass", "VK_STENCIL_OP_KEEP"));
-	if (passOpIterator == VkStencilOpFromString.end()) {
+	
+	auto passOp = VkStencilOpFromString(asCStringOr(config, "pass", "VK_STENCIL_OP_KEEP"));
+	if (passOp == static_cast<VkStencilOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Stencil Pass Op specified. Choosing KEEP, may cause unintended behaviour...\n";
 		passOp = VK_STENCIL_OP_KEEP;
-	} else {
-		passOp = passOpIterator->second;
 	}
-	auto depthFailOpIterator = VkStencilOpFromString.find(asCStringOr(config, "depth-fail", "VK_STENCIL_OP_KEEP"));
-	if (depthFailOpIterator == VkStencilOpFromString.end()) {
+	
+	auto depthFailOp = VkStencilOpFromString(asCStringOr(config, "depth-fail", "VK_STENCIL_OP_KEEP"));
+	if (depthFailOp == static_cast<VkStencilOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Stencil Pass/Depth Fail Op specified. Choosing KEEP, may cause unintended "
 					 "behaviour...\n";
 		depthFailOp = VK_STENCIL_OP_KEEP;
-	} else {
-		depthFailOp = depthFailOpIterator->second;
 	}
 
 	VkCompareOp stencilCompareOp;
 
-	auto compareOpIterator = VkCompareOpFromString.find(asCStringOr(config, "compare-op", "VK_COMPARE_OP_LESS"));
-	if (compareOpIterator == VkCompareOpFromString.end()) {
+	auto compareOp = VkCompareOpFromString(asCStringOr(config, "compare-op", "VK_COMPARE_OP_LESS"));
+	if (compareOp == static_cast<VkCompareOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Stencil Compare Op specified. Choosing LESS, may cause "
 					 "unintended behaviour...\n";
 		stencilCompareOp = VK_COMPARE_OP_LESS;
-	} else {
-		stencilCompareOp = compareOpIterator->second;
 	}
 
 	return { .failOp = failOp,
@@ -566,20 +536,16 @@ VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::stri
 }
 
 void PipelineInstanceRecord::deserializeColorBlend(const std::string_view& srcPath, const Json::Value& config) {
-	VkLogicOp logicOp;
-
 	if (config.type() != Json::objectValue) {
 		std::cout << srcPath << ": Warning: Invalid color blend structure value, ignoring value.\n";
 		return;
 	}
 
-	auto logicOpIterator = VkLogicOpFromString.find(asCStringOr(config, "logic-op", "VK_LOGIC_OP_NO_OP"));
-	if (logicOpIterator == VkLogicOpFromString.end()) {
+	auto logicOp = VkLogicOpFromString(asCStringOr(config, "logic-op", "VK_LOGIC_OP_NO_OP"));
+	if (logicOp == static_cast<VkLogicOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Logic Op specified. Choosing NO_OP, may cause unintended behaviour...\n";
 		logicOp = VK_LOGIC_OP_NO_OP;
-	} else {
-		logicOp = logicOpIterator->second;
 	}
 
 	float blendConstants[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -610,8 +576,6 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 	}
 
 	for (auto& config : node) {
-		VkBlendFactor srcColorFactor, srcAlphaFactor, dstColorFactor, dstAlphaFactor;
-		VkBlendOp colorBlendOp, alphaBlendOp;
 		VkColorComponentFlags componentFlags = 0;
 
 		if (!config.isObject()) {
@@ -619,86 +583,74 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 			continue;
 		}
 
-		auto srcColorFactorIterator =
-			VkBlendFactorFromString.find(asCStringOr(config, "src-color-factor", "VK_BLEND_FACTOR_SRC_ALPHA"));
-		if (srcColorFactorIterator == VkBlendFactorFromString.end()) {
+		auto srcColorFactor =
+			VkBlendFactorFromString(asCStringOr(config, "src-color-factor", "VK_BLEND_FACTOR_SRC_ALPHA"));
+		if (srcColorFactor == static_cast<VkBlendFactor>(~0U)) {
 			std::cout
 				<< srcPath
 				<< ": Warning: Invalid Src Color Blend Factor specified. Choosing SRC_ALPHA, might lead to unintended "
 				   "behaviour...\n";
 			srcColorFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-		} else {
-			srcColorFactor = srcColorFactorIterator->second;
 		}
 
-		auto dstColorFactorIterator = VkBlendFactorFromString.find(
+		auto dstColorFactor = VkBlendFactorFromString(
 			asCStringOr(config, "dst-color-factor", "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA"));
-		if (dstColorFactorIterator == VkBlendFactorFromString.end()) {
+		if (dstColorFactor == static_cast<VkBlendFactor>(~0U)) {
 			std::cout
 				<< srcPath
 				<< ": Warning: Invalid Dst Color Blend Factor specified. Choosing ONE_MINUS_SRC_ALPHA, might lead "
 				   "to unintended "
 				   "behaviour...\n";
 			dstColorFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-		} else {
-			dstColorFactor = dstColorFactorIterator->second;
 		}
 
-		auto srcAlphaFactorIterator =
-			VkBlendFactorFromString.find(asCStringOr(config, "src-alpha-factor", "VK_BLEND_FACTOR_SRC_ALPHA"));
-		if (srcAlphaFactorIterator == VkBlendFactorFromString.end()) {
+		auto srcAlphaFactor =
+			VkBlendFactorFromString(asCStringOr(config, "src-alpha-factor", "VK_BLEND_FACTOR_SRC_ALPHA"));
+		if (srcAlphaFactor == static_cast<VkBlendFactor>(~0U)) {
 			std::cout
 				<< srcPath
 				<< ": Warning: Invalid Src Alpha Blend Factor specified. Choosing SRC_ALPHA, might lead to unintended "
 				   "behaviour...\n";
 			srcAlphaFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-		} else {
-			srcAlphaFactor = srcAlphaFactorIterator->second;
 		}
 
-		auto dstAlphaFactorIterator = VkBlendFactorFromString.find(
+		auto dstAlphaFactor = VkBlendFactorFromString(
 			asCStringOr(config, "dst-alpha-factor", "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA"));
-		if (dstAlphaFactorIterator == VkBlendFactorFromString.end()) {
+		if (dstAlphaFactor == static_cast<VkBlendFactor>(~0U)) {
 			std::cout
 				<< srcPath
 				<< ": Warning: Invalid Dst Alpha Blend Factor specified. Choosing ONE_MINUS_SRC_ALPHA, might lead to "
 				   "unintended "
 				   "behaviour...\n";
 			dstAlphaFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-		} else {
-			dstAlphaFactor = dstAlphaFactorIterator->second;
 		}
 
-		auto colorBlendOpIterator = VkBlendOpFromString.find(asCStringOr(config, "color-blend-op", "VK_BLEND_OP_ADD"));
-		if (colorBlendOpIterator == VkBlendOpFromString.end()) {
+		auto colorBlendOp = VkBlendOpFromString(asCStringOr(config, "color-blend-op", "VK_BLEND_OP_ADD"));
+		if (colorBlendOp == static_cast<VkBlendOp>(~0U)) {
 			std::cout
 				<< srcPath
 				<< ": Warning: Invalid Color Blend Op specified. Choosing ADD, might lead to unintended behaviour...\n";
 			colorBlendOp = VK_BLEND_OP_ADD;
-		} else {
-			colorBlendOp = colorBlendOpIterator->second;
 		}
 
-		auto alphaBlendOpIterator = VkBlendOpFromString.find(asCStringOr(config, "alpha-blend-op", "VK_BLEND_OP_ADD"));
-		if (alphaBlendOpIterator == VkBlendOpFromString.end()) {
+		auto alphaBlendOp = VkBlendOpFromString(asCStringOr(config, "alpha-blend-op", "VK_BLEND_OP_ADD"));
+		if (alphaBlendOp == static_cast<VkBlendOp>(~0U)) {
 			std::cout
 				<< srcPath
 				<< ": Warning: Invalid Alpha Blend Op specified. Choosing ADD, might lead to unintended behaviour...\n";
 			alphaBlendOp = VK_BLEND_OP_ADD;
-		} else {
-			alphaBlendOp = alphaBlendOpIterator->second;
 		}
 
 		auto componentFlagBits = splitString(asStringOr(config, "components",
 														"VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | "
 														"VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT"));
 		for (auto& flagBit : componentFlagBits) {
-			auto bitIterator = VkColorComponentFlagBitsFromString.find(flagBit);
-			if (bitIterator == VkColorComponentFlagBitsFromString.end()) {
+			auto bit = VkColorComponentFlagBitsFromString(flagBit);
+			if (bit == static_cast<VkColorComponentFlagBits>(~0U)) {
 				std::cout << "Invalid Color Component Flag Bit specified, ignoring bit. If the flag is zero, all "
 							 "components will be set.\n";
 			} else {
-				componentFlags |= bitIterator->second;
+				componentFlags |= bit;
 			}
 		}
 		if (componentFlags == 0) {
@@ -739,23 +691,23 @@ void PipelineInstanceRecord::deserializeSpecializationConfigs(const std::string_
 
 		InstanceStageSpecializationConfig newConfig;
 
-		auto stageIterator = VkShaderStageFlagBitsFromString.find(asCStringOr(stage, "stage", " "));
-		if (stageIterator == VkShaderStageFlagBitsFromString.end()) {
+		auto stageBit = VkShaderStageFlagBitsFromString(asCStringOr(stage, "stage", " "));
+		if (stage == static_cast<VkShaderStageFlagBits>(~0U)) {
 			std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
 			m_isValid = false;
 			return;
 		} else {
 			switch (m_type) {
 				case PipelineType::Graphics:
-					if (stageIterator->second != VK_SHADER_STAGE_VERTEX_BIT &&
-						stageIterator->second != VK_SHADER_STAGE_FRAGMENT_BIT) {
+					if (stageBit != VK_SHADER_STAGE_VERTEX_BIT &&
+						stageBit != VK_SHADER_STAGE_FRAGMENT_BIT) {
 						std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
 						m_isValid = false;
 						return;
 					}
 					break;
 				case PipelineType::Compute:
-					if (stageIterator->second != VK_SHADER_STAGE_COMPUTE_BIT) {
+					if (stageBit != VK_SHADER_STAGE_COMPUTE_BIT) {
 						std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
 						m_isValid = false;
 						return;

@@ -91,8 +91,8 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 					return;
 				}
 
-				auto typeIterator = VkDescriptorTypeFromString.find(bindingNode["type"].asString());
-				if (typeIterator == VkDescriptorTypeFromString.end()) {
+				VkDescriptorType type = VkDescriptorTypeFromString(bindingNode["type"].asCString());
+				if (type == static_cast<VkDescriptorType>(~0U)) {
 					std::cout << srcPath << ": Error: Invalid descriptor type at binding index " << bindingIndex
 							  << " for set " << setIndex << "." << std::endl;
 					return;
@@ -101,12 +101,12 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				VkShaderStageFlags shaderStageFlags = 0;
 				auto stageFlagsString = splitString(bindingNode["stages"].asString());
 				for (auto& flag : stageFlagsString) {
-					auto flagIterator = VkShaderStageFlagBitsFromString.find(flag);
-					if (flagIterator == VkShaderStageFlagBitsFromString.end()) {
+					VkShaderStageFlagBits flagBit = VkShaderStageFlagBitsFromString(flag);
+					if (flagBit == static_cast<VkShaderStageFlagBits>(~0U)) {
 						std::cout << srcPath << ": Warning: Invalid shader stage flag bits at binding index "
 								  << bindingIndex << " for set " << setIndex << ", ignoring bit." << std::endl;
 					} else {
-						shaderStageFlags |= flagIterator->second;
+						shaderStageFlags |= flagBit;
 					}
 				}
 				if (!shaderStageFlags) {
@@ -121,102 +121,76 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 					usesImmutableSamplers = !bindingNode["immutable-samplers"].empty();
 					samplerInfos.reserve(bindingNode["immutable-samplers"].size());
 					for (auto& node : bindingNode["immutable-samplers"]) {
-						VkFilter magFilter;
-						auto magFilterIterator =
-							VkFilterFromString.find(asCStringOr(node, "mag-filter", "VK_FILTER_NEAREST"));
-						if (magFilterIterator == VkFilterFromString.end()) {
+						VkFilter magFilter = VkFilterFromString(asCStringOr(node, "mag-filter", "VK_FILTER_NEAREST"));
+						if (magFilter == static_cast<VkFilter>(~0U)) {
 							std::cout
 								<< srcPath
 								<< ": Warning: Invalid magnification filter! Choosing Nearest, might cause errors...\n";
 							magFilter = VK_FILTER_NEAREST;
-						} else {
-							magFilter = magFilterIterator->second;
 						}
 
-						VkFilter minFilter;
-						auto minFilterIterator =
-							VkFilterFromString.find(asCStringOr(node, "min-filter", "VK_FILTER_NEAREST"));
-						if (minFilterIterator == VkFilterFromString.end()) {
+						VkFilter minFilter = VkFilterFromString(asCStringOr(node, "min-filter", "VK_FILTER_NEAREST"));
+						if (minFilter == static_cast<VkFilter>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid minification filter! Choosing Nearest, might cause "
 										 "unintended behaviour...\n";
 							minFilter = VK_FILTER_NEAREST;
-						} else {
-							minFilter = minFilterIterator->second;
 						}
 
-						VkSamplerMipmapMode mipmapMode;
-						auto mipmapModeIterator = VkSamplerMipmapModeFromString.find(
+						VkSamplerMipmapMode mipmapMode = VkSamplerMipmapModeFromString(
 							asCStringOr(node, "mipmap-mode", "VK_SAMPLER_MIPMAP_MODE_NEAREST"));
-						if (mipmapModeIterator == VkSamplerMipmapModeFromString.end()) {
+						if (mipmapMode == static_cast<VkSamplerMipmapMode>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid mipmap mode! Choosing Nearest, might cause unintended "
 										 "behaviour...\n";
 							mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-						} else {
-							mipmapMode = mipmapModeIterator->second;
 						}
 
-						VkSamplerAddressMode addressModeU;
-						auto addressModeUIterator = VkSamplerAddressModeFromString.find(
+						VkSamplerAddressMode addressModeU = VkSamplerAddressModeFromString(
 							asCStringOr(node, "address-mode-u", "VK_SAMPLER_ADDRESS_MODE_REPEAT"));
-						if (addressModeUIterator == VkSamplerAddressModeFromString.end()) {
+						if (addressModeU == static_cast<VkSamplerAddressMode>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid U address mode! Choosing Repeat, might cause unintended "
 										 "behaviour...\n";
 							addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-						} else {
-							addressModeU = addressModeUIterator->second;
 						}
 
-						VkSamplerAddressMode addressModeV;
-						auto addressModeVIterator = VkSamplerAddressModeFromString.find(
+						VkSamplerAddressMode addressModeV = VkSamplerAddressModeFromString(
 							asCStringOr(node, "address-mode-v", "VK_SAMPLER_ADDRESS_MODE_REPEAT"));
-						if (addressModeVIterator == VkSamplerAddressModeFromString.end()) {
+						if (addressModeV == static_cast<VkSamplerAddressMode>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid V address mode! Choosing Repeat, might cause unintended "
 										 "behaviour...\n";
 							addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-						} else {
-							addressModeV = addressModeVIterator->second;
 						}
 
-						VkSamplerAddressMode addressModeW;
-						auto addressModeWIterator = VkSamplerAddressModeFromString.find(
+						VkSamplerAddressMode addressModeW  = VkSamplerAddressModeFromString(
 							asCStringOr(node, "address-mode-w", "VK_SAMPLER_ADDRESS_MODE_REPEAT"));
-						if (addressModeWIterator == VkSamplerAddressModeFromString.end()) {
+						if (addressModeW == static_cast<VkSamplerAddressMode>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid W address mode! Choosing Repeat, might cause unintended "
 										 "behaviour...\n";
 							addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-						} else {
-							addressModeW = addressModeWIterator->second;
 						}
 
-						VkCompareOp compareOp;
-						auto compareOpIterator =
-							VkCompareOpFromString.find(asCStringOr(node, "compare-op", "VK_COMPARE_OP_ALWAYS"));
-						if (compareOpIterator == VkCompareOpFromString.end()) {
+						VkCompareOp compareOp =
+							VkCompareOpFromString(asCStringOr(node, "compare-op", "VK_COMPARE_OP_ALWAYS"));
+						if (compareOp == static_cast<VkCompareOp>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid sampler compare operation! Choosing Always, might cause "
 										 "unintended "
 										 "behaviour...\n";
 							compareOp = VK_COMPARE_OP_ALWAYS;
-						} else {
-							compareOp = compareOpIterator->second;
 						}
 
-						VkBorderColor borderColor;
-						auto borderColorIterator = VkBorderColorFromString.find(
+						VkBorderColor borderColor = VkBorderColorFromString(
 							asCStringOr(node, "border-color", "VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK"));
-						if (borderColorIterator == VkBorderColorFromString.end()) {
+						if (borderColor == static_cast<VkBorderColor>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid sampler border color! Choosing transparent black (float), "
 										 "might cause unintended "
 										 "behaviour...\n";
 							borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
-						} else {
-							borderColor = borderColorIterator->second;
 						}
 
 						samplerInfos.push_back({
@@ -240,7 +214,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				}
 
 				VkDescriptorSetLayoutBinding binding = { .binding = bindingNode["binding"].asUInt(),
-														 .descriptorType = typeIterator->second,
+														 .descriptorType = type,
 														 .descriptorCount = bindingNode["count"].asUInt(),
 														 .stageFlags = shaderStageFlags,
 														 .pImmutableSamplers = nullptr };
@@ -296,12 +270,12 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 			VkShaderStageFlags shaderStageFlags = 0;
 			auto stageFlagsString = splitString(constant["stages"].asString());
 			for (auto& flag : stageFlagsString) {
-				auto flagIterator = VkShaderStageFlagBitsFromString.find(flag);
-				if (flagIterator == VkShaderStageFlagBitsFromString.end()) {
+				auto flagBit = VkShaderStageFlagBitsFromString(flag);
+				if (flagBit == static_cast<VkShaderStageFlagBits>(~0U)) {
 					std::cout << srcPath << ": Warning: Invalid shader stage flag bits at push constant index "
 							  << m_pushConstantRanges.size() << ", ignoring bit.\n";
 				} else {
-					shaderStageFlags |= flagIterator->second;
+					shaderStageFlags |= flagBit;
 				}
 			}
 

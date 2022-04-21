@@ -10,7 +10,7 @@ add_executable(EnumMatchTable ${CPP_SOURCES})
 target_include_directories(EnumMatchTable PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/EnumMatchTable/include")
 target_link_libraries(EnumMatchTable tinyxml2)
 
-#vcp
+#vcp, Vanadium Compiled Pipeline generator
 
 file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vcp/src/*.cpp")
 
