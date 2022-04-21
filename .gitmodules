@@ -22,3 +22,9 @@
 [submodule "dependencies/robin-hood"]
 	path = dependencies/robin-hood
 	url = https://github.com/martinus/robin-hood-hashing.git
+[submodule "dependencies/harfbuzz"]
+	path = dependencies/harfbuzz
+	url = https://github.com/harfbuzz/harfbuzz.git
+[submodule "dependencies/freetype"]
+	path = dependencies/freetype
+	url = https://gitlab.freedesktop.org/freetype/freetype.git

@@ -22,6 +22,9 @@ if(UNIX AND NOT APPLE)
 	else()
 		set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_XLIB_KHR VK_USE_PLATFORM_XCB_KHR)
 		add_compile_definitions(VK_USE_PLATFORM_XLIB_KHR VK_USE_PLATFORM_XCB_KHR)
+		set(GLFW_BUILD_X11 TRUE)
+		set(GLFW_USE_WAYLAND FALSE)
+		set(GLFW_BUILD_WAYLAND FALSE)
 	endif()
 elseif(WIN32)
 	set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
@@ -33,6 +36,12 @@ add_subdirectory(dependencies/volk)
 add_subdirectory(dependencies/tinyxml EXCLUDE_FROM_ALL)
 add_subdirectory(dependencies/jsoncpp EXCLUDE_FROM_ALL)
 add_subdirectory(dependencies/robin-hood)
+
+# FreeType can make use of HarfBuzz, which is compiled directly into the VanadiumEngine static lib.
+# The CMake file searches for a HarfBuzz module, which we want to intercept with our own.
+# See FindHarfBuzz.cmake
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
+add_subdirectory(dependencies/freetype)
 
 add_subdirectory(tools)
 vanadium_init_vcp()
@@ -55,12 +64,17 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
-add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS})
+add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS} dependencies/harfbuzz/src/harfbuzz.cc)
 
 target_precompile_headers(VanadiumEngine PRIVATE "include/Engine.hpp")
 
-target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb")
-target_link_libraries(VanadiumEngine volk::volk glfw robin_hood)
+target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb" "dependencies/harfbuzz/src")
+target_link_libraries(VanadiumEngine volk::volk glfw robin_hood freetype)
+
+find_package(TBB)
+if(UNIX AND NOT APPLE AND TBB_FOUND)
+	target_link_libraries(VanadiumEngine tbb)
+endif()
 
 add_subdirectory(examples)
 
