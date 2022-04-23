@@ -10,6 +10,17 @@ add_executable(EnumMatchTable ${CPP_SOURCES})
 target_include_directories(EnumMatchTable PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/EnumMatchTable/include")
 target_link_libraries(EnumMatchTable tinyxml2)
 
+#Font configuration file generator
+
+file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/fontcfg/src/*.cpp")
+
+add_executable(fontcfg ${CPP_SOURCES})
+target_link_libraries(fontcfg jsoncpp_static)
+target_include_directories(fontcfg PUBLIC 
+	"${CMAKE_SOURCE_DIR}/include"
+	"${CMAKE_CURRENT_SOURCE_DIR}/common/include" 
+	)
+
 #vcp, Vanadium Compiled Pipeline generator
 
 file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vcp/src/*.cpp")
@@ -30,6 +41,7 @@ set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMa
 target_include_directories(vcp PUBLIC 
 	${Vulkan_INCLUDE_DIRS} 
 	"${CMAKE_CURRENT_SOURCE_DIR}/vcp/include" 
+	"${CMAKE_CURRENT_SOURCE_DIR}/common/include" 
 	"${CMAKE_SOURCE_DIR}/include" 
 	"${CMAKE_SOURCE_DIR}/dependencies/spirv-reflect" 
 	"${CMAKE_CURRENT_BINARY_DIR}/generated_include")

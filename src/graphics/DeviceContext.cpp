@@ -1,4 +1,5 @@
 #include <Debug.hpp>
+#include <Log.hpp>
 #include <cstring>
 #include <graphics/DeviceContext.hpp>
 #include <graphics/helper/EnumerationHelper.hpp>
@@ -7,26 +8,24 @@
 #include <optional>
 #include <vector>
 #include <volk.h>
-#include <Log.hpp>
 
 const char* platformSurfaceExtensionName(const std::vector<VkExtensionProperties>& instanceExtensions) {
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
+#ifdef VK_USE_PLATFORM_WIN32_KHR
+	vanadium::logInfo("Using Win32.\n");
 	return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
-#elif defined(VK_USE_PLATFORM_XCB_KHR) && defined(VK_USE_PLATFORM_XLIB_KHR)
-	if(std::find_if(instanceExtensions.begin(), instanceExtensions.end(), [](const auto& properties) {
-		return !strcmp(properties.extensionName, VK_KHR_XCB_SURFACE_EXTENSION_NAME);
-	}) != instanceExtensions.end()) {
-		return VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+#else
+	if (glfwGetPlatform() == GLFW_PLATFORM_WAYLAND) {
+		vanadium::logInfo("Using Wayland.\n");
+		return VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
 	}
-	else {
+	vanadium::logInfo("Using X11.\n");
+	if (std::find_if(instanceExtensions.begin(), instanceExtensions.end(), [](const auto& properties) {
+			return !strcmp(properties.extensionName, VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+		}) != instanceExtensions.end()) {
+		return VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+	} else {
 		return VK_KHR_XLIB_SURFACE_EXTENSION_NAME;
 	}
-#elif defined(VK_USE_PLATFORM_XCB_KHR)
-	return VK_KHR_XCB_SURFACE_EXTENSION_NAME;
-#elif defined(VK_USE_PLATFORM_XLIB_KHR)
-	return VK_KHR_XLIB_SURFACE_EXTENSION_NAME;
-#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
-	return VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
 #endif
 }
 
@@ -131,7 +130,8 @@ namespace vanadium::graphics {
 			if (chosenGraphicsQueueFamilyIndex != -1U && chosenTransferQueueFamilyIndex != -1U) {
 				if (queueFamilyProperties[chosenTransferQueueFamilyIndex].queueFlags &
 					(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
-						logWarning("DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.\n");
+					logWarning(
+						"DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.\n");
 				}
 
 				chosenDevice = device;
@@ -193,17 +193,15 @@ namespace vanadium::graphics {
 		vkGetPhysicalDeviceProperties(m_physicalDevice, &m_properties);
 
 		m_frameCompletionFences.resize(frameInFlightCount);
-		VkFenceCreateInfo fenceCreateInfo = {
-			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-			.flags = VK_FENCE_CREATE_SIGNALED_BIT
-		};
-		for(uint32_t i = 0; i < frameInFlightCount; ++i) {
+		VkFenceCreateInfo fenceCreateInfo = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+											  .flags = VK_FENCE_CREATE_SIGNALED_BIT };
+		for (uint32_t i = 0; i < frameInFlightCount; ++i) {
 			verifyResult(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameCompletionFences[i]));
 		}
 	}
 
 	void DeviceContext::destroy() {
-		for(auto& fence : m_frameCompletionFences) {
+		for (auto& fence : m_frameCompletionFences) {
 			vkDestroyFence(m_device, fence, nullptr);
 		}
 

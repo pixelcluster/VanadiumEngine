@@ -62,7 +62,12 @@ namespace vanadium::windowing {
 			override.value_or(WindowingSettingOverride{ .width = 640, .height = 480, .createFullScreen = false });
 
 		glfwSetErrorCallback(errorCallback);
-		assertFatal(glfwInit(), "GLFW initialization failed!\n");
+
+		glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+		if (!glfwInit()) {
+			glfwInitHint(GLFW_PLATFORM, GLFW_ANY_PLATFORM);
+			assertFatal(glfwInit(), "GLFW initialization failed!\n");
+		}
 
 		GLFWmonitor* monitor = value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
 		if (value.createFullScreen && (value.width == 0 || value.height == 0)) {

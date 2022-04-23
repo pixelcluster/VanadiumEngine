@@ -1,0 +1,11 @@
+{
+    "custom-paths": [],
+    "fonts": [
+        {
+            "primary-name": "Liberation Sans",
+            "fallback-names": [
+                "Arial"
+            ]
+        }
+    ]
+}
