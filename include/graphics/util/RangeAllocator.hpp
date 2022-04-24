@@ -2,6 +2,8 @@
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
+#include <vector>
+#include <optional>
 
 namespace vanadium::graphics {
 	struct MemoryRange {

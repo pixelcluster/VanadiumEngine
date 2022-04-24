@@ -2,6 +2,7 @@
 
 #include <graphics/DeviceContext.hpp>
 #include <helper/Slotmap.hpp>
+#include <shared_mutex>
 
 namespace vanadium::graphics {
 

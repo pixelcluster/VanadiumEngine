@@ -5,6 +5,7 @@
 #include <robin_hood.h>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include <helper/Slotmap.hpp>
 
 namespace vanadium::graphics {
 	class FramegraphContext;

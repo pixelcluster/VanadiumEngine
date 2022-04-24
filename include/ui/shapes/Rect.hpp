@@ -5,6 +5,10 @@
 #include <vector>
 #include <ui/SimpleShapeDataManager.hpp>
 
+namespace vanadium::ui {
+	class UISubsystem;
+}
+
 namespace vanadium::ui::shapes {
 
 	class RectShape;

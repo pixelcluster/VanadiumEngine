@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <robin_hood.h>
 #include <vector>
+#include <optional>
 
 #include <math/Vector.hpp>
 

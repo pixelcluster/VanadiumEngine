@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ui/UISubsystem.hpp>
 #include <graphics/RenderContext.hpp>
 #include <ui/ShapeRegistry.hpp>
 #include <math/Vector.hpp>

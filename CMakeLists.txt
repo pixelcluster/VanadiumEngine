@@ -59,8 +59,6 @@ find_package(Vulkan REQUIRED FATAL_ERROR)
 
 add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS} dependencies/harfbuzz/src/harfbuzz.cc)
 
-target_precompile_headers(VanadiumEngine PRIVATE "include/Engine.hpp")
-
 target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb" "dependencies/harfbuzz/src")
 target_link_libraries(VanadiumEngine volk::volk glfw robin_hood freetype)
 
