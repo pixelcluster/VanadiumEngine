@@ -13,6 +13,7 @@ namespace vanadium {
 		uint32_t startupFlags() const { return m_startupFlags; }
 		std::string_view appName() const { return m_appName; }
 		std::string_view pipelineLibraryFileName() const { return m_pipelineLibraryFileName; }
+		std::string_view fontLibraryFileName() const { return m_fontLibraryFileName; }
 		uint32_t appVersion() const { return m_appVersion; }
 		const std::optional<windowing::WindowingSettingOverride>& settingsOverrides() const {
 			return m_windowingSettingOverride;
@@ -27,6 +28,7 @@ namespace vanadium {
 			m_windowingSettingOverride = override;
 		}
 		void setPipelineLibraryFileName(const std::string_view& name) { m_pipelineLibraryFileName = name; }
+		void setFontLibraryFileName(const std::string_view& name) { m_fontLibraryFileName = name; }
 		void setUserPointer(void* userPointer) { m_userPointer = userPointer; }
 
 		template <std::derived_from<graphics::FramegraphNode> T, typename... Args>
@@ -40,6 +42,7 @@ namespace vanadium {
 		uint32_t m_startupFlags = 0;
 		std::string_view m_appName;
 		std::string_view m_pipelineLibraryFileName = "./shaders.vcp";
+		std::string_view m_fontLibraryFileName = "./fonts.fcfg";
 		uint32_t m_appVersion;
 
 		std::optional<windowing::WindowingSettingOverride> m_windowingSettingOverride;

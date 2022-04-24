@@ -1,7 +1,9 @@
 #include <ui/UISubsystem.hpp>
 
 namespace vanadium::ui {
-	UISubsystem::UISubsystem(const graphics::RenderContext& context, bool clearBackground, const Vector4& clearValue) {
+	UISubsystem::UISubsystem(const graphics::RenderContext& context, const std::string_view& fontLibraryFile,
+							 bool clearBackground, const Vector4& clearValue)
+		: m_fontLibrary(fontLibraryFile) {
 		if (clearBackground)
 			m_rendererNode = new UIRendererNode(this, context, clearBackground);
 		else

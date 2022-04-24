@@ -1,12 +1,13 @@
 #pragma once
 
+#include <ui/FontLibrary.hpp>
 #include <ui/UIRendererNode.hpp>
-#include <ui/FontRegistry.hpp>
 
 namespace vanadium::ui {
 	class UISubsystem {
 	  public:
-		UISubsystem(const graphics::RenderContext& context, bool clearBackground, const Vector4& clearValue);
+		UISubsystem(const graphics::RenderContext& context, const std::string_view& fontLibraryFile,
+					bool clearBackground, const Vector4& clearValue);
 
 		template <RenderableShape T, typename... Args>
 		requires(std::constructible_from<T, Args...>) T* addShape(uint32_t childDepth, Args&&... args) {
@@ -16,8 +17,11 @@ namespace vanadium::ui {
 
 		void addRendererNode(graphics::FramegraphContext& context);
 
+		FontLibrary& fontLibrary() { return m_fontLibrary; }
+
 	  private:
 		UIRendererNode* m_rendererNode;
+		FontLibrary m_fontLibrary;
 	};
 
 } // namespace vanadium::ui

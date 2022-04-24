@@ -28,6 +28,8 @@ add_subdirectory(dependencies/tinyxml EXCLUDE_FROM_ALL)
 add_subdirectory(dependencies/jsoncpp EXCLUDE_FROM_ALL)
 add_subdirectory(dependencies/robin-hood)
 
+find_package(TBB)
+
 # FreeType can make use of HarfBuzz, which is compiled directly into the VanadiumEngine static lib.
 # The CMake file searches for a HarfBuzz module, which we want to intercept with our own.
 # See FindHarfBuzz.cmake
@@ -62,7 +64,6 @@ target_precompile_headers(VanadiumEngine PRIVATE "include/Engine.hpp")
 target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb" "dependencies/harfbuzz/src")
 target_link_libraries(VanadiumEngine volk::volk glfw robin_hood freetype)
 
-find_package(TBB)
 if(UNIX AND NOT APPLE AND TBB_FOUND)
 	target_link_libraries(VanadiumEngine tbb)
 endif()

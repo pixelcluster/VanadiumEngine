@@ -115,6 +115,7 @@ int main(int argc, char** argv) {
 
 		Font newFont;
 		newFont.fontNames.push_back(name["primary-name"].asString());
+		tableSize += 2 * sizeof(uint32_t);
 		for (auto& fallbackName : name["fallback-names"]) {
 			if (!fallbackName.isString()) {
 				std::cerr << "Error: " << options.inFile << ": Invalid font configuration!\n";
