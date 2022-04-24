@@ -1,8 +1,8 @@
+#include <ParsingUtils.hpp>
 #include <fstream>
 #include <helper/WholeFileReader.hpp>
 #include <iostream>
 #include <json/json.h>
-#include <ParsingUtils.hpp>
 #include <vector>
 
 struct Options {
@@ -10,19 +10,9 @@ struct Options {
 	std::string inFile;
 };
 
-struct StringHeaderEntry {
-	uint32_t offset;
-	uint32_t size;
-};
-
-struct Font
-{
-	std::string name;
+struct Font {
 	std::vector<std::string> fontNames;
-	StringHeaderEntry nameEntry;
-	std::vector<StringHeaderEntry> fontEntries;
 };
-
 
 bool checkOption(int argc, char** argv, size_t index, const std::string_view& argName) {
 	if (argc <= index + 1) {
@@ -70,11 +60,11 @@ int main(int argc, char** argv) {
 	Options options = parseArguments(argc, argv);
 	size_t fileSize;
 
-    std::ofstream outStream = std::ofstream(options.outFile, std::ios_base::binary | std::ios_base::trunc);
-    if(!outStream.is_open()) {
+	std::ofstream outStream = std::ofstream(options.outFile, std::ios_base::binary | std::ios_base::trunc);
+	if (!outStream.is_open()) {
 		std::cerr << "Error: " << options.outFile << ": Couldn't open file." << std::endl;
 		return 2;
-    }
+	}
 
 	char* data = reinterpret_cast<char*>(readFile(options.inFile.c_str(), &fileSize));
 	if (!data) {
@@ -87,18 +77,90 @@ int main(int argc, char** argv) {
 	Json::Reader reader;
 	reader.parse(data, data + fileSize, rootValue);
 
-    uint32_t tableSize;
+	uint32_t tableSize = 0;
 
-	if(!rootValue["custom-font-paths"]) {}
-
-    std::vector<std::string> customFontPaths;
-    customFontPaths.reserve(rootValue["custom-font-paths"].size());
-    for(auto& path : rootValue["custom-font-paths"]) {
-        customFontPaths.push_back(path.asString());
-		tableSize += 2 * sizeof(uint32_t); //table entry: offset + size
-    }
-
-    for(auto& name : rootValue["fonts"]) {
-
+	if (!(rootValue["custom-font-paths"].isArray() || rootValue["custom-font-paths"].isNull()) ||
+		!(rootValue["fonts"].isArray() || rootValue["fonts"].isNull()) ||
+		!(rootValue["fallback-path"].isString() || rootValue["fallback-path"].isNull())) {
+		std::cerr << "Error: " << options.inFile << ": Invalid font configuration!\n";
 	}
+
+	// fallback path
+	tableSize += 2 * sizeof(uint32_t);
+	std::string fallbackPath = rootValue["fallback-path"].asString();
+
+	std::vector<std::string> customFontPaths;
+	customFontPaths.reserve(rootValue["custom-font-paths"].size());
+	// font path count
+	tableSize += sizeof(uint32_t);
+	for (auto& path : rootValue["custom-font-paths"]) {
+		if (!(path.isString() || path.isNull())) {
+			std::cerr << "Error: " << options.inFile << ": Invalid font configuration!\n";
+		}
+		customFontPaths.push_back(path.asString());
+		tableSize += 2 * sizeof(uint32_t); // table entry: offset + size
+	}
+
+	// font count
+	tableSize += sizeof(uint32_t);
+	std::vector<Font> fonts;
+	for (auto& name : rootValue["fonts"]) {
+		// name count
+		tableSize += sizeof(uint32_t);
+
+		if (!name.isObject() || !(name["primary-name"].isString() || name["primary-name"].isNull()) ||
+			!(name["fallback-names"].isArray() || name["fallback-names"].isNull())) {
+			std::cerr << "Error: " << options.inFile << ": Invalid font configuration!\n";
+		}
+
+		Font newFont;
+		newFont.fontNames.push_back(name["primary-name"].asString());
+		for (auto& fallbackName : name["fallback-names"]) {
+			if (!fallbackName.isString()) {
+				std::cerr << "Error: " << options.inFile << ": Invalid font configuration!\n";
+			}
+			newFont.fontNames.push_back(fallbackName.asString());
+			tableSize += 2 * sizeof(uint32_t);
+		}
+		fonts.push_back(std::move(newFont));
+	}
+
+	uint32_t textWriteOffset = tableSize;
+	outStream.write(reinterpret_cast<char*>(&textWriteOffset), sizeof(uint32_t));
+	uint32_t fallbackPathLength = fallbackPath.size();
+	outStream.write(reinterpret_cast<char*>(&fallbackPathLength), sizeof(uint32_t));
+	textWriteOffset += fallbackPathLength;
+
+	uint32_t customFontPathCount = customFontPaths.size();
+	outStream.write(reinterpret_cast<char*>(&customFontPathCount), sizeof(uint32_t));
+	for (auto& path : customFontPaths) {
+		outStream.write(reinterpret_cast<char*>(&textWriteOffset), sizeof(uint32_t));
+		uint32_t pathLength = path.size();
+		outStream.write(reinterpret_cast<char*>(&pathLength), sizeof(uint32_t));
+		textWriteOffset += pathLength;
+	}
+
+	uint32_t fontCount = fonts.size();
+	outStream.write(reinterpret_cast<char*>(&fontCount), sizeof(uint32_t));
+	for (auto& font : fonts) {
+		uint32_t nameCount = font.fontNames.size();
+		outStream.write(reinterpret_cast<char*>(&nameCount), sizeof(uint32_t));
+		for (auto& name : font.fontNames) {
+			outStream.write(reinterpret_cast<char*>(&textWriteOffset), sizeof(uint32_t));
+			uint32_t nameLength = name.size();
+			outStream.write(reinterpret_cast<char*>(&nameLength), sizeof(uint32_t));
+			textWriteOffset += nameLength;
+		}
+	}
+
+	outStream.write(fallbackPath.data(), fallbackPath.size());
+	for (auto& path : customFontPaths) {
+		outStream.write(path.data(), path.size());
+	}
+	for (auto& font : fonts) {
+		for (auto& name : font.fontNames) {
+			outStream.write(name.data(), name.size());
+		}
+	}
+	outStream.close();
 }

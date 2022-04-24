@@ -1,5 +1,6 @@
 {
-    "custom-paths": [],
+    "fallback-path": "",
+    "custom-font-paths": [],
     "fonts": [
         {
             "primary-name": "Liberation Sans",

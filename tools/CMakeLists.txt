@@ -21,6 +21,11 @@ target_include_directories(fontcfg PUBLIC
 	"${CMAKE_CURRENT_SOURCE_DIR}/common/include" 
 	)
 
+function(vanadium_generate_fontcfg JSON_PATH OUTFILE TARGETNAME)
+	add_custom_target(fonts_${TARGETNAME} fontcfg ${JSON_PATH} "-o" "${CMAKE_CURRENT_BINARY_DIR}/${OUTFILE}")
+	add_dependencies(${TARGETNAME} fonts_${TARGETNAME})
+endfunction()
+
 #vcp, Vanadium Compiled Pipeline generator
 
 file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vcp/src/*.cpp")
