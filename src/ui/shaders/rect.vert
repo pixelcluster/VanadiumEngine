@@ -1,9 +1,9 @@
 #version 460 core
 
 struct RectData {
-    vec2 position;
-    vec2 size;
+    vec3 position;
     vec4 color;
+    vec2 size;
 };
 
 layout(set = 0, binding = 0) buffer Data {
@@ -18,14 +18,19 @@ const vec2 positions[] = {
 };
 
 const uint indices[] = {
-    0, 2, 3, 1, 0
+    0, 2, 2, 3, 3, 1, 1, 0
 };
 
 layout(location = 0) out vec4 outColor;
 
+layout(push_constant) uniform PushConstantData {
+    vec2 targetDimensions;
+};
+
 void main() {
-    gl_Position = vec4(positions[indices[gl_VertexIndex]] * data[gl_InstanceIndex].size + data[gl_InstanceIndex].position, 0.5f, 1.0f);
+    uint instanceIndex = uint(floor(gl_VertexIndex / 8.0f));
+    gl_Position = vec4(positions[indices[gl_VertexIndex % 8]] * data[instanceIndex].size / targetDimensions + data[instanceIndex].position.xy / targetDimensions, data[instanceIndex].position.z, 1.0f);
     gl_Position *= 2.0f;
     gl_Position -= 1.0f;
-    outColor = data[gl_InstanceIndex].color;
+    outColor = data[instanceIndex].color;
 }

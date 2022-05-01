@@ -36,6 +36,7 @@ namespace vanadium::graphics {
 	bool GraphicsSubsystem::tickFrame() {
 		vkWaitForFences(m_deviceContext.device(), 1, &m_deviceContext.frameCompletionFence(m_frameIndex), VK_TRUE,
 						UINT64_MAX);
+		m_resourceAllocator.setFrameIndex(m_frameIndex);
 
 		if (m_surface.swapchainDirtyFlag()) {
 			m_surface.createSwapchain(m_deviceContext.physicalDevice(), m_deviceContext.device(),
@@ -53,8 +54,9 @@ namespace vanadium::graphics {
 
 			m_renderTargetSurface.setTargetImageIndex(imageIndex);
 
-			VkCommandBuffer commandBuffers[2]{ m_transferManager.recordTransfers(m_frameIndex),
-											   m_framegraphContext.recordFrame(m_frameIndex) };
+			VkCommandBuffer graphicsCommandBuffer = m_framegraphContext.recordFrame(m_frameIndex);
+
+			VkCommandBuffer commandBuffers[2] = { m_transferManager.recordTransfers(m_frameIndex), graphicsCommandBuffer };
 
 			VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 			VkSubmitInfo submitInfo = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -78,9 +80,12 @@ namespace vanadium::graphics {
 		return m_surface.canRender() || (m_surface.imageWidth() > 0 && m_surface.imageHeight() > 0);
 	}
 
-	GraphicsSubsystem::~GraphicsSubsystem() {
+	void GraphicsSubsystem::destroyFramegraph() {
 		vkDeviceWaitIdle(m_deviceContext.device());
 		m_framegraphContext.destroy();
+	}
+
+	GraphicsSubsystem::~GraphicsSubsystem() {
 		m_pipelineLibrary.destroy();
 		m_transferManager.destroy();
 		m_descriptorSetAllocator.destroy();

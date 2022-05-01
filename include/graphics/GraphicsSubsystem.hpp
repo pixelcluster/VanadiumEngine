@@ -22,6 +22,8 @@ namespace vanadium::graphics {
 
 		uint32_t frameIndex() { return m_frameIndex; }
 
+		void destroyFramegraph();
+
 	  private:
 		uint32_t m_frameIndex = 0;
 

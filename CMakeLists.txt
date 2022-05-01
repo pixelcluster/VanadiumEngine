@@ -36,6 +36,7 @@ find_package(TBB)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 add_subdirectory(dependencies/freetype)
 
+
 add_subdirectory(tools)
 vanadium_init_vcp()
 include(src/ui/shaders/CMakeLists.txt)
@@ -57,9 +58,16 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
 
 find_package(Vulkan REQUIRED FATAL_ERROR)
 
-add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS} dependencies/harfbuzz/src/harfbuzz.cc)
+add_custom_command(OUTPUT ${CHARACTERGROUP_FILE}
+				   COMMAND UnicodeLineBreak
+				   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tools
+				   DEPENDS UnicodeLineBreak)
 
-target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb" "dependencies/harfbuzz/src")
+add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS} dependencies/harfbuzz/src/harfbuzz.cc ${CHARACTERGROUP_FILE})
+
+set_source_files_properties(${CHARACTERGROUP_FILE} PROPERTIES GENERATED TRUE)
+
+target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/tools/generated_include" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb" "dependencies/harfbuzz/src")
 target_link_libraries(VanadiumEngine volk::volk glfw robin_hood freetype)
 
 if(UNIX AND NOT APPLE AND TBB_FOUND)

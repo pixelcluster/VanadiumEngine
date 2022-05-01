@@ -28,6 +28,7 @@ namespace vanadium::graphics {
 	struct GPUTransfer {
 		BufferResourceHandle dstBuffer;
 		std::vector<StagingBufferAllocation> stagingBuffers;
+		std::vector<bool> hasNewData;
 		bool needsStagingBuffer;
 		VkDeviceSize bufferSize;
 
@@ -44,6 +45,7 @@ namespace vanadium::graphics {
 		VkPipelineStageFlags dstUsageStageFlags;
 		VkAccessFlags dstUsageAccessFlags;
 		VkImageLayout dstUsageLayout;
+		VkImageLayout srcLayout;
 	};
 
 	using GPUTransferHandle = SlotmapHandle;
@@ -111,7 +113,7 @@ namespace vanadium::graphics {
 
 		void submitImageTransfer(ImageResourceHandle dstImage, const VkBufferImageCopy& copy, const void* data,
 								 VkDeviceSize size, VkPipelineStageFlags usageStageFlags,
-								 VkAccessFlags usageAccessFlags, VkImageLayout dstUsageLayout);
+								 VkAccessFlags usageAccessFlags, VkImageLayout dstUsageLayout, VkImageLayout srcLayout = VK_IMAGE_LAYOUT_UNDEFINED);
 
 		BufferResourceHandle dstBufferHandle(GPUTransferHandle handle);
 

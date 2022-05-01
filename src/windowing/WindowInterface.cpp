@@ -84,6 +84,12 @@ namespace vanadium::windowing {
 		glfwSetFramebufferSizeCallback(m_window, sizeCallback);
 		glfwSetMouseButtonCallback(m_window, mouseKeyCallback);
 
+		float contentScaleX, contentScaleY;
+		glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &contentScaleX, &contentScaleY);
+
+		m_contentScaleDPIX = platformDefaultDPI * contentScaleX;
+		m_contentScaleDPIY = platformDefaultDPI * contentScaleY;
+
 		assertFatal(m_window, "Couldn't create window!\n");
 
 		++m_glfwWindowCount;

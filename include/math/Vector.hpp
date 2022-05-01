@@ -13,6 +13,10 @@ namespace vanadium {
 
 		bool operator==(const Vector<2, T>& other) const { return x == other.x && y == other.y; }
 		bool operator!=(const Vector<2, T>& other) const { return !(*this == other); }
+		Vector<2, T> operator+(const Vector<2, T>& other) { return Vector<2, T>(x + other.x, y + other.y); }
+		Vector<2, T> operator-(const Vector<2, T>& other) { return Vector<2, T>(x - other.x, y - other.y); }
+		Vector<2, T> operator*(const Vector<2, T>& other) { return Vector<2, T>(x * other.x, y * other.y); }
+		Vector<2, T> operator/(const Vector<2, T>& other) { return Vector<2, T>(x / other.x, y / other.y); }
 
 		union {
 			T x;
@@ -36,6 +40,10 @@ namespace vanadium {
 
 		bool operator==(const Vector<3, T>& other) const { return x == other.x && y == other.y && z == other.z; }
 		bool operator!=(const Vector<3, T>& other) const { return !(*this == other); }
+		Vector<3, T> operator+(const Vector<3, T>& other) { return Vector<3, T>(x + other.x, y + other.y, z + other.z); }
+		Vector<3, T> operator-(const Vector<3, T>& other) { return Vector<3, T>(x - other.x, y - other.y, z - other.z); }
+		Vector<3, T> operator*(const Vector<3, T>& other) { return Vector<3, T>(x * other.x, y * other.y, z * other.z); }
+		Vector<3, T> operator/(const Vector<3, T>& other) { return Vector<3, T>(x / other.x, y / other.y, z / other.z); }
 
 		union {
 			T x;
@@ -68,6 +76,11 @@ namespace vanadium {
 			return x == other.x && y == other.y && z == other.z && w == other.w;
 		}
 		bool operator!=(const Vector<4, T>& other) const { return !(*this == other); }
+		Vector<4, T> operator+(const Vector<4, T>& other) { return Vector<4, T>(x + other.x, y + other.y, z + other.z, w + other.w); }
+		Vector<4, T> operator-(const Vector<4, T>& other) { return Vector<4, T>(x - other.x, y - other.y, z - other.z, w - other.w); }
+		Vector<4, T> operator*(const Vector<4, T>& other) { return Vector<4, T>(x * other.x, y * other.y, z * other.z, w * other.w); }
+		Vector<4, T> operator/(const Vector<4, T>& other) { return Vector<4, T>(x / other.x, y / other.y, z / other.z, w / other.w); }
+
 
 		union {
 			T x;

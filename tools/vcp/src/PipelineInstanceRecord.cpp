@@ -12,8 +12,10 @@ PipelineInstanceRecord::PipelineInstanceRecord(PipelineType type, const std::str
 		deserializeVertexInput(srcPath, instanceNode["vertex-input"]);
 		deserializeInputAssembly(srcPath, instanceNode["input-assembly"]);
 		deserializeRasterization(srcPath, instanceNode["rasterization"]);
+		deserializeViewportScissor(srcPath, instanceNode["viewport-scissor"]);
 		deserializeMultisample(srcPath, instanceNode["multisample"]);
 		deserializeDepthStencil(srcPath, instanceNode["depth-stencil"]);
+		deserializeDynamicState(srcPath, instanceNode["dynamic-states"]);
 		deserializeColorBlend(srcPath, instanceNode["color-blend"]);
 		deserializeColorAttachmentBlend(srcPath, instanceNode["attachment-blend"]);
 	}
@@ -97,9 +99,12 @@ size_t PipelineInstanceRecord::serializedSize() const {
 	constexpr size_t inputBindingSize = sizeof(uint32_t) * 3;
 	constexpr size_t inputAssemblySize = sizeof(uint32_t) + sizeof(bool);
 	constexpr size_t rasterSize = sizeof(bool) * 3 + sizeof(uint32_t) * 3 + sizeof(float) * 4;
+	constexpr size_t viewportSize = 6 * sizeof(float);
+	constexpr size_t scissorSize = 2 * sizeof(int32_t) + 2 * sizeof(uint32_t);
 	constexpr size_t multisampleSize = sizeof(uint32_t);
 	constexpr size_t stencilStateSize = sizeof(uint32_t) * 7;
 	constexpr size_t depthStencilSize = sizeof(bool) * 4 + sizeof(uint32_t) + sizeof(float) * 2 + stencilStateSize * 2;
+	constexpr size_t dynamicStateSize = sizeof(uint32_t);
 	constexpr size_t colorBlendSize = sizeof(bool) + sizeof(uint32_t) + sizeof(float) * 4;
 	constexpr size_t colorAttachmentSize = 7 * sizeof(uint32_t) + sizeof(bool);
 	constexpr size_t specializationMapEntrySize = 3 * sizeof(uint32_t);
@@ -113,9 +118,15 @@ size_t PipelineInstanceRecord::serializedSize() const {
 		totalSize += m_instanceVertexInputConfig.bindings.size() * inputBindingSize;
 		totalSize += inputAssemblySize;
 		totalSize += rasterSize;
+		totalSize += sizeof(uint32_t);
+		totalSize += m_instanceViewportScissorConfig.viewports.size() * viewportSize;
+		totalSize += sizeof(uint32_t);
+		totalSize += m_instanceViewportScissorConfig.scissorRects.size() * scissorSize;
 		totalSize += multisampleSize;
 		totalSize += depthStencilSize;
 		totalSize += colorBlendSize;
+		totalSize += sizeof(uint32_t);
+		totalSize += m_instanceDynamicStateConfig.dynamicStates.size() * dynamicStateSize;
 		totalSize += sizeof(uint32_t);
 		totalSize += m_instanceColorAttachmentBlendConfigs.size() * colorAttachmentSize;
 	}
@@ -192,6 +203,38 @@ void PipelineInstanceRecord::serialize(void* data) {
 		std::memcpy(data, &m_instanceRasterizationConfig.lineWidth, sizeof(float));
 		data = offsetVoidPtr(data, sizeof(float));
 
+		uint32_t viewportCount = m_instanceViewportScissorConfig.viewports.size();
+		std::memcpy(data, &viewportCount, sizeof(uint32_t));
+		data = offsetVoidPtr(data, sizeof(uint32_t));
+		for (auto& viewport : m_instanceViewportScissorConfig.viewports) {
+			std::memcpy(data, &viewport.x, sizeof(float));
+			data = offsetVoidPtr(data, sizeof(float));
+			std::memcpy(data, &viewport.y, sizeof(float));
+			data = offsetVoidPtr(data, sizeof(float));
+			std::memcpy(data, &viewport.width, sizeof(float));
+			data = offsetVoidPtr(data, sizeof(float));
+			std::memcpy(data, &viewport.height, sizeof(float));
+			data = offsetVoidPtr(data, sizeof(float));
+			std::memcpy(data, &viewport.minDepth, sizeof(float));
+			data = offsetVoidPtr(data, sizeof(float));
+			std::memcpy(data, &viewport.maxDepth, sizeof(float));
+			data = offsetVoidPtr(data, sizeof(float));
+		}
+
+		uint32_t scissorCount = m_instanceViewportScissorConfig.scissorRects.size();
+		std::memcpy(data, &scissorCount, sizeof(uint32_t));
+		data = offsetVoidPtr(data, sizeof(uint32_t));
+		for (auto& scissor : m_instanceViewportScissorConfig.scissorRects) {
+			std::memcpy(data, &scissor.offset.x, sizeof(int32_t));
+			data = offsetVoidPtr(data, sizeof(int32_t));
+			std::memcpy(data, &scissor.offset.y, sizeof(int32_t));
+			data = offsetVoidPtr(data, sizeof(int32_t));
+			std::memcpy(data, &scissor.extent.width, sizeof(uint32_t));
+			data = offsetVoidPtr(data, sizeof(uint32_t));
+			std::memcpy(data, &scissor.extent.height, sizeof(uint32_t));
+			data = offsetVoidPtr(data, sizeof(uint32_t));
+		}
+
 		std::memcpy(data, &m_instanceMultisampleConfig, sizeof(uint32_t));
 		data = offsetVoidPtr(data, sizeof(uint32_t));
 
@@ -211,6 +254,14 @@ void PipelineInstanceRecord::serialize(void* data) {
 		data = offsetVoidPtr(data, sizeof(float));
 		std::memcpy(data, &m_instanceDepthStencilConfig.maxDepthBounds, sizeof(float));
 		data = offsetVoidPtr(data, sizeof(float));
+
+		uint32_t dynamicStateCount = m_instanceDynamicStateConfig.dynamicStates.size();
+		std::memcpy(data, &dynamicStateCount, sizeof(uint32_t));
+		data = offsetVoidPtr(data, sizeof(uint32_t));
+		for (auto& state : m_instanceDynamicStateConfig.dynamicStates) {
+			std::memcpy(data, &state, sizeof(uint32_t));
+			data = offsetVoidPtr(data, sizeof(uint32_t));
+		}
 
 		std::memcpy(data, &m_instanceColorBlendConfig.logicOpEnable, sizeof(bool));
 		data = offsetVoidPtr(data, sizeof(bool));
@@ -329,7 +380,7 @@ void PipelineInstanceRecord::deserializeVertexInput(const std::string_view& srcP
 		if (format == static_cast<VkFormat>(~0U)) {
 			std::cout << srcPath << ": Warning: Invalid Format! Choosing R32G32B32A32_SFLOAT, might cause errors...\n";
 			format = VK_FORMAT_R32G32B32A32_SFLOAT;
-		} 
+		}
 
 		VkVertexInputAttributeDescription attribDescription = { .location = asUIntOr(attrib, "location", 0),
 																.binding = asUIntOr(attrib, "binding", 0),
@@ -400,15 +451,13 @@ void PipelineInstanceRecord::deserializeRasterization(const std::string_view& sr
 		}
 	}
 
-	auto polygonMode =
-		VkPolygonModeFromString(asCStringOr(config, "polygon-mode", "VK_POLYGON_MODE_FILL"));
+	auto polygonMode = VkPolygonModeFromString(asCStringOr(config, "polygon-mode", "VK_POLYGON_MODE_FILL"));
 	if (polygonMode == static_cast<VkPolygonMode>(~0U)) {
 		std::cout << srcPath << ": Warning: Invalid Polygon Mode specified. Choosing FILL, may cause errors...\n";
 		polygonMode = VK_POLYGON_MODE_FILL;
 	}
 
-	auto frontFace =
-		VkFrontFaceFromString(asCStringOr(config, "front-face", "VK_FRONT_FACE_COUNTER_CLOCKWISE"));
+	auto frontFace = VkFrontFaceFromString(asCStringOr(config, "front-face", "VK_FRONT_FACE_COUNTER_CLOCKWISE"));
 	if (frontFace == static_cast<VkFrontFace>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Front Face specified. Choosing COUNTER_CLOCKWISE, may cause unintended "
@@ -426,6 +475,56 @@ void PipelineInstanceRecord::deserializeRasterization(const std::string_view& sr
 									  .depthBiasClamp = asFloatOr(config, "depth-bias-clamp", 0.0),
 									  .depthBiasSlopeFactor = asFloatOr(config, "depth-bias-slope-factor", 1.0f),
 									  .lineWidth = asFloatOr(config, "line-width", 1.0f) };
+}
+
+void PipelineInstanceRecord::deserializeViewportScissor(const std::string_view& srcPath, const Json::Value& config) {
+	if (config.type() == Json::nullValue) {
+		m_instanceViewportScissorConfig.viewports.push_back(
+			{ .x = 0.0f, .y = 0.0f, .width = 999.9f, .height = 999.9f, .minDepth = 0.0f, .maxDepth = 1.0f });
+		m_instanceViewportScissorConfig.scissorRects.push_back(
+			{ .offset = {}, .extent = { .width = INT32_MAX, .height = INT32_MAX } });
+		return;
+	}
+	if (config.type() != Json::objectValue) {
+		std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
+		m_isValid = false;
+		return;
+	}
+
+	if (config["viewports"].type() != Json::arrayValue) {
+		std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
+		m_isValid = false;
+		return;
+	}
+	if (config["scissor-rects"].type() != Json::arrayValue) {
+		std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
+		m_isValid = false;
+		return;
+	}
+	for (auto& viewport : config["viewports"]) {
+		if (viewport.type() != Json::objectValue) {
+			std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
+			m_isValid = false;
+			return;
+		}
+		m_instanceViewportScissorConfig.viewports.push_back({ .x = asFloatOr(viewport, "x", 0.0f),
+															  .y = asFloatOr(viewport, "y", 0.0f),
+															  .width = asFloatOr(viewport, "width", 999.9f),
+															  .height = asFloatOr(viewport, "height", 999.9f),
+															  .minDepth = asFloatOr(viewport, "min-depth", 0.0f),
+															  .maxDepth = asFloatOr(viewport, "max-depth", 1.0f) });
+	}
+	for (auto& scissor : config["scissor-rects"]) {
+		if (scissor.type() != Json::objectValue) {
+			std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
+			m_isValid = false;
+			return;
+		}
+		m_instanceViewportScissorConfig.scissorRects.push_back(
+			{ .offset = { .x = asIntOr(scissor, "offset-x", 0), .y = asIntOr(scissor, "offset-y", 0) },
+			  .extent = { .width = asUIntOr(scissor, "width", INT32_MAX),
+						  .height = asUIntOr(scissor, "height", INT32_MAX) } });
+	}
 }
 
 void PipelineInstanceRecord::deserializeMultisample(const std::string_view& srcPath, const Json::Value& config) {
@@ -484,8 +583,8 @@ void PipelineInstanceRecord::deserializeDepthStencil(const std::string_view& src
 
 VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::string_view& srcPath,
 																 const Json::Value& config) {
-	if(config.type() == Json::nullValue) {
-		return VkStencilOpState {};
+	if (config.type() == Json::nullValue) {
+		return VkStencilOpState{};
 	}
 
 	if (config.type() != Json::objectValue) {
@@ -500,14 +599,14 @@ VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::stri
 				  << ": Warning: Invalid Stencil Fail Op specified. Choosing KEEP, may cause unintended behaviour...\n";
 		failOp = VK_STENCIL_OP_KEEP;
 	}
-	
+
 	auto passOp = VkStencilOpFromString(asCStringOr(config, "pass", "VK_STENCIL_OP_KEEP"));
 	if (passOp == static_cast<VkStencilOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Stencil Pass Op specified. Choosing KEEP, may cause unintended behaviour...\n";
 		passOp = VK_STENCIL_OP_KEEP;
 	}
-	
+
 	auto depthFailOp = VkStencilOpFromString(asCStringOr(config, "depth-fail", "VK_STENCIL_OP_KEEP"));
 	if (depthFailOp == static_cast<VkStencilOp>(~0U)) {
 		std::cout << srcPath
@@ -533,6 +632,24 @@ VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::stri
 			 .compareMask = asUIntOr(config, "compare-mask", 0),
 			 .writeMask = asUIntOr(config, "write-mask", 0),
 			 .reference = asUIntOr(config, "reference", 0) };
+}
+
+void PipelineInstanceRecord::deserializeDynamicState(const std::string_view& srcPath, const Json::Value& config) {
+	if (config.type() == Json::nullValue)
+		return;
+	if (config.type() != Json::arrayValue) {
+		std::cout << srcPath << ": Error: Invalid dynamic state structure value.\n";
+		m_isValid = false;
+		return;
+	}
+	for (auto& state : config) {
+		VkDynamicState dynamicState = VkDynamicStateFromString(state.asCString());
+		if (dynamicState == static_cast<VkDynamicState>(~0U)) {
+			std::cout << srcPath << ": Warning: Invalid Dynamic state specified, ignoring state...\n";
+		} else {
+			m_instanceDynamicStateConfig.dynamicStates.push_back(dynamicState);
+		}
+	}
 }
 
 void PipelineInstanceRecord::deserializeColorBlend(const std::string_view& srcPath, const Json::Value& config) {
@@ -593,8 +710,8 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 			srcColorFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 		}
 
-		auto dstColorFactor = VkBlendFactorFromString(
-			asCStringOr(config, "dst-color-factor", "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA"));
+		auto dstColorFactor =
+			VkBlendFactorFromString(asCStringOr(config, "dst-color-factor", "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA"));
 		if (dstColorFactor == static_cast<VkBlendFactor>(~0U)) {
 			std::cout
 				<< srcPath
@@ -614,8 +731,8 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 			srcAlphaFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 		}
 
-		auto dstAlphaFactor = VkBlendFactorFromString(
-			asCStringOr(config, "dst-alpha-factor", "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA"));
+		auto dstAlphaFactor =
+			VkBlendFactorFromString(asCStringOr(config, "dst-alpha-factor", "VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA"));
 		if (dstAlphaFactor == static_cast<VkBlendFactor>(~0U)) {
 			std::cout
 				<< srcPath
@@ -699,8 +816,7 @@ void PipelineInstanceRecord::deserializeSpecializationConfigs(const std::string_
 		} else {
 			switch (m_type) {
 				case PipelineType::Graphics:
-					if (stageBit != VK_SHADER_STAGE_VERTEX_BIT &&
-						stageBit != VK_SHADER_STAGE_FRAGMENT_BIT) {
+					if (stageBit != VK_SHADER_STAGE_VERTEX_BIT && stageBit != VK_SHADER_STAGE_FRAGMENT_BIT) {
 						std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
 						m_isValid = false;
 						return;

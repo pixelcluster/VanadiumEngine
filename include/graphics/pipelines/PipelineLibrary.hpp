@@ -10,7 +10,7 @@ namespace vanadium::graphics {
 
 #include <tools/vcp/include/PipelineStructs.hpp>
 
-	constexpr uint32_t pipelineFileVersion = 4;
+	constexpr uint32_t pipelineFileVersion = 5;
 
 	struct DescriptorSetLayoutInfo {
 		VkDescriptorSetLayout layout;
@@ -64,8 +64,8 @@ namespace vanadium::graphics {
 		VkPipelineDynamicStateCreateInfo dynamicStateConfig;
 		std::vector<VkDynamicState> dynamicStates;
 		VkPipelineViewportStateCreateInfo viewportConfig;
-		VkViewport viewport;
-		VkRect2D scissorRect;
+		std::vector<VkViewport> viewports;
+		std::vector<VkRect2D> scissorRects;
 		VkGraphicsPipelineCreateInfo pipelineCreateInfo;
 
 		robin_hood::unordered_map<RenderPassSignature, VkPipeline> pipelines;
@@ -100,12 +100,18 @@ namespace vanadium::graphics {
 		VkPipelineLayout graphicsPipelineLayout(uint32_t id) {
 			return m_graphicsInstances[id].pipelineCreateInfo.layout;
 		}
+		const std::vector<VkPushConstantRange>& graphicsPipelinePushConstantRanges(uint32_t id) const {
+			return m_archetypes[m_graphicsInstances[id].archetypeID].pushConstantRanges;
+		}
 		const DescriptorSetLayoutInfo& computePipelineSet(uint32_t id, uint32_t setIndex) {
 			return m_descriptorSetLayouts[m_archetypes[m_computeInstances[id].archetypeID].setLayoutIndices[setIndex]];
 		}
 		std::vector<DescriptorSetLayoutInfo> computePipelineSets(uint32_t id);
 		VkPipelineLayout computePipelineLayout(uint32_t id) {
 			return m_computeInstances[id].layout;
+		}
+		const std::vector<VkPushConstantRange>& computePipelinePushConstantRanges(uint32_t id) const {
+			return m_archetypes[m_computeInstances[id].archetypeID].pushConstantRanges;
 		}
 
 		std::string_view graphicsPipelineName(uint32_t id) const { return m_graphicsInstances[id].name; }

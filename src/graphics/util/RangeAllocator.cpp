@@ -1,3 +1,4 @@
+#include <Log.hpp>
 #include <graphics/util/RangeAllocator.hpp>
 
 namespace vanadium::graphics {
@@ -10,44 +11,6 @@ namespace vanadium::graphics {
 			}
 		}
 		return 0;
-	}
-
-	void reorderOffsetArea(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted,
-						   size_t index) {
-		auto offsetComparator = [](const MemoryRange& one, const MemoryRange& other) {
-			return one.offset < other.offset;
-		};
-		auto range = gapsOffsetSorted[index];
-		auto reinsertIterator =
-			std::lower_bound(gapsOffsetSorted.begin(), gapsOffsetSorted.end(), range, offsetComparator);
-
-		if (reinsertIterator == gapsOffsetSorted.end() || reinsertIterator == gapsOffsetSorted.end() - 1) {
-			gapsOffsetSorted.erase(gapsOffsetSorted.begin() + index);
-			gapsOffsetSorted.push_back(range);
-		} else {
-			for (auto iterator = gapsOffsetSorted.begin() + index; iterator != reinsertIterator; ++iterator) {
-				*iterator = std::move(*(iterator + 1));
-			}
-			*reinsertIterator = range;
-		}
-	}
-
-	void reorderSizeArea(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted,
-						 size_t index) {
-		auto sizeComparator = [](const MemoryRange& one, const MemoryRange& other) { return one.size < other.size; };
-
-		auto range = gapsSizeSorted[index];
-		auto reinsertIterator = std::lower_bound(gapsSizeSorted.begin(), gapsSizeSorted.end(), range, sizeComparator);
-
-		if (reinsertIterator == gapsSizeSorted.end() || reinsertIterator == gapsSizeSorted.end() - 1) {
-			gapsSizeSorted.erase(gapsSizeSorted.begin() + index);
-			gapsSizeSorted.push_back(range);
-		} else {
-			for (auto iterator = gapsSizeSorted.begin() + index; iterator != reinsertIterator; ++iterator) {
-				*iterator = std::move(*(iterator + 1));
-			}
-			*reinsertIterator = range;
-		}
 	}
 
 	std::optional<RangeAllocationResult> allocateFromRanges(std::vector<MemoryRange>& gapsOffsetSorted,
@@ -86,8 +49,8 @@ namespace vanadium::graphics {
 			range.size -= result.allocationRange.size;
 			offsetIterator->offset += result.allocationRange.size;
 			offsetIterator->size -= result.allocationRange.size;
-			reorderOffsetArea(gapsOffsetSorted, gapsSizeSorted, allocationIndex);
-			reorderSizeArea(gapsOffsetSorted, gapsSizeSorted, allocationIndex);
+			std::sort(gapsOffsetSorted.begin(), gapsOffsetSorted.end(), offsetComparator);
+			std::sort(gapsSizeSorted.begin(), gapsSizeSorted.end(), sizeComparator);
 		} else {
 			gapsOffsetSorted.erase(offsetIterator);
 			auto sizeIterator = std::lower_bound(gapsSizeSorted.begin(), gapsSizeSorted.end(), range, sizeComparator);
@@ -133,7 +96,7 @@ namespace vanadium::graphics {
 
 	void mergeFreeAreas(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted) {
 		auto sizeComparator = [](const MemoryRange& one, const MemoryRange& other) { return one.size < other.size; };
-
+		
 		if (gapsOffsetSorted.empty())
 			return;
 		for (size_t i = 0; i < gapsOffsetSorted.size() - 1; ++i) {
@@ -142,8 +105,19 @@ namespace vanadium::graphics {
 
 			if (area.offset + area.size == nextArea.offset) {
 				area.size += nextArea.size;
+				auto areaIterator = std::find_if(gapsSizeSorted.begin(), gapsSizeSorted.end(),
+												 [area](const auto& gap) { return area.offset == gap.offset; });
+				assertFatal(areaIterator != gapsSizeSorted.end(), "RangeAllocator inconsistency!\n");
+				areaIterator->size += nextArea.size;
+
+				auto nextAreaIterator =
+					std::find_if(gapsSizeSorted.begin(), gapsSizeSorted.end(),
+								 [nextArea](const auto& gap) { return nextArea.offset == gap.offset; });
+				assertFatal(nextAreaIterator != gapsSizeSorted.end(), "RangeAllocator inconsistency!\n");
 				gapsOffsetSorted.erase(gapsOffsetSorted.begin() + i + 1);
-				reorderSizeArea(gapsOffsetSorted, gapsSizeSorted, i);
+				gapsSizeSorted.erase(nextAreaIterator);
+
+				std::sort(gapsSizeSorted.begin(), gapsSizeSorted.end(), sizeComparator);
 				--i;
 			}
 		}

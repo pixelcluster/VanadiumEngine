@@ -46,6 +46,7 @@ namespace vanadium::graphics {
 		uint32_t arrayLayers;
 		VkSampleCountFlagBits samples;
 		VkImageTiling tiling;
+		bool useTargetImageExtent;
 	};
 
 	struct FramegraphImageResource {

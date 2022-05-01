@@ -9,7 +9,7 @@ namespace vanadium::ui {
 	  public:
 		SimpleShapeDataManager(const graphics::RenderContext& context, uint32_t pipelineID);
 
-		void insertShapeData(const graphics::RenderContext& context, size_t index, T&& t);
+		void addShapeData(const graphics::RenderContext& context, T&& t);
 		void updateShapeData(size_t index, T&& t);
 
 		void prepareFrame(const graphics::RenderContext& context, size_t frameIndex);
@@ -59,14 +59,12 @@ namespace vanadium::ui {
 	}
 
 	template <typename T>
-	void SimpleShapeDataManager<T>::insertShapeData(const graphics::RenderContext& context, size_t index, T&& t) {
-		if (index == m_shapeData.size())
-			m_shapeData.push_back(t);
-		else
-			m_shapeData.insert(m_shapeData.begin() + index, t);
+	void SimpleShapeDataManager<T>::addShapeData(const graphics::RenderContext& context, T&& t) {
+		m_shapeData.push_back(t);
 
 		if (m_shapeData.size() > m_maxShapeDataCapacity) {
-			m_maxShapeDataCapacity *= 2;
+			m_maxShapeDataCapacity *= 1.61;
+			m_maxShapeDataCapacity = std::max(m_shapeData.size(), m_maxShapeDataCapacity);
 			context.transferManager->destroyTransfer(m_shapeDataTransfer);
 			allocateBuffer(context);
 		}

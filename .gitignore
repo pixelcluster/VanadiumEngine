@@ -4,6 +4,8 @@ build/*
 */build/*
 .vs/*
 .vscode/*
+.kdev4/*
+*.kdev4
 include/Debug.hpp
 include/VCPPath.hpp
 /CMakeSettings.json

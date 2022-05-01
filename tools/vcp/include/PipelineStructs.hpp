@@ -32,6 +32,11 @@ struct InstanceRasterizationConfig {
 
 using InstanceMultisampleConfig = VkSampleCountFlags;
 
+struct InstanceViewportScissorConfig {
+	std::vector<VkViewport> viewports;
+	std::vector<VkRect2D> scissorRects;
+};
+
 struct InstanceDepthStencilConfig {
 	bool depthTestEnable;
 	bool depthWriteEnable;
@@ -42,6 +47,10 @@ struct InstanceDepthStencilConfig {
 	VkStencilOpState back;
 	float minDepthBounds;
 	float maxDepthBounds;
+};
+
+struct InstanceDynamicStateConfig {
+	std::vector<VkDynamicState> dynamicStates;
 };
 
 struct InstanceColorBlendConfig {

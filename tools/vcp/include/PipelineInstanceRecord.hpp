@@ -32,9 +32,11 @@ class PipelineInstanceRecord {
 	void deserializeVertexInput(const std::string_view& srcPath, const Json::Value& node);
 	void deserializeInputAssembly(const std::string_view& srcPath, const Json::Value& node);
 	void deserializeRasterization(const std::string_view& srcPath, const Json::Value& node);
+	void deserializeViewportScissor(const std::string_view& srcPath, const Json::Value& node);
 	void deserializeMultisample(const std::string_view& srcPath, const Json::Value& node);
 	void deserializeDepthStencil(const std::string_view& srcPath, const Json::Value& node);
 	VkStencilOpState deserializeStencilState(const std::string_view& srcPath, const Json::Value& node);
+	void deserializeDynamicState(const std::string_view& srcPath, const Json::Value& node);
 	void deserializeColorBlend(const std::string_view& srcPath, const Json::Value& node);
 	void deserializeColorAttachmentBlend(const std::string_view& srcPath, const Json::Value& node);
 	void deserializeSpecializationConfigs(const std::string_view& srcPath, const Json::Value& node);
@@ -50,9 +52,11 @@ class PipelineInstanceRecord {
 	InstanceVertexInputConfig m_instanceVertexInputConfig;
 	InstanceInputAssemblyConfig m_instanceInputAssemblyConfig;
 	InstanceRasterizationConfig m_instanceRasterizationConfig;
+	InstanceViewportScissorConfig m_instanceViewportScissorConfig;
 	InstanceMultisampleConfig m_instanceMultisampleConfig;
 	InstanceDepthStencilConfig m_instanceDepthStencilConfig;
 	InstanceColorBlendConfig m_instanceColorBlendConfig;
+	InstanceDynamicStateConfig m_instanceDynamicStateConfig;
 	std::vector<InstanceColorAttachmentBlendConfig> m_instanceColorAttachmentBlendConfigs;
 
 	std::vector<InstanceStageSpecializationConfig> m_instanceSpecializationConfigs;

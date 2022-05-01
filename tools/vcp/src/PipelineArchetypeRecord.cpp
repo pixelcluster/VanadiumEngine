@@ -385,10 +385,10 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 				});
 			if (rangeIterator == m_pushConstantRanges.end()) {
 				std::cout << srcPath << ": Error: Unbound push constant range at offset " << constant->absolute_offset
-						  << ".\n";
+						  << " (size " << constant->size << ")" << ".\n";
 				m_isValid = false;
 			} else if (!(rangeIterator->stageFlags & shader.stage)) {
-				std::cout << srcPath << ": Error: Wrong usage flag for push constant range at offset "
+				std::cout << srcPath << ": Error: Missing stage flags for push constant range at offset "
 						  << constant->absolute_offset << ".\n";
 				m_isValid = false;
 			}
@@ -400,16 +400,15 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 		auto descriptorSets = std::vector<SpvReflectDescriptorSet*>(descriptorSetCount);
 		spvReflectEnumerateDescriptorSets(&shader.shader, &descriptorSetCount, descriptorSets.data());
 
-		uint32_t setIndex = 0;
 		for (auto& set : descriptorSets) {
-			if (setIndex >= m_setLayoutIndices.size()) {
+			if (set->set >= m_setLayoutIndices.size()) {
 				std::cout << srcPath << ": Error: Not enough descriptor sets specified.\n";
 				m_isValid = false;
 				break;
 			}
 			bool shouldBreak = false;
 
-			auto& bindingInfos = setLayoutInfos[m_setLayoutIndices[setIndex]];
+			auto& bindingInfos = setLayoutInfos[m_setLayoutIndices[set->set]];
 			for (size_t i = 0; i < set->binding_count; ++i) {
 				if (i >= bindingInfos.size()) {
 					shouldBreak = true;
@@ -419,9 +418,9 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 				auto& binding = set->bindings[i];
 				auto pipelineBindingIterator =
 					std::find_if(bindingInfos.begin(), bindingInfos.end(),
-								 [setIndex, i](const auto& info) { return info.binding.binding == i; });
+								 [set, binding](const auto& info) { return info.binding.binding == binding->binding; });
 				if (pipelineBindingIterator == bindingInfos.end()) {
-					std::cout << srcPath << ": Error: Unbound descriptor at set " << setIndex << ", binding" << i
+					std::cout << srcPath << ": Error: Unbound descriptor at set " << set->set << ", binding" << i
 							  << ".\n";
 					m_isValid = false;
 					continue;
@@ -430,25 +429,23 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 				auto& pipelineBinding = *pipelineBindingIterator;
 
 				if (static_cast<VkDescriptorType>(binding->descriptor_type) != pipelineBinding.binding.descriptorType) {
-					std::cout << srcPath << ": Error: Descriptor type mismatch at set " << setIndex << ", binding" << i
+					std::cout << srcPath << ": Error: Descriptor type mismatch at set " << set->set << ", binding " << i
 							  << ".\n";
 					m_isValid = false;
 				}
 				if (binding->count != pipelineBinding.binding.descriptorCount) {
-					std::cout << srcPath << ": Error: Descriptor count mismatch at set " << setIndex << ", binding" << i
+					std::cout << srcPath << ": Error: Descriptor count mismatch at set " << set->set << ", binding " << i
 							  << ".\n";
 					m_isValid = false;
 				}
 				if (!(pipelineBinding.binding.stageFlags & shader.stage)) {
-					std::cout << srcPath << ": Error: Missing usage flags for descriptor at set " << setIndex
-							  << ", binding" << i << ".\n";
+					std::cout << srcPath << ": Error: Missing stage flags for descriptor at set " << set->set
+							  << ", binding " << i << ".\n";
 					m_isValid = false;
 				}
 			}
 			if (shouldBreak)
 				break;
-
-			++setIndex;
 		}
 	}
 }

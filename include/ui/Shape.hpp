@@ -14,8 +14,10 @@ namespace vanadium::ui {
 	  public:
 		virtual ~Shape() {}
 
-		Vector2 position() const { return m_position; }
-		Vector2& position() { return m_position; }
+		Vector3 position() const { return m_position; }
+		void setPosition(const Vector3& position);
+		float rotation() const { return m_rotation; }
+		void setRotation(float rotation);
 
 		size_t typenameHash() const { return m_typenameHash; }
 
@@ -23,13 +25,14 @@ namespace vanadium::ui {
 		void clearDirtyFlag() { m_dirtyFlag = false; }
 
 	  protected:
-		Shape(const std::string_view& typeName, const Vector2& relativePos);
+		Shape(const std::string_view& typeName, const Vector3& relativePos, float rotation);
 
 	  private:
 		size_t m_typenameHash;
 		bool m_dirtyFlag = true;
 
-		Vector2 m_position;
+		Vector3 m_position;
+		float m_rotation;
 	};
 
 } // namespace vanadium::ui

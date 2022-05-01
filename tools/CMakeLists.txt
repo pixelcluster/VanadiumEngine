@@ -26,6 +26,24 @@ function(vanadium_generate_fontcfg JSON_PATH OUTFILE TARGETNAME)
 	add_dependencies(${TARGETNAME} fonts_${TARGETNAME})
 endfunction()
 
+#Line breaking rules, aided by automatically generated character classifications
+if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/UnicodeCharacterAssoc.txt")
+	file(DOWNLOAD https://www.unicode.org/Public/UCD/latest/ucd/LineBreak.txt "${CMAKE_CURRENT_BINARY_DIR}/UnicodeCharacterAssoc.txt")
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/UnicodeEastAsianWidth.txt")
+	file(DOWNLOAD http://www.unicode.org/Public/UCD/latest/ucd/EastAsianWidth.txt "${CMAKE_CURRENT_BINARY_DIR}/UnicodeEastAsianWidth.txt")
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/UnicodeExtendedPictographic.txt")
+	file(DOWNLOAD https://www.unicode.org/Public/UCD/latest/ucd/emoji/emoji-data.txt "${CMAKE_CURRENT_BINARY_DIR}/UnicodeExtendedPictographic.txt")
+endif()
+
+file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/LineBreakRules/src/*.cpp")
+add_executable(UnicodeLineBreak ${CPP_SOURCES})
+target_include_directories(UnicodeLineBreak PUBLIC 
+						   "${CMAKE_SOURCE_DIR}/include")
+
+set(CHARACTERGROUP_FILE ${CMAKE_CURRENT_BINARY_DIR}/generated_include/CharacterGroup.hpp PARENT_SCOPE)
+
 #vcp, Vanadium Compiled Pipeline generator
 
 file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vcp/src/*.cpp")

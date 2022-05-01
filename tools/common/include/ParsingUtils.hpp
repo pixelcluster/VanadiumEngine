@@ -7,6 +7,14 @@ inline void* offsetVoidPtr(void* old, size_t byteCount) {
 	return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(old) + byteCount);
 }
 
+inline int32_t asIntOr(const Json::Value& value, const std::string_view& name, int32_t fallback) {
+	if (value[name.data()].isUInt()) {
+		return value[name.data()].asInt();
+	} else {
+		return fallback;
+	}
+}
+
 inline uint32_t asUIntOr(const Json::Value& value, const std::string_view& name, uint32_t fallback) {
 	if (value[name.data()].isUInt()) {
 		return value[name.data()].asUInt();

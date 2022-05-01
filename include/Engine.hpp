@@ -53,6 +53,7 @@ namespace vanadium {
 	class Engine {
 	  public:
 		Engine(const EngineConfig& config);
+		~Engine();
 
 		void initFramegraph();
 

@@ -4,13 +4,15 @@
 #include <vulkan/vulkan.h>
 
 #include <GLFW/glfw3.h>
+#include <optional>
 #include <robin_hood.h>
 #include <vector>
-#include <optional>
 
 #include <math/Vector.hpp>
 
 namespace vanadium::windowing {
+
+	constexpr uint32_t platformDefaultDPI = 72;
 
 	struct WindowingSettingOverride {
 		uint32_t width;
@@ -190,11 +192,17 @@ namespace vanadium::windowing {
 		float deltaTime() const { return m_deltaTime; }
 		float elapsedTime() const { return m_elapsedTime; }
 
+		uint32_t contentScaleDPIX() const { return m_contentScaleDPIX; }
+		uint32_t contentScaleDPIY() const { return m_contentScaleDPIY; }
+
 	  private:
 		GLFWwindow* m_window;
 
 		float m_deltaTime;
 		float m_elapsedTime;
+
+		uint32_t m_contentScaleDPIX;
+		uint32_t m_contentScaleDPIY;
 
 		robin_hood::unordered_flat_map<KeyListenerData, KeyListenerParams> m_keyListeners;
 		robin_hood::unordered_flat_map<KeyListenerData, KeyListenerParams> m_mouseKeyListeners;

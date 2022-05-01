@@ -50,6 +50,9 @@
         "depth-bounds-test": false,
         "stencil-test": false
       },
+      "dynamic-states":[
+          "VK_DYNAMIC_STATE_VIEWPORT"
+      ],
       "color-blend": {
         "logic-op-enable": false,
         "blend-constants": [ 0, 0, 0, 0 ]

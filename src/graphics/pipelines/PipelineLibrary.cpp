@@ -25,14 +25,14 @@ namespace vanadium::graphics {
 		  dynamicStateConfig(std::forward<decltype(dynamicStateConfig)>(other.dynamicStateConfig)),
 		  dynamicStates(std::forward<decltype(dynamicStates)>(other.dynamicStates)),
 		  viewportConfig(std::forward<decltype(viewportConfig)>(other.viewportConfig)),
-		  viewport(std::forward<decltype(viewport)>(other.viewport)),
-		  scissorRect(std::forward<decltype(scissorRect)>(other.scissorRect)),
+		  viewports(std::forward<decltype(viewports)>(other.viewports)),
+		  scissorRects(std::forward<decltype(scissorRects)>(other.scissorRects)),
 		  pipelineCreateInfo(std::forward<decltype(pipelineCreateInfo)>(other.pipelineCreateInfo)) {
 		vertexInputConfig.pVertexAttributeDescriptions = attribDescriptions.data();
 		vertexInputConfig.pVertexBindingDescriptions = bindingDescriptions.data();
 		colorBlendConfig.pAttachments = colorAttachmentBlendConfigs.data();
-		viewportConfig.pViewports = &viewport;
-		viewportConfig.pScissors = &scissorRect;
+		viewportConfig.pViewports = viewports.data();
+		viewportConfig.pScissors = scissorRects.data();
 		dynamicStateConfig.pDynamicStates = dynamicStates.data();
 		pipelineCreateInfo.pStages = shaderStageCreateInfos.data();
 		pipelineCreateInfo.pVertexInputState = &vertexInputConfig;
@@ -298,6 +298,25 @@ namespace vanadium::graphics {
 											 .depthBiasSlopeFactor = readBuffer<float>(offset),
 											 .lineWidth = readBuffer<float>(offset) };
 
+			uint32_t viewportCount = readBuffer<uint32_t>(offset);
+			instance.viewports.reserve(viewportCount);
+			for (uint32_t i = 0; i < viewportCount; ++i) {
+				instance.viewports.push_back({ .x = readBuffer<float>(offset),
+											   .y = readBuffer<float>(offset),
+											   .width = readBuffer<float>(offset),
+											   .height = readBuffer<float>(offset),
+											   .minDepth = readBuffer<float>(offset),
+											   .maxDepth = readBuffer<float>(offset) });
+			}
+
+			uint32_t scissorRectCount = readBuffer<uint32_t>(offset);
+			instance.scissorRects.reserve(scissorRectCount);
+			for (uint32_t i = 0; i < viewportCount; ++i) {
+				instance.scissorRects.push_back(
+					{ .offset = { .x = readBuffer<int32_t>(offset), .y = readBuffer<int32_t>(offset) },
+					  .extent = { .width = readBuffer<uint32_t>(offset), .height = readBuffer<uint32_t>(offset) } });
+			}
+
 			instance.multisampleConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 										   .rasterizationSamples = readBuffer<VkSampleCountFlagBits>(offset) };
 
@@ -311,6 +330,12 @@ namespace vanadium::graphics {
 											.back = readStencilState(offset),
 											.minDepthBounds = readBuffer<float>(offset),
 											.maxDepthBounds = readBuffer<float>(offset) };
+
+			uint32_t dynamicStateCount = readBuffer<uint32_t>(offset);
+			instance.dynamicStates.reserve(dynamicStateCount);
+			for(uint32_t i = 0; i < dynamicStateCount; ++i) {
+				instance.dynamicStates.push_back(readBuffer<VkDynamicState>(offset));
+			}
 
 			instance.colorBlendConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 										  .logicOpEnable = readBuffer<bool>(offset),
@@ -367,15 +392,11 @@ namespace vanadium::graphics {
 
 			instance.shaderStageCreateInfos = stageCreateInfos;
 
-			instance.scissorRect = { .offset = {}, .extent = { .width = INT32_MAX, .height = INT32_MAX } };
-
 			instance.viewportConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-										.viewportCount = 1,
-										.pViewports = &instance.viewport,
-										.scissorCount = 1,
-										.pScissors = &instance.scissorRect };
-
-			instance.dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT };
+										.viewportCount = viewportCount,
+										.pViewports = instance.viewports.data(),
+										.scissorCount = scissorRectCount,
+										.pScissors = instance.scissorRects.data() };
 
 			instance.dynamicStateConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 											.dynamicStateCount = static_cast<uint32_t>(instance.dynamicStates.size()),
@@ -396,7 +417,7 @@ namespace vanadium::graphics {
 											  .layout = layout };
 
 			if constexpr (vanadiumGPUDebug) {
-				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE, instance.pipelineCreateInfo.layout,
+				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE_LAYOUT, instance.pipelineCreateInfo.layout,
 							  instance.name + " Pipeline Layout");
 			}
 

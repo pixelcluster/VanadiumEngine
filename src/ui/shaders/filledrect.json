@@ -14,6 +14,13 @@
           }
         ]
       }
+    ],
+    "push-constants": [
+      {
+        "offset": 0,
+        "size": 16,
+        "stages": "VK_SHADER_STAGE_VERTEX_BIT"
+      }
     ]
   },
   "instances": [
@@ -41,11 +48,13 @@
         "depth-test": true,
         "depth-writes": true,
         "depth-compare-op": "VK_COMPARE_OP_LESS",
-        "depth-bounds-test": true,
         "stencil-test": false,
         "depth-bounds-min": 0,
         "depth-bounds-max": 0
       },
+      "dynamic-states": [
+        "VK_DYNAMIC_STATE_VIEWPORT"
+      ],
       "color-blend": {
         "logic-op-enable": false,
         "logic-op": "VK_LOGIC_OP_NO_OP",

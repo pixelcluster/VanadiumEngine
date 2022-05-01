@@ -48,6 +48,8 @@ namespace vanadium::graphics {
 			}
 		}
 
+		transfer.hasNewData = std::vector<bool>(graphics::frameInFlightCount, true);
+
 		return m_continuousTransfers.addElement(transfer);
 	}
 
@@ -194,7 +196,7 @@ namespace vanadium::graphics {
 	void GPUTransferManager::submitImageTransfer(ImageResourceHandle dstImage, const VkBufferImageCopy& copy,
 												 const void* data, VkDeviceSize size,
 												 VkPipelineStageFlags usageStageFlags, VkAccessFlags usageAccessFlags,
-												 VkImageLayout dstUsageLayout) {
+												 VkImageLayout dstUsageLayout, VkImageLayout srcLayout) {
 		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
 		VkBufferCreateInfo transferBufferCreateInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 														.size = size,
@@ -211,12 +213,50 @@ namespace vanadium::graphics {
 									 .copy = copy,
 									 .dstUsageStageFlags = usageStageFlags,
 									 .dstUsageAccessFlags = usageAccessFlags,
-									 .dstUsageLayout = dstUsageLayout });
+									 .dstUsageLayout = dstUsageLayout,
+									 .srcLayout = srcLayout });
 	}
 
 	void GPUTransferManager::updateTransferData(GPUTransferHandle transferHandle, uint32_t frameIndex,
 												const void* data) {
 		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
+
+		auto& transfer = m_continuousTransfers[transferHandle];
+
+		BufferResourceHandle dstWriteBuffer;
+		void* dstData;
+		if (transfer.needsStagingBuffer) {
+			dstWriteBuffer = m_stagingBuffers[transfer.stagingBuffers[frameIndex].bufferHandle].buffer;
+			dstData = reinterpret_cast<void*>(
+				reinterpret_cast<uintptr_t>(m_resourceAllocator->mappedBufferData(
+					m_stagingBuffers[transfer.stagingBuffers[frameIndex].bufferHandle].buffer)) +
+				transfer.stagingBuffers[frameIndex].allocationResult.usableRange.offset);
+		} else {
+			dstWriteBuffer = transfer.dstBuffer;
+			dstData = m_resourceAllocator->mappedBufferData(dstWriteBuffer);
+		}
+
+		std::memcpy(dstData, data, transfer.bufferSize);
+		if (!m_resourceAllocator->bufferMemoryCapabilities(dstWriteBuffer).hostCoherent) {
+			auto range = m_resourceAllocator->allocationRange(dstWriteBuffer);
+			VkMappedMemoryRange flushRange = { .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+											   .memory = m_resourceAllocator->nativeMemoryHandle(dstWriteBuffer),
+											   .offset = range.offset,
+											   .size = range.size };
+			vkFlushMappedMemoryRanges(m_context->device(), 1, &flushRange);
+		}
+
+		transfer.hasNewData[frameIndex] = true;
+	}
+
+	BufferResourceHandle GPUTransferManager::dstBufferHandle(GPUTransferHandle handle) {
+		auto lock = SharedLockGuard(m_accessMutex);
+		return m_continuousTransfers[handle].dstBuffer;
+	}
+
+	VkCommandBuffer GPUTransferManager::recordTransfers(uint32_t frameIndex) {
+		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
+		verifyResult(vkResetCommandPool(m_context->device(), m_transferCommandPools[frameIndex], 0));
 
 		if (!m_bufferHandlesToInitiate.empty() || !m_imageHandlesToInitiate.empty()) {
 			AsyncTransferCommandPoolHandle poolHandle;
@@ -297,41 +337,6 @@ namespace vanadium::graphics {
 									   m_asyncTransferCommandPools[poolHandle].fence));
 		}
 
-		auto& transfer = m_continuousTransfers[transferHandle];
-
-		BufferResourceHandle dstWriteBuffer;
-		void* dstData;
-		if (transfer.needsStagingBuffer) {
-			dstWriteBuffer = m_stagingBuffers[transfer.stagingBuffers[frameIndex].bufferHandle].buffer;
-			dstData = reinterpret_cast<void*>(
-				reinterpret_cast<uintptr_t>(m_resourceAllocator->mappedBufferData(
-					m_stagingBuffers[transfer.stagingBuffers[frameIndex].bufferHandle].buffer)) +
-				transfer.stagingBuffers[frameIndex].allocationResult.usableRange.offset);
-		} else {
-			dstWriteBuffer = transfer.dstBuffer;
-			dstData = m_resourceAllocator->mappedBufferData(dstWriteBuffer);
-		}
-
-		std::memcpy(dstData, data, transfer.bufferSize);
-		if (!m_resourceAllocator->bufferMemoryCapabilities(dstWriteBuffer).hostCoherent) {
-			auto range = m_resourceAllocator->allocationRange(dstWriteBuffer);
-			VkMappedMemoryRange flushRange = { .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-											   .memory = m_resourceAllocator->nativeMemoryHandle(dstWriteBuffer),
-											   .offset = range.offset,
-											   .size = range.size };
-			vkFlushMappedMemoryRanges(m_context->device(), 1, &flushRange);
-		}
-	}
-
-	BufferResourceHandle GPUTransferManager::dstBufferHandle(GPUTransferHandle handle) {
-		auto lock = SharedLockGuard(m_accessMutex);
-		return m_continuousTransfers[handle].dstBuffer;
-	}
-
-	VkCommandBuffer GPUTransferManager::recordTransfers(uint32_t frameIndex) {
-		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
-		verifyResult(vkResetCommandPool(m_context->device(), m_transferCommandPools[frameIndex], 0));
-
 		for (auto& bufferToFree : m_stagingBufferAllocationFreeList[frameIndex]) {
 			freeToRanges(m_stagingBuffers[bufferToFree.bufferHandle].freeRangesOffsetSorted,
 						 m_stagingBuffers[bufferToFree.bufferHandle].freeRangesSizeSorted,
@@ -352,7 +357,7 @@ namespace vanadium::graphics {
 		VkPipelineStageFlags srcStageFlags = 0;
 
 		for (auto& transfer : m_continuousTransfers) {
-			if (transfer.needsStagingBuffer) {
+			if (transfer.needsStagingBuffer && transfer.hasNewData[frameIndex]) {
 				bufferBarriers.push_back(
 					{ .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 					  .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
@@ -385,7 +390,7 @@ namespace vanadium::graphics {
 				{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 				  .srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
 				  .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-				  .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+				  .oldLayout = transfer.srcLayout,
 				  .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 				  .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 				  .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -404,7 +409,7 @@ namespace vanadium::graphics {
 		}
 
 		for (auto& transfer : m_continuousTransfers) {
-			if (transfer.needsStagingBuffer) {
+			if (transfer.needsStagingBuffer && transfer.hasNewData[frameIndex]) {
 				VkBufferCopy copy = { .srcOffset =
 										  transfer.stagingBuffers[frameIndex].allocationResult.usableRange.offset,
 									  .size = transfer.bufferSize };
@@ -416,8 +421,7 @@ namespace vanadium::graphics {
 		}
 		for (auto& transfer : m_oneTimeTransfers) {
 			if (transfer.needsStagingBuffer) {
-				VkBufferCopy copy = { .srcOffset =
-										  transfer.stagingBuffers[0].allocationResult.usableRange.offset,
+				VkBufferCopy copy = { .srcOffset = transfer.stagingBuffers[0].allocationResult.usableRange.offset,
 									  .size = transfer.bufferSize };
 				vkCmdCopyBuffer(commandBuffer,
 								m_resourceAllocator->nativeBufferHandle(
@@ -437,22 +441,25 @@ namespace vanadium::graphics {
 		VkPipelineStageFlags dstStageFlags = 0;
 
 		for (auto& transfer : m_continuousTransfers) {
-			VkBufferMemoryBarrier barrier = { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-											  .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
-											  .dstAccessMask = transfer.dstUsageAccessFlags,
-											  .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-											  .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-											  .buffer = m_resourceAllocator->nativeBufferHandle(transfer.dstBuffer),
-											  .offset = 0,
-											  .size = VK_WHOLE_SIZE };
-			if (transfer.needsStagingBuffer) {
-				barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-				srcStageFlags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
-			} else {
-				srcStageFlags |= VK_PIPELINE_STAGE_HOST_BIT;
+			if (transfer.hasNewData[frameIndex]) {
+				VkBufferMemoryBarrier barrier = { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+												  .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
+												  .dstAccessMask = transfer.dstUsageAccessFlags,
+												  .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+												  .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+												  .buffer = m_resourceAllocator->nativeBufferHandle(transfer.dstBuffer),
+												  .offset = 0,
+												  .size = VK_WHOLE_SIZE };
+				if (transfer.needsStagingBuffer) {
+					barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+					srcStageFlags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+				} else {
+					srcStageFlags |= VK_PIPELINE_STAGE_HOST_BIT;
+				}
+				dstStageFlags |= transfer.dstUsageStageFlags;
+				bufferBarriers.push_back(barrier);
 			}
-			dstStageFlags |= transfer.dstUsageStageFlags;
-			bufferBarriers.push_back(barrier);
+			transfer.hasNewData[frameIndex] = false;
 		}
 		for (auto& transfer : m_oneTimeTransfers) {
 			VkBufferMemoryBarrier barrier = { .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,

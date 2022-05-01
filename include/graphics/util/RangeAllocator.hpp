@@ -19,11 +19,6 @@ namespace vanadium::graphics {
 	VkDeviceSize roundUpAligned(VkDeviceSize n, VkDeviceSize alignment);
 	VkDeviceSize alignmentMargin(VkDeviceSize n, VkDeviceSize alignment);
 
-	void reorderOffsetArea(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted,
-						   size_t index);
-	void reorderSizeArea(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted,
-						 size_t index);
-
 	std::optional<RangeAllocationResult> allocateFromRanges(std::vector<MemoryRange>& gapsOffsetSorted,
 															std::vector<MemoryRange>& gapsSizeSorted,
 															VkDeviceSize alignment, VkDeviceSize size);

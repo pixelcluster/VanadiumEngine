@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
 		return EXIT_FAILURE;
 	}
 
-	uint32_t version = 4;
+	uint32_t version = 5;
 	outStream.write(reinterpret_cast<char*>(&version), sizeof(uint32_t));
 	uint32_t pipelineCount = static_cast<uint32_t>(options.fileNames.size());
 	outStream.write(reinterpret_cast<char*>(&pipelineCount), sizeof(uint32_t));

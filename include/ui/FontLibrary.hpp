@@ -4,8 +4,7 @@
 #include <cstring>
 #include <filesystem>
 #include <ft2build.h>
-#include <hb-ft.h>
-#include <hb.h>
+#include FT_FREETYPE_H
 #include <string_view>
 #include <vector>
 
@@ -24,6 +23,8 @@ namespace vanadium::ui {
 		FontLibrary(FontLibrary&&) = delete;
 		FontLibrary& operator=(FontLibrary&&) = delete;
 		~FontLibrary();
+
+		FT_Face fontFace(uint32_t fontID) { return m_fonts[fontID].fontFace; }
 
 	  private:
 		uint32_t readCount(void* data, uint32_t size, uint32_t& offset) {

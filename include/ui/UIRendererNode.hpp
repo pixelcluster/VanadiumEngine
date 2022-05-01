@@ -18,9 +18,9 @@ namespace vanadium::ui {
 
 	class UIRendererNode : public graphics::FramegraphNode {
 	  public:
-		UIRendererNode(UISubsystem* subsystem, const graphics::RenderContext& context) : m_subsystem(subsystem), m_renderContext(context) {}
+		UIRendererNode(UISubsystem* subsystem, const graphics::RenderContext& context) : m_renderContext(context), m_subsystem(subsystem)  {}
 		UIRendererNode(UISubsystem* subsystem, const graphics::RenderContext& context, const Vector4& backgroundClearColor)
-			: m_subsystem(subsystem), m_renderContext(context), m_backgroundClearColor(backgroundClearColor) {}
+			: m_renderContext(context), m_subsystem(subsystem) , m_backgroundClearColor(backgroundClearColor) {}
 
 		void create(graphics::FramegraphContext* context) override;
 
@@ -36,7 +36,7 @@ namespace vanadium::ui {
 		void destroy(graphics::FramegraphContext* context) override;
 
 		template <RenderableShape T, typename... Args>
-		requires(std::constructible_from<T, Args...>) T* constructShape(uint32_t childDepth, Args... args);
+		requires(std::constructible_from<T, Args...>) T* constructShape(Args... args);
 
 		void removeShape(Shape* shape);
 
@@ -47,7 +47,8 @@ namespace vanadium::ui {
 		UISubsystem* m_subsystem;
 		VkRenderPass m_uiRenderPass;
 
-		graphics::ImageResourceViewInfo m_swapchainImageResourceViewInfo;
+		graphics::FramegraphImageHandle m_depthBufferHandle;
+		graphics::ImageResourceViewInfo m_attachmentResourceViewInfo;
 		std::vector<VkFramebuffer> m_imageFramebuffers;
 
 		robin_hood::unordered_map<size_t, ShapeRegistry*> m_shapeRegistries;
@@ -56,14 +57,14 @@ namespace vanadium::ui {
 	};
 
 	template <RenderableShape T, typename... Args>
-	requires(std::constructible_from<T, Args...>) T* UIRendererNode::constructShape(uint32_t childDepth, Args... args) {
+	requires(std::constructible_from<T, Args...>) T* UIRendererNode::constructShape(Args... args) {
 		T* shape = new T(args...);
 		if (m_shapeRegistries.find(shape->typenameHash()) == m_shapeRegistries.end()) {
 			m_shapeRegistries.insert(robin_hood::pair<size_t, ShapeRegistry*>(
 				shape->typenameHash(), new
 				typename T::ShapeRegistry(m_subsystem, m_framegraphContext->renderContext(), m_uiRenderPass, m_uiPassSignature)));
 		}
-		m_shapeRegistries[shape->typenameHash()]->addShape(shape, childDepth);
+		m_shapeRegistries[shape->typenameHash()]->addShape(shape);
 		return shape;
 	}
 

@@ -511,6 +511,10 @@ namespace vanadium::graphics {
 										 .tiling = parameters.tiling,
 										 .usage = usage,
 										 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
+		if(parameters.useTargetImageExtent) {
+			createInfo.extent.width = m_context.targetSurface->properties().width;
+			createInfo.extent.height = m_context.targetSurface->properties().height;
+		}
 		m_images[handle].resourceHandle =
 			m_context.resourceAllocator->createImage(createInfo, {}, { .deviceLocal = true });
 	}

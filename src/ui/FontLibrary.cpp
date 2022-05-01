@@ -39,7 +39,9 @@ namespace vanadium::ui {
 			m_fonts.push_back(font);
 		}
 
-		std::locale userPreferredLocale = std::locale("");
+		if (!fallbackFileName.empty()) {
+			FT_New_Face(m_library, fallbackFileName.c_str(), 0, &m_fallbackFace);
+		}
 
 		for (auto& font : m_fonts) {
 			for (auto& name : font.names) {
@@ -53,6 +55,11 @@ namespace vanadium::ui {
 						break;
 					}
 				}
+			}
+			if (!font.fontFace && m_fallbackFace) {
+				if (!font.names.empty())
+					logWarning("FontLibrary: Font %s not found, using fallback.\n", font.names[0].c_str());
+				font.fontFace = m_fallbackFace;
 			}
 		}
 	}

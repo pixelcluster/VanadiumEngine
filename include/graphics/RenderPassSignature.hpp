@@ -1,6 +1,7 @@
 #pragma once
 
 #define VK_NO_PROTOTYPES
+#include <helper/HashCombine.hpp>
 #include <vulkan/vulkan.h>
 
 namespace vanadium::graphics {
@@ -9,6 +10,8 @@ namespace vanadium::graphics {
 		VkFormat format;
 		VkSampleCountFlagBits sampleCount;
 		bool operator==(const AttachmentPassSignature& other) const {
+			if (!isUsed)
+				return isUsed == other.isUsed;
 			return isUsed == other.isUsed && format == other.format && sampleCount == other.sampleCount;
 		}
 	};
@@ -18,9 +21,11 @@ namespace vanadium::graphics {
 		std::vector<AttachmentPassSignature> inputAttachments;
 		std::vector<AttachmentPassSignature> resolveAttachments;
 		std::vector<AttachmentPassSignature> preserveAttachments;
+		AttachmentPassSignature depthStencilAttachment;
 		bool operator==(const SubpassSignature& other) const {
 			return outputAttachments == other.outputAttachments && inputAttachments == other.inputAttachments &&
-				   resolveAttachments == other.resolveAttachments && preserveAttachments == other.preserveAttachments;
+				   resolveAttachments == other.resolveAttachments && preserveAttachments == other.preserveAttachments &&
+				   depthStencilAttachment == other.depthStencilAttachment;
 		}
 	};
 
@@ -50,18 +55,6 @@ namespace vanadium::graphics {
 } // namespace vanadium::graphics
 
 namespace robin_hood {
-	template <std::integral T, std::integral U> constexpr size_t hashCombine(T t, U u) {
-		if (t == 0)
-			return u;
-		if (u == 0)
-			return t;
-		return t ^ (0x517cc1b727220a95 + ((t << 2) ^ (u >> 3)));
-	}
-
-	template <std::integral T, std::integral... Ts> constexpr size_t hashCombine(T t, Ts... ts) {
-		size_t u = hashCombine(ts...);
-		return hashCombine(t, u);
-	}
 
 	template <> struct hash<vanadium::graphics::AttachmentPassSignature> {
 		size_t operator()(const vanadium::graphics::AttachmentPassSignature& object) const {
@@ -86,7 +79,8 @@ namespace robin_hood {
 			return hashCombine(hash<decltype(object.inputAttachments)>()(object.inputAttachments),
 							   hash<decltype(object.outputAttachments)>()(object.outputAttachments),
 							   hash<decltype(object.resolveAttachments)>()(object.resolveAttachments),
-							   hash<decltype(object.preserveAttachments)>()(object.preserveAttachments));
+							   hash<decltype(object.preserveAttachments)>()(object.preserveAttachments),
+							   hash<decltype(object.depthStencilAttachment)>()(object.depthStencilAttachment));
 		}
 
 		size_t operator()(const vanadium::graphics::SubpassSignature& object, bool isSingleSubpass) const {
