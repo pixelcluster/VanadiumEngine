@@ -28,23 +28,22 @@ void init(vanadium::Engine& engine) {
 		x += 30.0f;
 	}
 
-	engine.uiSubsystem().addShape<vanadium::ui::shapes::TextShape>(vanadium::Vector3(200, 200, 0.9f), 200.0f, 0.0f,
-																   "test???", 48.0f, 0, vanadium::Vector4(1.0f, 0.0f, 0.0f, 1.0f));
-}
+	engine.uiSubsystem().addShape<vanadium::ui::shapes::TextShape>(
+		vanadium::Vector3(0, 0, 0.9f), 640.0f, 0.0f, "test???", 48.0f, 0, vanadium::Vector4(0.0f, 0.0f, 0.0f, 1.0f));
 
-bool onFrame(vanadium::Engine& engine) {
-	float x = 0.0f;
+	x = 0.0f;
 	for (uint32_t i = 0; i < 25; ++i) {
 		float y = 0.0f;
 		for (uint32_t j = 0; j < 25; ++j) {
-			shapes[i * 25 + j]->position() =
+			shapes[i * 25 + j]->setPosition(
 				vanadium::Vector3(x + sinf(engine.elapsedTime() * (1.0f / (y + 0.2))) * 0.5,
-								  y + sinf(engine.elapsedTime() * (1.0f / (x + 0.2)) + M_PI / 2.0f) * 0.5, 1.0f);
+								  y + sinf(engine.elapsedTime() * (1.0f / (x + 0.2)) + M_PI / 2.0f) * 0.5, 1.0f));
 			y += 10.0f;
 		}
 		x += 30.0f;
 	}
-	return true;
 }
+
+bool onFrame(vanadium::Engine& engine) { return true; }
 
 void destroy(vanadium::Engine& engine) {}

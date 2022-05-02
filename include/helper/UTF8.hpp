@@ -15,6 +15,19 @@ inline uint32_t utf8CharSize(char firstCodepointByte) {
 		return 0U;
 }
 
+inline uint32_t utf8Codepoint(const char* codeBegin, uint32_t maxSize) {
+	if(maxSize == 0) return 0U;
+
+	uint32_t size = utf8CharSize(*codeBegin);
+	if(size > maxSize) return 0U;
+
+	uint32_t result = 0;
+	for(uint32_t i = 0; i < size; ++i) {
+		result |= *codeBegin << i * 8U;
+	}
+	return result;
+}
+
 // https://www.unicode.org/reports/tr14/
 enum class BreakClass {
 	BK,

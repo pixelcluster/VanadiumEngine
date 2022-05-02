@@ -26,6 +26,7 @@ namespace vanadium::ui::shapes {
 		uint32_t glyphIndex;
 		Vector2 offset;
 		Vector2 size;
+		uint32_t bearingY;
 	};
 
 	struct GlyphAtlasCoords {
@@ -136,11 +137,13 @@ namespace vanadium::ui::shapes {
 
 		const Vector2& size() const { return m_size; }
 		const Vector4& color() const { return m_color; }
+		std::string_view text() const { return m_text; }
 		uint32_t fontID() const { return m_fontID; }
 		float pointSize() const { return m_pointSize; }
 		float maxWidth() const { return m_maxWidth; }
 
 		void addLinebreak(uint32_t index) { m_linebreakGlyphIndices.push_back(index); }
+		//Glyph indices (not text indices!) of each linebreak
 		const std::vector<uint32_t>& linebreakGlyphIndices() const { return m_linebreakGlyphIndices; }
 		hb_buffer_t* internalTextBuffer() { return m_textBuffer; }
 

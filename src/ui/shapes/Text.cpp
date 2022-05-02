@@ -41,23 +41,6 @@ namespace vanadium::ui::shapes {
 
 		FontAtlasIdentifier identifier = { .fontID = textShape->fontID(), .pointSize = textShape->pointSize() };
 
-		FT_Set_Char_Size(m_uiSubsystem->fontLibrary().fontFace(identifier.fontID), textShape->pointSize() * 64.0f, 0,
-						 m_uiSubsystem->monitorDPIX(), m_uiSubsystem->monitorDPIY());
-
-		if (identifier.fontID >= m_fonts.size()) {
-			m_fonts.resize(identifier.fontID + 1);
-		}
-
-		if (m_fonts[identifier.fontID].font == nullptr) {
-			m_fonts[identifier.fontID].fontFace =
-				hb_ft_face_create_referenced(m_uiSubsystem->fontLibrary().fontFace(identifier.fontID));
-			m_fonts[identifier.fontID].font =
-				hb_ft_font_create_referenced(m_uiSubsystem->fontLibrary().fontFace(identifier.fontID));
-			hb_ft_font_set_funcs(m_fonts[identifier.fontID].font);
-		}
-
-		hb_shape(m_fonts[identifier.fontID].font, textShape->internalTextBuffer(), nullptr, 0);
-
 		determineLineBreaksAndDimensions(textShape);
 
 		if (m_fontAtlases.find(identifier) == m_fontAtlases.end()) {
@@ -214,6 +197,8 @@ namespace vanadium::ui::shapes {
 			hb_position_t penX = 0;
 			hb_position_t penY = 0;
 
+			std::string_view textView = shape->text();
+
 			for (unsigned int i = 0; i < glyphCount; ++i) {
 				hb_codepoint_t glyphID = glyphInfos[i].codepoint;
 				hb_position_t xOffset = shapeGlyphPositions[i].x_offset / 64;
@@ -221,28 +206,34 @@ namespace vanadium::ui::shapes {
 				hb_position_t xAdvance = shapeGlyphPositions[i].x_advance / 64;
 				hb_position_t yAdvance = shapeGlyphPositions[i].y_advance / 64;
 
-				uint32_t glyphIndex = glyphID;
-
-				FT_Load_Glyph(face, glyphIndex, FT_LOAD_DEFAULT);
-
-				if (i > 0 && std::find(shape->linebreakGlyphIndices().begin(), shape->linebreakGlyphIndices().end(), i - 1) !=
-					shape->linebreakGlyphIndices().end()) {
+				if (i > 0 && std::find(shape->linebreakGlyphIndices().begin(), shape->linebreakGlyphIndices().end(),
+									   i - 1) != shape->linebreakGlyphIndices().end()) {
 					penY += face->size->metrics.height / 64;
 					penX = 0;
 				}
 
+				// skip over line control characters
+				BreakClass breakClass = codepointBreakClass(
+					utf8Codepoint(textView.data() + glyphInfos[i].cluster, textView.size() - glyphInfos[i].cluster));
+				if (breakClass == BreakClass::CR || breakClass == BreakClass::LF || breakClass == BreakClass::BK)
+					continue;
+
+				FT_Load_Glyph(face, glyphID, FT_LOAD_DEFAULT);
+
 				m_fontAtlases[identifier].shapeGlyphData.push_back(
 					{ .referencedShape = shape,
-					  .glyphIndex = glyphIndex,
+					  .glyphIndex = glyphID,
 					  .offset = Vector2(penX + xOffset, penY + yOffset),
-					  .size = Vector2(face->glyph->metrics.width / 64, face->glyph->metrics.height / 64) });
-				usedGlyphs.insert(glyphIndex);
+					  .size = Vector2(face->glyph->metrics.width / 64, face->glyph->metrics.height / 64),
+					  .bearingY = static_cast<uint32_t>(face->glyph->metrics.horiBearingY / 64) });
+				usedGlyphs.insert(glyphID);
 
 				penX += xAdvance;
 				penY += yAdvance;
 
 				oneLinePenX += xAdvance;
-				maxGlyphHeight = std::max(maxGlyphHeight, static_cast<uint32_t>(face->glyph->metrics.height / 64));
+				maxGlyphHeight =
+					std::max(maxGlyphHeight, static_cast<uint32_t>(face->glyph->metrics.horiBearingY / 64));
 
 				++totalGlyphCount;
 			}
@@ -346,10 +337,10 @@ namespace vanadium::ui::shapes {
 		for (auto& data : m_fontAtlases[identifier].shapeGlyphData) {
 			Vector3 basePosition = data.referencedShape->position();
 			m_fontAtlases[identifier].glyphData.push_back(
-				{ .position =
-					  Vector3(basePosition.x + data.offset.x,
-							  basePosition.y + data.offset.y + (m_fontAtlases[identifier].maxGlyphHeight - data.size.y),
-							  basePosition.z),
+				{ .position = Vector3(basePosition.x + data.offset.x,
+									  basePosition.y + data.offset.y +
+										  (m_fontAtlases[identifier].maxGlyphHeight - data.bearingY),
+									  basePosition.z),
 				  .color = data.referencedShape->color(),
 				  .size = data.size,
 				  .uvPosition = m_fontAtlases[identifier].fontAtlasPositions[data.glyphIndex].position /
@@ -417,26 +408,42 @@ namespace vanadium::ui::shapes {
 	}
 
 	void TextShapeRegistry::determineLineBreaksAndDimensions(TextShape* shape) {
-		unsigned int glyphCount = 0;
-		hb_glyph_info_t* glyphInfos = hb_buffer_get_glyph_infos(shape->internalTextBuffer(), &glyphCount);
-		hb_glyph_position_t* glyphPositions = hb_buffer_get_glyph_positions(shape->internalTextBuffer(), &glyphCount);
-
 		FT_Face face = m_uiSubsystem->fontLibrary().fontFace(shape->fontID());
+		FT_Set_Char_Size(face, shape->pointSize() * 64.0f, 0, m_uiSubsystem->monitorDPIX(),
+						 m_uiSubsystem->monitorDPIY());
 
-		FT_Set_Char_Size(face, shape->pointSize(), 0, m_uiSubsystem->monitorDPIX(), m_uiSubsystem->monitorDPIY());
+		if (shape->fontID() >= m_fonts.size()) {
+			m_fonts.resize(shape->fontID() + 1);
+		}
 
+		if (m_fonts[shape->fontID()].font == nullptr) {
+			m_fonts[shape->fontID()].fontFace =
+				hb_ft_face_create_referenced(m_uiSubsystem->fontLibrary().fontFace(shape->fontID()));
+			m_fonts[shape->fontID()].font =
+				hb_ft_font_create_referenced(m_uiSubsystem->fontLibrary().fontFace(shape->fontID()));
+			hb_ft_font_set_funcs(m_fonts[shape->fontID()].font);
+		}
+
+		std::string_view textView = shape->text();
 		// The text, but instead of letters each codepoint is replaced with its break class
 		std::vector<BreakClassRuleTraits> ruleTraitsString;
 		// Linebreak status for each character of the text
 		std::vector<LinebreakStatus> linebreakStatusString =
-			std::vector<LinebreakStatus>(glyphCount, LinebreakStatus::Undefined);
-		ruleTraitsString.reserve(glyphCount);
-		for (unsigned int i = 0; i < glyphCount; ++i) {
+			std::vector<LinebreakStatus>(textView.size(), LinebreakStatus::Undefined);
+		ruleTraitsString.reserve(textView.size());
+		for (unsigned int i = 0; i < textView.size(); ++i) {
 			ruleTraitsString.push_back(
-				{ .breakClass = codepointBreakClass(glyphInfos[i].codepoint),
-				  .eastAsianWidth = codepointEastAsianWidth(glyphInfos[i].codepoint),
-				  .isExtendedPictographic = isCodepointExtendedPictographic(glyphInfos[i].codepoint) });
+				{ .breakClass = codepointBreakClass(utf8Codepoint(textView.data() + i, textView.size() - i)),
+				  .eastAsianWidth = codepointEastAsianWidth(utf8Codepoint(textView.data() + i, textView.size() - i)),
+				  .isExtendedPictographic =
+					  isCodepointExtendedPictographic(utf8Codepoint(textView.data() + i, textView.size() - i)) });
 		}
+
+		hb_shape(m_fonts[shape->fontID()].font, shape->internalTextBuffer(), nullptr, 0);
+
+		unsigned int glyphCount = 0;
+		hb_glyph_info_t* glyphInfos = hb_buffer_get_glyph_infos(shape->internalTextBuffer(), &glyphCount);
+		hb_glyph_position_t* glyphPositions = hb_buffer_get_glyph_positions(shape->internalTextBuffer(), &glyphCount);
 
 		for (auto& rule : defaultLinebreakRules) {
 			executeRule(ruleTraitsString, linebreakStatusString, rule);
@@ -444,7 +451,13 @@ namespace vanadium::ui::shapes {
 
 		for (uint32_t i = 0; i < linebreakStatusString.size(); ++i) {
 			if (linebreakStatusString[i] == LinebreakStatus::Mandatory) {
-				shape->addLinebreak(i);
+				uint32_t glyphIndex = i;
+				if (i >= glyphCount || glyphInfos[i].cluster != i) {
+					glyphIndex = std::find_if(glyphInfos, glyphInfos + glyphCount, [i](const auto& glyph) {
+									 return glyph.cluster == i;
+								 })->cluster;
+				}
+				shape->addLinebreak(glyphIndex);
 			}
 		}
 
@@ -460,10 +473,18 @@ namespace vanadium::ui::shapes {
 			penX += xAdvance;
 			penY += yAdvance;
 
-			if (linebreakStatusString[i] == LinebreakStatus::Mandatory) {
+			if (std::find(shape->linebreakGlyphIndices().begin(), shape->linebreakGlyphIndices().end(), i) !=
+				shape->linebreakGlyphIndices().end()) {
 				penY += face->size->metrics.height;
 				maxPenX = std::max(penX, maxPenX);
 				penX = 0;
+			}
+
+			// skip over line control characters
+			BreakClass breakClass = codepointBreakClass(
+				utf8Codepoint(textView.data() + glyphInfos[i].cluster, textView.size() - glyphInfos[i].cluster));
+			if (breakClass == BreakClass::CR || breakClass == BreakClass::LF || breakClass == BreakClass::BK) {
+				continue;
 			}
 
 			if (penX > shape->maxWidth()) {
@@ -472,15 +493,31 @@ namespace vanadium::ui::shapes {
 					if (index > i)
 						break;
 					else
-						lastLinebreakIndex = i;
+						lastLinebreakIndex = index;
 				}
-				for (unsigned int j = i; j > lastLinebreakIndex; --j) {
+				bool foundLinebreak = false;
+				for (unsigned int j = glyphInfos[i].cluster; j > glyphInfos[lastLinebreakIndex].cluster; --j) {
 					if (linebreakStatusString[j] == LinebreakStatus::Opportunity) {
-						shape->addLinebreak(j);
-						i = lastLinebreakIndex;
-						penX = 0;
-						break;
+						unsigned int brokenGlyphIndex = 0;
+						for (; brokenGlyphIndex < glyphCount; ++brokenGlyphIndex) {
+							if (glyphInfos[brokenGlyphIndex].cluster > j)
+								break;
+						}
+						if (brokenGlyphIndex != 0 && brokenGlyphIndex != glyphCount) {
+							shape->addLinebreak(brokenGlyphIndex - 1);
+							i = lastLinebreakIndex;
+							penX = 0;
+							foundLinebreak = true;
+							break;
+						}
 					}
+				}
+
+				if (!foundLinebreak && i > 0) {
+					// emergency linebreak, ignore rules
+					shape->addLinebreak(i - 1);
+					// i gets incremented at end of loop
+					i -= 2;
 				}
 			}
 		}
@@ -492,7 +529,7 @@ namespace vanadium::ui::shapes {
 	TextShape::TextShape(const Vector3& position, float maxWidth, float rotation, const std::string_view& text,
 						 float fontSize, uint32_t fontID, const Vector4& color)
 		: Shape("Text", position, rotation), m_maxWidth(maxWidth), m_pointSize(fontSize), m_fontID(fontID),
-		  m_color(color) {
+		  m_color(color), m_text(text) {
 		m_textBuffer = hb_buffer_create();
 		hb_buffer_add_utf8(m_textBuffer, text.data(), text.size(), 0, -1);
 		hb_buffer_set_direction(m_textBuffer, HB_DIRECTION_LTR);

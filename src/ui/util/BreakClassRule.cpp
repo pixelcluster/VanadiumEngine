@@ -20,9 +20,13 @@ namespace vanadium::ui {
 					uint32_t matchesInARow = 1;
 					uint32_t j = i + 1;
 					uint32_t tokenIndex = 0;
+					uint32_t matchIndex = 0;
 					bool lastTokenMatched = false;
 
 					while (j < classString.size() && tokenIndex < rule.tokens.size()) {
+						if (tokenIndex == rule.action.beforeIndex) {
+							matchIndex = j;
+						}
 						if (tryMatchToken(classString, matchesInARow, j, rule.tokens[tokenIndex])) {
 							if (tokenIndex == rule.tokens.size() - 1) {
 								lastTokenMatched = true;
@@ -31,9 +35,18 @@ namespace vanadium::ui {
 						matchesInARow = 0;
 						++tokenIndex;
 					}
+					if (tokenIndex == rule.action.beforeIndex) {
+						matchIndex = j;
+					}
+					if (rule.action.beforeIndex == 0) {
+						matchIndex = i;
+					}
+					if(rule.tokens.size() == 1) {
+						lastTokenMatched = true;
+					}
 
 					if (lastTokenMatched) {
-						matchIndices.push_back(i);
+						matchIndices.push_back(matchIndex);
 					}
 				}
 				++i;
@@ -41,9 +54,9 @@ namespace vanadium::ui {
 		}
 
 		for (auto index : matchIndices) {
-			if (index + rule.action.beforeIndex - 1U < statusArray.size()) {
-				if (statusArray[index + rule.action.beforeIndex - 1U] == LinebreakStatus::Undefined) {
-					statusArray[index + rule.action.beforeIndex - 1U] = rule.action.newStatus;
+			if (index - 1U < statusArray.size()) {
+				if (statusArray[index - 1U] == LinebreakStatus::Undefined) {
+					statusArray[index - 1U] = rule.action.newStatus;
 				}
 			}
 		}
@@ -77,251 +90,156 @@ namespace vanadium::ui {
 			return traits.isExtendedPictographic ^ token.modifier.negated;
 		}
 
-		if (token.modifier.allOptionsRequired) {
-			for (auto& option : token.classOptions) {
-				if (traits.breakClass != option) {
-					return token.modifier.negated;
-				}
-			}
-			index += token.classOptions.size();
-			return !token.modifier.negated;
-		} else {
+		if (token.modifier.optional) {
 			for (auto& option : token.classOptions) {
 				if (traits.breakClass == option) {
 					return !token.modifier.negated;
 				}
 			}
 			return token.modifier.negated;
+		} else {
+			for (auto& option : token.classOptions) {
+				if (traits.breakClass != option) {
+					return token.modifier.negated;
+				}
+			}
+			return !token.modifier.negated;
 		}
 	}
 
 	BreakClassRule parseRule(const std::string_view& rule) {
 		BreakClassRule result;
 
-		BreakClassRuleModifier currentTokenModifier;
-		std::string lastParsedTokenName = "";
-		lastParsedTokenName.reserve(3);
-		size_t index = 0;
+		Parser parser = { .currentState = ParserState::Start };
 
-		bool insideTokenGroup = false;
-		while (index < rule.size()) {
-
-			// scan for modifiers appearing before/after a token
-
-			ignoreWhitespace(rule, index);
-			BreakClassRuleModifier newTokenModifier = parseModifiers(rule, index);
-			if (!newTokenModifier.valid)
-				return {};
-			if (insideTokenGroup) {
-				if (!currentTokenModifier.negated && newTokenModifier.negated) {
-					logError("Error: Rule %s is invalid: Unexpected \"^\"!\n", rule.data());
-					return {};
-				}
-				if (!currentTokenModifier.excludeEastAsianWidths && newTokenModifier.excludeEastAsianWidths) {
-					logError("Error: Rule %s is invalid: Unexpected \"_\"!\n", rule.data());
-					return {};
-				}
-				if (!currentTokenModifier.matchExtendedPictographics && newTokenModifier.matchExtendedPictographics) {
-					logError("Error: Rule %s is invalid: Unexpected \"p\"!\n", rule.data());
-					return {};
-				}
-				if (!currentTokenModifier.mustBeAtStart && newTokenModifier.mustBeAtStart) {
-					logError("Error: Rule %s is invalid: Unexpected \"<\"!\n", rule.data());
-					return {};
-				}
-			}
-			currentTokenModifier.negated |= newTokenModifier.negated;
-			currentTokenModifier.excludeEastAsianWidths |= newTokenModifier.excludeEastAsianWidths;
-			currentTokenModifier.matchExtendedPictographics |= newTokenModifier.matchExtendedPictographics;
-			currentTokenModifier.mustBeAtStart |= newTokenModifier.mustBeAtStart;
-			currentTokenModifier.allOptionsRequired &= newTokenModifier.allOptionsRequired;
-			if (currentTokenModifier.quantifier.minCount != 1U && currentTokenModifier.quantifier.maxCount != 1U &&
-				newTokenModifier.quantifier.minCount != 1U && newTokenModifier.quantifier.maxCount != 1U) {
-				logError("Error: Rule %s is invalid: More than one quantifier per token!\n", rule.data());
-				return {};
-			}
-			currentTokenModifier.quantifier = newTokenModifier.quantifier;
-
-			// all modifiers before/after the current token were collected, add it
-
-			if (!lastParsedTokenName.empty()) {
-				if (insideTokenGroup) {
-					result.tokens.back().classOptions.push_back(breakClassFromString(lastParsedTokenName));
+		for (auto& character : rule) {
+			StateAction action = tokenizerFSM[static_cast<uint32_t>(parser.currentState)][inputSymbolClass(character)];
+			parser.currentState = action.newState;
+			if (action.action == StackAction::Push) {
+				if (!parser.stack.empty() && (parser.stack.back().symbolClass == inputSymbolClass(character) ||
+											  // Collapse and/or ignore whitespaces
+											  parser.stack.back().symbolClass == InputSymbolClass::Whitespace)) {
+					parser.stack.back().symbolClass = inputSymbolClass(character);
+					if (inputSymbolClass(character) != InputSymbolClass::Whitespace)
+						parser.stack.back().text.push_back(character);
 				} else {
-					result.tokens.push_back({ .classOptions = { breakClassFromString(lastParsedTokenName) },
-											  .modifier = currentTokenModifier });
-					currentTokenModifier = {};
+					parser.stack.push_back({ .symbolClass = inputSymbolClass(character),
+											 .text = (inputSymbolClass(character) == InputSymbolClass::Whitespace)
+														 ? std::string("")
+														 : std::string({ character }) });
 				}
-				lastParsedTokenName.clear();
 			}
-
-			// Scan for token group markers
-
-			ignoreWhitespace(rule, index);
-			if (rule[index] == '(') {
-				if (insideTokenGroup) {
-					logError("Error: Rule %s is invalid: You cannot nest parentheses!\n", rule.data());
-					return {};
-				}
-				insideTokenGroup = true;
-				ignoreWhitespace(rule, index);
-				currentTokenModifier = parseModifiers(rule, index);
-				if (!newTokenModifier.valid)
-					return {};
-				result.tokens.push_back({});
-				++index;
-			} else if (rule[index] == ')') {
-				if (!insideTokenGroup || result.tokens.empty()) {
-					logError("Error: Rule %s is invalid: Unexpected \")\"!\n", rule.data());
-					return {};
-				}
-				BreakClassRuleModifier newTokenModifier = parseModifiers(rule, index);
-				if (!newTokenModifier.valid)
-					return {};
-				currentTokenModifier.negated |= newTokenModifier.negated;
-				currentTokenModifier.excludeEastAsianWidths |= newTokenModifier.excludeEastAsianWidths;
-				currentTokenModifier.matchExtendedPictographics |= newTokenModifier.matchExtendedPictographics;
-				currentTokenModifier.mustBeAtStart |= newTokenModifier.mustBeAtStart;
-				currentTokenModifier.allOptionsRequired &= newTokenModifier.allOptionsRequired;
-				if (currentTokenModifier.quantifier.minCount != 1U && currentTokenModifier.quantifier.maxCount != 1U &&
-					newTokenModifier.quantifier.minCount != 1U && newTokenModifier.quantifier.maxCount != 1U) {
-					logError("Error: Rule %s is invalid: More than one quantifier per token!\n", rule.data());
-					return {};
-				}
-				currentTokenModifier.quantifier = newTokenModifier.quantifier;
-				result.tokens.back().modifier = currentTokenModifier;
-				currentTokenModifier = {};
-				insideTokenGroup = false;
-				++index;
-			}
-
-			// scan for break actions
-
-			ignoreWhitespace(rule, index);
-
-			if (isBreakAction(rule[index])) {
-				if (result.action.newStatus != LinebreakStatus::Undefined) {
-					logError("Error: Rule %s is invalid: More than one break status modification per rule!\n",
-							 rule.data());
-					return {};
-				}
-				switch (rule[index]) {
-					case 'x':
-						result.action.newStatus = LinebreakStatus::DoNotBreak;
-						result.action.beforeIndex = index;
-						break;
-					case '%':
-						result.action.newStatus = LinebreakStatus::Opportunity;
-						result.action.beforeIndex = index;
-						break;
-					case '!':
-						result.action.newStatus = LinebreakStatus::Mandatory;
-						result.action.beforeIndex = index;
-						break;
-				}
-				++index;
-			}
-
-			// parse new token, if present
-
-			ignoreWhitespace(rule, index);
-			while (!isModifier(rule[index]) && !isBreakAction(rule[index]) && rule[index] != ' ' &&
-				   rule[index] != '(' && rule[index] != ')' && index < rule.size()) {
-				lastParsedTokenName.push_back(rule[index]);
-				++index;
+			if (parser.currentState == ParserState::Error) {
+				logError("Syntax error parsing rule %s\n", rule);
+				return {};
 			}
 		}
 
-		if (!lastParsedTokenName.empty()) {
-			result.tokens.push_back(
-				{ .classOptions = { breakClassFromString(lastParsedTokenName) }, .modifier = currentTokenModifier });
-			currentTokenModifier = {};
-			lastParsedTokenName.clear();
+		bool insideTokenGroup = false;
+
+		for (auto iterator = parser.stack.begin(); iterator != parser.stack.end(); ++iterator) {
+			switch (iterator->symbolClass) {
+				case InputSymbolClass::Modifier:
+					for (auto& character : iterator->text) {
+						switch (character) {
+							case '*':
+								if (result.tokens.back().modifier.quantifier.minCount != 1U ||
+									result.tokens.back().modifier.quantifier.maxCount != 1U) {
+									logError("Error parsing rule %s: More than one quantifier per token!\n", rule);
+									return {};
+								}
+								result.tokens.back().modifier.quantifier.minCount = 0;
+								result.tokens.back().modifier.quantifier.maxCount = ~0U;
+								break;
+							case '?':
+								if (result.tokens.back().modifier.quantifier.minCount != 1U ||
+									result.tokens.back().modifier.quantifier.maxCount != 1U) {
+									logError("Error parsing rule %s: More than one quantifier per token!\n", rule);
+									return {};
+								}
+								result.tokens.back().modifier.quantifier.minCount = 0;
+								result.tokens.back().modifier.quantifier.maxCount = ~0U;
+								break;
+							case '^':
+								result.tokens.back().modifier.negated = true;
+								break;
+							case '_':
+								result.tokens.back().modifier.excludeEastAsianWidths = true;
+								break;
+							case '<':
+								result.tokens.back().modifier.mustBeAtStart = true;
+								break;
+							case 'p':
+								result.tokens.back().modifier.matchExtendedPictographics = true;
+								break;
+						}
+					}
+					break;
+				case InputSymbolClass::CloseParenthesis:
+					insideTokenGroup = false;
+					break;
+				case InputSymbolClass::VerticalBar:
+					result.tokens.back().modifier.optional = true;
+					break;
+				case InputSymbolClass::Class:
+					if (insideTokenGroup) {
+						result.tokens.back().classOptions.push_back(breakClassFromString(iterator->text));
+					} else {
+						result.tokens.push_back({ .classOptions = { breakClassFromString(iterator->text) } });
+					}
+					break;
+				case InputSymbolClass::OpenParenthesis:
+					result.tokens.push_back({ .classOptions = {} });
+					insideTokenGroup = true;
+					break;
+				case InputSymbolClass::BreakAction:
+					switch (iterator->text[0]) {
+						case 'x':
+							result.action = { .newStatus = LinebreakStatus::DoNotBreak,
+											  .beforeIndex = static_cast<uint32_t>(result.tokens.size()) };
+							break;
+						case '%':
+							result.action = { .newStatus = LinebreakStatus::Opportunity,
+											  .beforeIndex = static_cast<uint32_t>(result.tokens.size()) };
+							break;
+						case '!':
+							result.action = { .newStatus = LinebreakStatus::Mandatory,
+											  .beforeIndex = static_cast<uint32_t>(result.tokens.size()) };
+							break;
+					}
+				default:
+					break;
+			}
 		}
 
 		result.isValid = true;
 		return result;
 	}
 
-	BreakClassRuleModifier parseModifiers(const std::string_view& rule, size_t& index) {
-		BreakClassRuleModifier modifier;
-		while (index < rule.size() && isModifier(rule[index])) {
-			char character = rule[index];
-			switch (character) {
-				case '*':
-					if (modifier.quantifier.minCount != 1U || modifier.quantifier.maxCount != 1U) {
-						logError("Error: Rule %s is invalid: More than one quantifier per token!\n", rule.data());
-						modifier.valid = false;
-						return modifier;
-					}
-					modifier.quantifier.minCount = 0U;
-					modifier.quantifier.maxCount = ~0U;
-					break;
-				case '?':
-					if (modifier.quantifier.minCount != 1U || modifier.quantifier.maxCount != 1U) {
-						logError("Error: Rule %s is invalid: More than one quantifier per token!\n", rule.data());
-						modifier.valid = false;
-						return modifier;
-					}
-					modifier.quantifier.minCount = 0U;
-					modifier.quantifier.maxCount = 1U;
-					break;
-				case '^':
-					modifier.negated = true;
-					break;
-				case '_':
-					modifier.excludeEastAsianWidths = true;
-					break;
-				case '<':
-					modifier.mustBeAtStart = true;
-					break;
-				case 'p':
-					modifier.matchExtendedPictographics = true;
-					break;
-				case '|':
-					modifier.allOptionsRequired = false;
-					break;
-			}
-			++index;
-		}
-		return modifier;
-	}
-
-	bool isModifier(char character) {
-		switch (character) {
+	InputSymbolClass inputSymbolClass(char inputSymbol) {
+		switch (inputSymbol) {
+			case 'x':
+			case '%':
+			case '!':
+				return InputSymbolClass::BreakAction;
 			case '*':
 			case '?':
 			case '^':
 			case '_':
 			case '<':
 			case 'p':
+				return InputSymbolClass::Modifier;
 			case '|':
-				return true;
+				return InputSymbolClass::VerticalBar;
+			case ' ':
+				return InputSymbolClass::Whitespace;
+			case '(':
+				return InputSymbolClass::OpenParenthesis;
+			case ')':
+				return InputSymbolClass::CloseParenthesis;
 			default:
-				return false;
+				return InputSymbolClass::Class;
+				break;
 		}
-	}
-
-	bool isBreakAction(char character) {
-		switch (character) {
-			case 'x':
-			case '%':
-			case '!':
-				return true;
-			default:
-				return false;
-		}
-	}
-
-	char peekNext(const std::string_view& rule, size_t index) {
-		if (index < rule.size() - 1) {
-			return rule[index + 1];
-		}
-		return '\0';
-	}
-
-	void ignoreWhitespace(const std::string_view& rule, size_t& index) {
-		while (index < rule.size() && rule[index] == ' ')
-			++index;
 	}
 } // namespace vanadium::ui
