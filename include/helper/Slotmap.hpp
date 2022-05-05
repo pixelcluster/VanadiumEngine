@@ -166,7 +166,7 @@ namespace vanadium {
 		 * \brief Gets the element that belongs to the specified handle.
 		 *
 		 * \param handle The specified handle.
-		 * \returns The element belonging to the specified handle. If "handle" is invalid, an exception will thrown.
+		 * \returns The element belonging to the specified handle. If "handle" is invalid, an assert will trigger
 		 */
 		inline T& elementAt(SlotmapHandle handle);
 
@@ -174,7 +174,7 @@ namespace vanadium {
 		 * \brief Gets the element that belongs to the specified handle.
 		 *
 		 * \param handle The specified handle.
-		 * \returns The element belonging to the specified handle. If "handle" is invalid, an exception will thrown.
+		 * \returns The element belonging to the specified handle. If "handle" is invalid, an assert will trigger
 		 */
 		inline const T& elementAt(SlotmapHandle handle) const;
 

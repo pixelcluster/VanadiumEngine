@@ -3,8 +3,6 @@
 
 namespace vanadium::ui::shapes {
 
-	auto childDepthComparator = [](const auto& one, const auto& other) { return one.childDepth < other.childDepth; };
-
 	RectShapeRegistry::RectShapeRegistry(UISubsystem*, const graphics::RenderContext& context,
 										 VkRenderPass uiRenderPass,
 										 const graphics::RenderPassSignature& uiRenderPassSignature)
@@ -17,8 +15,11 @@ namespace vanadium::ui::shapes {
 	void RectShapeRegistry::addShape(Shape* shape) {
 		RectShape* rectShape = reinterpret_cast<RectShape*>(shape);
 		m_shapes.push_back(rectShape);
-		m_dataManager.addShapeData(
-			m_context, { .position = rectShape->position(), .color = rectShape->color(), .size = rectShape->size() });
+		m_dataManager.addShapeData(m_context,
+								   { .position = rectShape->position(),
+									 .color = rectShape->color(),
+									 .size = rectShape->size(),
+									 .cosSinRotation = { cosf(rectShape->rotation()), sinf(rectShape->rotation()) } });
 	}
 
 	void RectShapeRegistry::removeShape(Shape* shape) {
@@ -33,8 +34,11 @@ namespace vanadium::ui::shapes {
 										 const graphics::RenderPassSignature& uiRenderPassSignature) {
 		size_t shapeIndex = 0;
 		for (auto& shape : m_shapes) {
-			m_dataManager.updateShapeData(
-				shapeIndex, { .position = shape->position(), .color = shape->color(), .size = shape->size() });
+			m_dataManager.updateShapeData(shapeIndex,
+										  { .position = shape->position(),
+											.color = shape->color(),
+											.size = shape->size(),
+											.cosSinRotation = { cosf(shape->rotation()), sinf(shape->rotation()) } });
 			++shapeIndex;
 		}
 		m_dataManager.prepareFrame(m_context, frameIndex);

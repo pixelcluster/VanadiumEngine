@@ -1,7 +1,9 @@
 #pragma once
 
+#include <Log.hpp>
 #include <concepts>
 #include <cstdint>
+#include <helper/CompilerSpecific.hpp>
 
 namespace vanadium {
 	template <uint32_t n, std::floating_point T> struct Vector;
@@ -11,12 +13,39 @@ namespace vanadium {
 		constexpr Vector(T n) : x(n), y(n) {}
 		constexpr Vector(T _x, T _y) : x(_x), y(_y) {}
 
-		bool operator==(const Vector<2, T>& other) const { return x == other.x && y == other.y; }
-		bool operator!=(const Vector<2, T>& other) const { return !(*this == other); }
-		Vector<2, T> operator+(const Vector<2, T>& other) { return Vector<2, T>(x + other.x, y + other.y); }
-		Vector<2, T> operator-(const Vector<2, T>& other) { return Vector<2, T>(x - other.x, y - other.y); }
-		Vector<2, T> operator*(const Vector<2, T>& other) { return Vector<2, T>(x * other.x, y * other.y); }
-		Vector<2, T> operator/(const Vector<2, T>& other) { return Vector<2, T>(x / other.x, y / other.y); }
+		constexpr bool operator==(const Vector<2, T>& other) const { return x == other.x && y == other.y; }
+		constexpr bool operator!=(const Vector<2, T>& other) const { return !(*this == other); }
+		constexpr Vector<2, T> operator+(const Vector<2, T>& other) { return Vector<2, T>(x + other.x, y + other.y); }
+		constexpr Vector<2, T> operator-(const Vector<2, T>& other) { return Vector<2, T>(x - other.x, y - other.y); }
+		constexpr Vector<2, T> operator*(const Vector<2, T>& other) { return Vector<2, T>(x * other.x, y * other.y); }
+		constexpr Vector<2, T> operator/(const Vector<2, T>& other) { return Vector<2, T>(x / other.x, y / other.y); }
+		constexpr float operator[](uint32_t index) const {
+			float result;
+			switch (index) {
+				case 0:
+					result = x;
+					break;
+				case 1:
+					result = y;
+					break;
+				default:
+					result = 0.0f;
+					break;
+			}
+			return result;
+		}
+		float& operator[](uint32_t index) {
+			assertFatal(index < 2, "OOB vector access!\n");
+			switch (index) {
+				case 0:
+					return x;
+				case 1:
+					return y;
+				default:
+					UNREACHABLE
+			}
+		}
+		constexpr float dot(const Vector<2, T>& other) { return x * other.x + y * other.y; }
 
 		union {
 			T x;
@@ -38,12 +67,54 @@ namespace vanadium {
 		constexpr Vector(Vector<2, T> xy, T _z) : x(xy.x), y(xy.y), z(_z) {}
 		constexpr Vector(T _x, Vector<2, T> yz) : x(x), y(yz.x), z(yz.y) {}
 
-		bool operator==(const Vector<3, T>& other) const { return x == other.x && y == other.y && z == other.z; }
-		bool operator!=(const Vector<3, T>& other) const { return !(*this == other); }
-		Vector<3, T> operator+(const Vector<3, T>& other) { return Vector<3, T>(x + other.x, y + other.y, z + other.z); }
-		Vector<3, T> operator-(const Vector<3, T>& other) { return Vector<3, T>(x - other.x, y - other.y, z - other.z); }
-		Vector<3, T> operator*(const Vector<3, T>& other) { return Vector<3, T>(x * other.x, y * other.y, z * other.z); }
-		Vector<3, T> operator/(const Vector<3, T>& other) { return Vector<3, T>(x / other.x, y / other.y, z / other.z); }
+		constexpr bool operator==(const Vector<3, T>& other) const {
+			return x == other.x && y == other.y && z == other.z;
+		}
+		constexpr bool operator!=(const Vector<3, T>& other) const { return !(*this == other); }
+		constexpr Vector<3, T> operator+(const Vector<3, T>& other) {
+			return Vector<3, T>(x + other.x, y + other.y, z + other.z);
+		}
+		constexpr Vector<3, T> operator-(const Vector<3, T>& other) {
+			return Vector<3, T>(x - other.x, y - other.y, z - other.z);
+		}
+		constexpr Vector<3, T> operator*(const Vector<3, T>& other) {
+			return Vector<3, T>(x * other.x, y * other.y, z * other.z);
+		}
+		constexpr Vector<3, T> operator/(const Vector<3, T>& other) {
+			return Vector<3, T>(x / other.x, y / other.y, z / other.z);
+		}
+		constexpr float operator[](uint32_t index) const {
+			float result;
+			switch (index) {
+				case 0:
+					result = x;
+					break;
+				case 1:
+					result = y;
+					break;
+				case 2:
+					result = z;
+					break;
+				default:
+					result = 0.0f;
+					break;
+			}
+			return result;
+		}
+		float& operator[](uint32_t index) {
+			assertFatal(index < 3, "OOB vector access!\n");
+			switch (index) {
+				case 0:
+					return x;
+				case 1:
+					return y;
+				case 2:
+					return z;
+				default:
+					UNREACHABLE
+			}
+		}
+		constexpr float dot(const Vector<3, T>& other) { return x * other.x + y * other.y + z * other.z; }
 
 		union {
 			T x;
@@ -72,15 +143,59 @@ namespace vanadium {
 		constexpr Vector(T _x, Vector<3, T> yzw) : x(x), y(yzw.x), z(yzw.y), w(yzw.z) {}
 		constexpr Vector(Vector<3, T> xyz, T _w) : x(xyz.x), y(xyz.y), z(xyz.z), w(_w) {}
 
-		bool operator==(const Vector<4, T>& other) const {
+		constexpr bool operator==(const Vector<4, T>& other) const {
 			return x == other.x && y == other.y && z == other.z && w == other.w;
 		}
-		bool operator!=(const Vector<4, T>& other) const { return !(*this == other); }
-		Vector<4, T> operator+(const Vector<4, T>& other) { return Vector<4, T>(x + other.x, y + other.y, z + other.z, w + other.w); }
-		Vector<4, T> operator-(const Vector<4, T>& other) { return Vector<4, T>(x - other.x, y - other.y, z - other.z, w - other.w); }
-		Vector<4, T> operator*(const Vector<4, T>& other) { return Vector<4, T>(x * other.x, y * other.y, z * other.z, w * other.w); }
-		Vector<4, T> operator/(const Vector<4, T>& other) { return Vector<4, T>(x / other.x, y / other.y, z / other.z, w / other.w); }
-
+		constexpr bool operator!=(const Vector<4, T>& other) const { return !(*this == other); }
+		constexpr Vector<4, T> operator+(const Vector<4, T>& other) {
+			return Vector<4, T>(x + other.x, y + other.y, z + other.z, w + other.w);
+		}
+		constexpr Vector<4, T> operator-(const Vector<4, T>& other) {
+			return Vector<4, T>(x - other.x, y - other.y, z - other.z, w - other.w);
+		}
+		constexpr Vector<4, T> operator*(const Vector<4, T>& other) {
+			return Vector<4, T>(x * other.x, y * other.y, z * other.z, w * other.w);
+		}
+		constexpr Vector<4, T> operator/(const Vector<4, T>& other) {
+			return Vector<4, T>(x / other.x, y / other.y, z / other.z, w / other.w);
+		}
+		constexpr float operator[](uint32_t index) const {
+			float result;
+			switch (index) {
+				case 0:
+					result = x;
+					break;
+				case 1:
+					result = y;
+					break;
+				case 2:
+					result = z;
+					break;
+				case 3:
+					result = w;
+					break;
+				default:
+					result = 0.0f;
+					break;
+			}
+			return result;
+		}
+		float& operator[](uint32_t index) {
+			assertFatal(index < 4, "OOB vector access!\n");
+			switch (index) {
+				case 0:
+					return x;
+				case 1:
+					return y;
+				case 2:
+					return z;
+				case 3:
+					return w;
+				default:
+					UNREACHABLE
+			}
+		}
+		constexpr float dot(const Vector<4, T>& other) { return x * other.x + y * other.y + z * other.z + w * other.w; }
 
 		union {
 			T x;

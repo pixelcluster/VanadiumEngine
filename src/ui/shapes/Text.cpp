@@ -1,6 +1,7 @@
 #include <CharacterGroup.hpp>
 #include <Log.hpp>
 #include <graphics/helper/DebugHelper.hpp>
+#include <math/Matrix.hpp>
 #include <ui/shapes/Text.hpp>
 #include <ui/util/BreakClassRule.hpp>
 #include <volk.h>
@@ -168,7 +169,7 @@ namespace vanadium::ui::shapes {
 		}
 	}
 
-	void TextShapeRegistry::destroy(const graphics::RenderPassSignature& uiRenderPassSignature) {
+	void TextShapeRegistry::destroy(const graphics::RenderPassSignature&) {
 		for (auto& shape : m_shapes) {
 			delete shape;
 		}
@@ -184,6 +185,7 @@ namespace vanadium::ui::shapes {
 		hb_position_t oneLinePenX = 0;
 		uint32_t maxGlyphHeight = 0;
 		size_t totalGlyphCount = 0;
+		hb_codepoint_t previousGlyphIndex = 0;
 
 		for (auto& shape : m_fontAtlases[identifier].referencingShapes) {
 			FT_Set_Char_Size(face, shape->pointSize() * 64.0f, 0, m_uiSubsystem->monitorDPIX(),
@@ -210,6 +212,11 @@ namespace vanadium::ui::shapes {
 									   i - 1) != shape->linebreakGlyphIndices().end()) {
 					penY += face->size->metrics.height / 64;
 					penX = 0;
+				} else if(previousGlyphIndex) {
+					FT_Vector kerningDelta;
+					FT_Get_Kerning(face, previousGlyphIndex, glyphInfos[i].codepoint, FT_KERNING_DEFAULT,
+								   &kerningDelta);
+					penX += kerningDelta.x / 64;
 				}
 
 				// skip over line control characters
@@ -236,6 +243,7 @@ namespace vanadium::ui::shapes {
 					std::max(maxGlyphHeight, static_cast<uint32_t>(face->glyph->metrics.horiBearingY / 64));
 
 				++totalGlyphCount;
+				previousGlyphIndex = glyphInfos[i].codepoint;
 			}
 		}
 
@@ -332,21 +340,27 @@ namespace vanadium::ui::shapes {
 	}
 
 	void TextShapeRegistry::regenerateGlyphData(const FontAtlasIdentifier& identifier, uint32_t frameIndex) {
-		auto& atlas = m_fontAtlases[identifier];
 		m_fontAtlases[identifier].glyphData.clear();
 		for (auto& data : m_fontAtlases[identifier].shapeGlyphData) {
 			Vector3 basePosition = data.referencedShape->position();
+			Matrix2 rotationMatrix =
+				Matrix2(cosf(data.referencedShape->rotation()), -sinf(data.referencedShape->rotation()),
+						sinf(data.referencedShape->rotation()), cosf(data.referencedShape->rotation()));
+			Vector2 preRotationOffset =
+				Vector2(data.offset.x, data.offset.y + (m_fontAtlases[identifier].maxGlyphHeight - data.bearingY));
+			Vector2 rotatedOffset = rotationMatrix * preRotationOffset;
+
 			m_fontAtlases[identifier].glyphData.push_back(
-				{ .position = Vector3(basePosition.x + data.offset.x,
-									  basePosition.y + data.offset.y +
-										  (m_fontAtlases[identifier].maxGlyphHeight - data.bearingY),
-									  basePosition.z),
+				{ .position =
+					  Vector3(basePosition.x + rotatedOffset.x, basePosition.y + rotatedOffset.y, basePosition.z),
 				  .color = data.referencedShape->color(),
 				  .size = data.size,
 				  .uvPosition = m_fontAtlases[identifier].fontAtlasPositions[data.glyphIndex].position /
 								m_fontAtlases[identifier].atlasSize,
 				  .uvSize = m_fontAtlases[identifier].fontAtlasPositions[data.glyphIndex].size /
-							m_fontAtlases[identifier].atlasSize });
+							m_fontAtlases[identifier].atlasSize,
+				  .cosSinRotation = { cosf(data.referencedShape->rotation()),
+									  sinf(data.referencedShape->rotation()) } });
 		}
 
 		if (m_fontAtlases[identifier].transferBufferCapacity <=
@@ -465,6 +479,7 @@ namespace vanadium::ui::shapes {
 
 		hb_position_t penX = 0;
 		hb_position_t penY = 0;
+		hb_codepoint_t previousGlyphIndex = 0;
 
 		for (unsigned int i = 0; i < glyphCount; ++i) {
 			hb_position_t xAdvance = glyphPositions[i].x_advance / 64;
@@ -478,6 +493,10 @@ namespace vanadium::ui::shapes {
 				penY += face->size->metrics.height;
 				maxPenX = std::max(penX, maxPenX);
 				penX = 0;
+			} else {
+				FT_Vector kerningDelta;
+				FT_Get_Kerning(face, previousGlyphIndex, glyphInfos[i].codepoint, FT_KERNING_DEFAULT, &kerningDelta);
+				penX += kerningDelta.x / 64;
 			}
 
 			// skip over line control characters
@@ -508,6 +527,7 @@ namespace vanadium::ui::shapes {
 							i = lastLinebreakIndex;
 							penX = 0;
 							foundLinebreak = true;
+							previousGlyphIndex = 0;
 							break;
 						}
 					}
@@ -516,9 +536,11 @@ namespace vanadium::ui::shapes {
 				if (!foundLinebreak && i > 0) {
 					// emergency linebreak, ignore rules
 					shape->addLinebreak(i - 1);
+					previousGlyphIndex = 0;
 					// i gets incremented at end of loop
 					i -= 2;
 				}
+				previousGlyphIndex = glyphInfos[i].codepoint;
 			}
 		}
 		shape->addLinebreak(glyphCount - 1); // LB3
@@ -528,7 +550,7 @@ namespace vanadium::ui::shapes {
 
 	TextShape::TextShape(const Vector3& position, float maxWidth, float rotation, const std::string_view& text,
 						 float fontSize, uint32_t fontID, const Vector4& color)
-		: Shape("Text", position, rotation), m_maxWidth(maxWidth), m_pointSize(fontSize), m_fontID(fontID),
+		: Shape("Text", position, rotation), m_fontID(fontID), m_pointSize(fontSize), m_maxWidth(maxWidth),
 		  m_color(color), m_text(text) {
 		m_textBuffer = hb_buffer_create();
 		hb_buffer_add_utf8(m_textBuffer, text.data(), text.size(), 0, -1);

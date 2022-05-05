@@ -1,4 +1,24 @@
 #pragma once
 
+#ifndef TRUE
+#define DEFINED_TRUE
+#define TRUE true
+#endif
+
+#ifndef FALSE
+#define DEFINED_FALSE
+#define FALSE false
+#endif
+
 constexpr bool vanadiumDebug = ${VANADIUM_DEBUG};
 constexpr bool vanadiumGPUDebug = ${VANADIUM_GPU_DEBUG};
+
+#ifdef DEFINED_TRUE
+#undef DEFINED_TRUE
+#undef TRUE
+#endif
+
+#ifdef DEFINED_FALSE
+#undef DEFINED_FALSE
+#undef FALSE
+#endif

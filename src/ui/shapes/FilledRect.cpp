@@ -3,8 +3,6 @@
 
 namespace vanadium::ui::shapes {
 
-	auto childDepthComparator = [](const auto& one, const auto& other) { return one.childDepth < other.childDepth; };
-
 	FilledRectShapeRegistry::FilledRectShapeRegistry(UISubsystem*, const graphics::RenderContext& context,
 													 VkRenderPass uiRenderPass,
 													 const graphics::RenderPassSignature& uiRenderPassSignature)
@@ -17,8 +15,11 @@ namespace vanadium::ui::shapes {
 	void FilledRectShapeRegistry::addShape(Shape* shape) {
 		FilledRectShape* rectShape = reinterpret_cast<FilledRectShape*>(shape);
 		m_shapes.push_back(rectShape);
-		m_dataManager.addShapeData(
-			m_context, { .position = rectShape->position(), .color = rectShape->color(), .size = rectShape->size() });
+		m_dataManager.addShapeData(m_context,
+								   { .position = rectShape->position(),
+									 .color = rectShape->color(),
+									 .size = rectShape->size(),
+									 .cosSinRotation = { cosf(rectShape->rotation()), sinf(rectShape->rotation()) } });
 	}
 
 	void FilledRectShapeRegistry::removeShape(Shape* shape) {
@@ -33,8 +34,11 @@ namespace vanadium::ui::shapes {
 											   const graphics::RenderPassSignature& uiRenderPassSignature) {
 		size_t shapeIndex = 0;
 		for (auto& shape : m_shapes) {
-			m_dataManager.updateShapeData(
-				shapeIndex, { .position = shape->position(), .color = shape->color(), .size = shape->size() });
+			m_dataManager.updateShapeData(shapeIndex,
+										  { .position = shape->position(),
+											.color = shape->color(),
+											.size = shape->size(),
+											.cosSinRotation = { cosf(shape->rotation()), sinf(shape->rotation()) } });
 			++shapeIndex;
 		}
 		m_dataManager.prepareFrame(m_context, frameIndex);
@@ -50,7 +54,8 @@ namespace vanadium::ui::shapes {
 								.maxDepth = 1.0f };
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-		Vector2 windowSize = Vector2(m_context.targetSurface->properties().width, m_context.targetSurface->properties().height);
+		Vector2 windowSize =
+			Vector2(m_context.targetSurface->properties().width, m_context.targetSurface->properties().height);
 		VkShaderStageFlags stageFlags =
 			m_context.pipelineLibrary->graphicsPipelinePushConstantRanges(m_rectPipelineID)[0].stageFlags;
 		vkCmdPushConstants(commandBuffer, m_context.pipelineLibrary->graphicsPipelineLayout(m_rectPipelineID),

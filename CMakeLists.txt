@@ -1,15 +1,12 @@
-﻿cmake_minimum_required (VERSION 3.16)
+cmake_minimum_required (VERSION 3.16)
 
 project ("VanadiumEngine")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-option(USE_TESTS "Build and run tests" ON)
 
-if(${USE_TESTS}) 
-	enable_testing()
-endif()
+option(USE_TESTS "Build and run tests" ON)
 
 if(UNIX AND NOT APPLE)
 	option(USE_WAYLAND "Use Wayland instead of X11" OFF)
@@ -21,6 +18,11 @@ elseif(WIN32)
 	set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
 	add_compile_definitions(VK_USE_PLATFORM_WIN32_KHR NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()
+
+set(JSONCPP_WITH_POST_BUILD_UNITTEST FALSE)
+set(JSONCPP_WITH_TESTS FALSE)
+set(tinyxml2_BUILD_TESTING FALSE)
+set(BUILD_TESTING FALSE)
 
 add_subdirectory(dependencies/glfw)
 add_subdirectory(dependencies/volk)
@@ -36,6 +38,10 @@ find_package(TBB)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 add_subdirectory(dependencies/freetype)
 
+if(${USE_TESTS}) 
+	enable_testing()
+	add_subdirectory(tests)
+endif()
 
 add_subdirectory(tools)
 vanadium_init_vcp()

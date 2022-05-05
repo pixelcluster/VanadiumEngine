@@ -30,7 +30,7 @@ namespace vanadium::ui::shapes {
 			float _pad1;
 			Vector4 color;
 			Vector2 size;
-			float _pad2[2];
+			float cosSinRotation[2];
 		};
 
 		uint32_t m_rectPipelineID;

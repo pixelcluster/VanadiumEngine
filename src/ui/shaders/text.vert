@@ -6,6 +6,7 @@ struct RectData {
     vec2 size;
     vec2 uvOffset;
     vec2 uvSize;
+    vec2 cosSinRotation;
 };
 
 layout(std430, set = 0, binding = 0) buffer Data {
@@ -36,7 +37,12 @@ void main() {
     vec2 pos = positions[indices[gl_VertexIndex % 6]];
     uvPos = pos * data[instanceIndex].uvSize + data[instanceIndex].uvOffset;
 
-    gl_Position = vec4(pos * data[instanceIndex].size / targetDimensions + data[instanceIndex].position.xy / targetDimensions, data[instanceIndex].position.z, 1.0f);
+    mat2 rotation = mat2(data[instanceIndex].cosSinRotation.x, data[instanceIndex].cosSinRotation.y, 
+                        -data[instanceIndex].cosSinRotation.y, data[instanceIndex].cosSinRotation.x);
+
+    pos = rotation * (pos * data[instanceIndex].size);
+
+    gl_Position = vec4(pos / targetDimensions + data[instanceIndex].position.xy / targetDimensions, data[instanceIndex].position.z, 1.0f);
     gl_Position *= 2.0f;
     gl_Position -= 1.0f;
     

@@ -41,7 +41,7 @@ namespace vanadium::ui::shapes {
 		Vector2 size;
 		Vector2 uvPosition;
 		Vector2 uvSize;
-		float _pad2[2];
+		float cosSinRotation[2];
 	};
 
 	struct FontAtlasIdentifier {
@@ -98,7 +98,7 @@ namespace vanadium::ui::shapes {
 		void removeShape(Shape* shape) override;
 		void renderShapes(VkCommandBuffer commandBuffers, uint32_t frameIndex,
 						  const graphics::RenderPassSignature& uiRenderPassSignature) override;
-		void destroy(const graphics::RenderPassSignature& uiRenderPassSignature) override;
+		void destroy(const graphics::RenderPassSignature&);
 
 		void determineLineBreaksAndDimensions(TextShape* shape);
 
