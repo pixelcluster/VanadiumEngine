@@ -2,8 +2,8 @@
 
 #include <graphics/RenderContext.hpp>
 #include <ui/ShapeRegistry.hpp>
-#include <vector>
 #include <ui/SimpleShapeDataManager.hpp>
+#include <vector>
 
 namespace vanadium::ui {
 	class UISubsystem;
@@ -20,17 +20,22 @@ namespace vanadium::ui::shapes {
 
 		void addShape(Shape* shape) override;
 		void removeShape(Shape* shape) override;
-		void renderShapes(VkCommandBuffer commandBuffers, uint32_t frameIndex,
+		void prepareFrame(uint32_t frameIndex) override;
+		void renderShapes(VkCommandBuffer commandBuffers, uint32_t frameIndex, uint32_t layerIndex,
 						  const graphics::RenderPassSignature& uiRenderPassSignature) override;
 		void destroy(const graphics::RenderPassSignature& uiRenderPassSignature) override;
 
 	  private:
 		struct ShapeData {
-			Vector3 position;
-			float _pad1;
-			Vector4 color;
+			Vector2 position;
 			Vector2 size;
+			Vector4 color;
 			float cosSinRotation[2];
+			float _pad[2];
+		};
+		struct PushConstantData {
+			Vector2 targetDimensions;
+			uint32_t instanceOffset;
 		};
 
 		uint32_t m_rectPipelineID;
@@ -44,7 +49,8 @@ namespace vanadium::ui::shapes {
 	  public:
 		using ShapeRegistry = RectShapeRegistry;
 
-		RectShape(Vector3 pos, Vector2 size, float rotation, Vector4 color) : Shape("Rect", pos, rotation), m_size(size), m_color(color) {}
+		RectShape(Vector2 pos, uint32_t layerIndex, Vector2 size, float rotation, Vector4 color)
+			: Shape("Rect", layerIndex, pos, rotation), m_size(size), m_color(color) {}
 
 		const Vector2& size() const { return m_size; }
 		const Vector4& color() const { return m_color; }

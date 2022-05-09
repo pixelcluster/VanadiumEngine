@@ -15,11 +15,12 @@ namespace vanadium::ui::shapes {
 	void FilledRectShapeRegistry::addShape(Shape* shape) {
 		FilledRectShape* rectShape = reinterpret_cast<FilledRectShape*>(shape);
 		m_shapes.push_back(rectShape);
-		m_dataManager.addShapeData(m_context,
+		m_dataManager.addShapeData(m_context, shape->layerIndex(),
 								   { .position = rectShape->position(),
 									 .color = rectShape->color(),
 									 .size = rectShape->size(),
 									 .cosSinRotation = { cosf(rectShape->rotation()), sinf(rectShape->rotation()) } });
+		m_maxLayer = std::max(m_maxLayer, shape->layerIndex());
 	}
 
 	void FilledRectShapeRegistry::removeShape(Shape* shape) {
@@ -30,8 +31,7 @@ namespace vanadium::ui::shapes {
 		}
 	}
 
-	void FilledRectShapeRegistry::renderShapes(VkCommandBuffer commandBuffer, uint32_t frameIndex,
-											   const graphics::RenderPassSignature& uiRenderPassSignature) {
+	void FilledRectShapeRegistry::prepareFrame(uint32_t frameIndex) {
 		size_t shapeIndex = 0;
 		for (auto& shape : m_shapes) {
 			m_dataManager.updateShapeData(shapeIndex,
@@ -42,7 +42,13 @@ namespace vanadium::ui::shapes {
 			++shapeIndex;
 		}
 		m_dataManager.prepareFrame(m_context, frameIndex);
+	}
 
+	void FilledRectShapeRegistry::renderShapes(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint32_t layerIndex,
+											   const graphics::RenderPassSignature& uiRenderPassSignature) {
+		auto layer = m_dataManager.layer(layerIndex);
+		if (layer.elementCount == 0)
+			return;
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 						  m_context.pipelineLibrary->graphicsPipeline(m_rectPipelineID, uiRenderPassSignature));
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -53,15 +59,16 @@ namespace vanadium::ui::shapes {
 								.minDepth = 0.0f,
 								.maxDepth = 1.0f };
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-		Vector2 windowSize =
-			Vector2(m_context.targetSurface->properties().width, m_context.targetSurface->properties().height);
+		
+		PushConstantData constantData = { .targetDimensions = Vector2(m_context.targetSurface->properties().width,
+																	  m_context.targetSurface->properties().height),
+										  .instanceOffset = layer.offset };
 		VkShaderStageFlags stageFlags =
 			m_context.pipelineLibrary->graphicsPipelinePushConstantRanges(m_rectPipelineID)[0].stageFlags;
 		vkCmdPushConstants(commandBuffer, m_context.pipelineLibrary->graphicsPipelineLayout(m_rectPipelineID),
-						   stageFlags, 0, sizeof(Vector2), &windowSize);
+						   stageFlags, 0, sizeof(PushConstantData), &constantData);
 
-		vkCmdDraw(commandBuffer, static_cast<uint32_t>(6U * m_shapes.size()), 1, 0, 0);
+		vkCmdDraw(commandBuffer, static_cast<uint32_t>(6U * layer.elementCount), 1, 0, 0);
 	}
 
 	void FilledRectShapeRegistry::destroy(const graphics::RenderPassSignature&) {

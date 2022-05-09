@@ -1,15 +1,18 @@
 #pragma once
 
+#include <algorithm>
 #include <graphics/RenderContext.hpp>
 #include <vector>
 #include <volk.h>
+#include <ui/ShapeRegistry.hpp>
 
 namespace vanadium::ui {
+
 	template <typename T> class SimpleShapeDataManager {
 	  public:
 		SimpleShapeDataManager(const graphics::RenderContext& context, uint32_t pipelineID);
 
-		void addShapeData(const graphics::RenderContext& context, T&& t);
+		void addShapeData(const graphics::RenderContext& context, uint32_t layer, T&& t);
 		void updateShapeData(size_t index, T&& t);
 
 		void prepareFrame(const graphics::RenderContext& context, size_t frameIndex);
@@ -19,9 +22,16 @@ namespace vanadium::ui {
 
 		void destroy(const graphics::RenderContext& context);
 
+		RenderedLayer layer(uint32_t layerIndex);
+
 	  private:
 		void allocateBuffer(const graphics::RenderContext& context);
 		constexpr static size_t m_initialShapeDataCapacity = 50;
+
+		struct ShapeMetadata {
+			uint32_t layerIndex;
+			uint32_t dataArrayIndex;
+		};
 
 		size_t m_descriptorSetRevisionCount[graphics::frameInFlightCount];
 		size_t m_bufferRevisionCount;
@@ -29,6 +39,7 @@ namespace vanadium::ui {
 		size_t m_maxShapeDataCapacity;
 		graphics::GPUTransferHandle m_shapeDataTransfer;
 		std::vector<T> m_shapeData;
+		std::vector<ShapeMetadata> m_shapeMetadata;
 
 		VkDescriptorSet m_shapeDataSets[graphics::frameInFlightCount];
 		std::vector<graphics::DescriptorSetAllocation> m_shapeDataSetAllocations;
@@ -59,8 +70,17 @@ namespace vanadium::ui {
 	}
 
 	template <typename T>
-	void SimpleShapeDataManager<T>::addShapeData(const graphics::RenderContext& context, T&& t) {
-		m_shapeData.push_back(t);
+	void SimpleShapeDataManager<T>::addShapeData(const graphics::RenderContext& context, uint32_t layer, T&& t) {
+		auto shapeIterator =
+			std::lower_bound(m_shapeMetadata.begin(), m_shapeMetadata.end(), layer + 1,
+							 [](const auto& one, const auto& other) { return one.layerIndex < other; });
+		auto shapeIndex = shapeIterator - m_shapeMetadata.begin();
+		m_shapeMetadata.push_back({ .layerIndex = layer, .dataArrayIndex = static_cast<uint32_t>(shapeIndex) });
+		if (shapeIndex == m_shapeData.size()) {
+			m_shapeData.push_back(t);
+		} else {
+			m_shapeData.insert(m_shapeData.begin() + shapeIndex, t);
+		}
 
 		if (m_shapeData.size() > m_maxShapeDataCapacity) {
 			m_maxShapeDataCapacity *= 1.61;
@@ -71,7 +91,7 @@ namespace vanadium::ui {
 	}
 
 	template <typename T> void SimpleShapeDataManager<T>::updateShapeData(size_t index, T&& t) {
-		m_shapeData[index] = std::forward<T>(t);
+		m_shapeData[m_shapeMetadata[index].dataArrayIndex] = std::forward<T>(t);
 	}
 
 	template <typename T>
@@ -96,7 +116,8 @@ namespace vanadium::ui {
 	}
 
 	template <typename T> void SimpleShapeDataManager<T>::eraseShapeData(size_t index) {
-		m_shapeData.erase(m_shapeData.begin() + index);
+		m_shapeData.erase(m_shapeData.begin() + m_shapeMetadata[index].dataArrayIndex);
+		m_shapeMetadata.erase(m_shapeMetadata.begin() + index);
 	}
 
 	template <typename T> void SimpleShapeDataManager<T>::destroy(const graphics::RenderContext& context) {
@@ -105,4 +126,14 @@ namespace vanadium::ui {
 		}
 	}
 
+	template <typename T> RenderedLayer SimpleShapeDataManager<T>::layer(uint32_t layerIndex) {
+		auto offsetIterator =
+			std::lower_bound(m_shapeMetadata.begin(), m_shapeMetadata.end(), layerIndex,
+							 [](const auto& one, const auto& other) { return one.layerIndex < other; });
+		auto nextOffsetIterator =
+			std::lower_bound(m_shapeMetadata.begin(), m_shapeMetadata.end(), layerIndex + 1,
+							 [](const auto& one, const auto& other) { return one.layerIndex < other; });
+		return { .offset = static_cast<uint32_t>(offsetIterator - m_shapeMetadata.begin()),
+				 .elementCount = static_cast<uint32_t>(nextOffsetIterator - offsetIterator) };
+	}
 } // namespace vanadium::ui

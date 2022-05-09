@@ -35,13 +35,13 @@ namespace vanadium::ui::shapes {
 	};
 
 	struct RenderedGlyphData {
-		Vector3 position;
-		float _pad1;
-		Vector4 color;
+		Vector2 position;
 		Vector2 size;
+		Vector4 color;
 		Vector2 uvPosition;
 		Vector2 uvSize;
 		float cosSinRotation[2];
+		float _pad[2];
 	};
 
 	struct FontAtlasIdentifier {
@@ -68,6 +68,7 @@ namespace vanadium::ui::shapes {
 		robin_hood::unordered_map<uint32_t, GlyphAtlasCoords> fontAtlasPositions;
 		std::vector<ShapeGlyphData> shapeGlyphData;
 		std::vector<RenderedGlyphData> glyphData;
+		std::vector<RenderedLayer> layers;
 		Vector2 atlasSize;
 		uint32_t maxGlyphHeight;
 
@@ -96,13 +97,19 @@ namespace vanadium::ui::shapes {
 
 		void addShape(Shape* shape) override;
 		void removeShape(Shape* shape) override;
-		void renderShapes(VkCommandBuffer commandBuffers, uint32_t frameIndex,
+		void prepareFrame(uint32_t frameIndex) override;
+		void renderShapes(VkCommandBuffer commandBuffers, uint32_t frameIndex, uint32_t layerIndex,
 						  const graphics::RenderPassSignature& uiRenderPassSignature) override;
-		void destroy(const graphics::RenderPassSignature&);
+		void destroy(const graphics::RenderPassSignature&) override;
 
 		void determineLineBreaksAndDimensions(TextShape* shape);
 
 	  private:
+		struct PushConstantData {
+			Vector2 targetDimensions;
+			uint32_t instanceOffset;
+		};
+
 		void regenerateFontAtlas(const FontAtlasIdentifier& identifier, uint32_t frameIndex);
 		void regenerateGlyphData(const FontAtlasIdentifier& identifier, uint32_t frameIndex);
 		void updateAtlasDescriptors(const FontAtlasIdentifier& identifier, uint32_t frameIndex);
@@ -125,7 +132,7 @@ namespace vanadium::ui::shapes {
 	  public:
 		using ShapeRegistry = TextShapeRegistry;
 
-		TextShape(const Vector3& position, float maxWidth, float rotation, const std::string_view& text, float fontSize,
+		TextShape(const Vector2& position, uint32_t layerIndex, float maxWidth, float rotation, const std::string_view& text, float fontSize,
 				  uint32_t fontID, const Vector4& color);
 		~TextShape();
 

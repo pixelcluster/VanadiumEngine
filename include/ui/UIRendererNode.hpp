@@ -47,7 +47,6 @@ namespace vanadium::ui {
 		UISubsystem* m_subsystem;
 		VkRenderPass m_uiRenderPass;
 
-		graphics::FramegraphImageHandle m_depthBufferHandle;
 		graphics::ImageResourceViewInfo m_attachmentResourceViewInfo;
 		std::vector<VkFramebuffer> m_imageFramebuffers;
 

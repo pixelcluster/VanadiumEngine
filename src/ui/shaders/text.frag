@@ -9,6 +9,4 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
     outColor = vec4(texture(fontAtlasSampler, uvPos).r * color);
-    if(outColor.a < 0.5)
-        discard;
 }

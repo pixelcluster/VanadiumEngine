@@ -1,9 +1,9 @@
 #version 460 core
 
 struct RectData {
-    vec3 position;
-    vec4 color;
+    vec2 position;
     vec2 size;
+    vec4 color;
     vec2 uvOffset;
     vec2 uvSize;
     vec2 cosSinRotation;
@@ -26,13 +26,14 @@ const uint indices[] = {
 
 layout(push_constant) uniform PushConstantData {
     vec2 targetDimensions;
+    uint instanceOffset;
 };
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec2 uvPos;
 
 void main() {
-    uint instanceIndex = uint(floor(gl_VertexIndex / 6.0f));
+    uint instanceIndex = uint(floor(gl_VertexIndex / 6.0f)) + instanceOffset;
 
     vec2 pos = positions[indices[gl_VertexIndex % 6]];
     uvPos = pos * data[instanceIndex].uvSize + data[instanceIndex].uvOffset;
@@ -42,7 +43,7 @@ void main() {
 
     pos = rotation * (pos * data[instanceIndex].size);
 
-    gl_Position = vec4(pos / targetDimensions + data[instanceIndex].position.xy / targetDimensions, data[instanceIndex].position.z, 1.0f);
+    gl_Position = vec4(pos / targetDimensions + data[instanceIndex].position.xy / targetDimensions, 0.5f, 1.0f);
     gl_Position *= 2.0f;
     gl_Position -= 1.0f;
     

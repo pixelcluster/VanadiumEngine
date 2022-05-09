@@ -10,7 +10,10 @@ namespace vanadium::ui {
 
 		size_t bigSize;
 		void* data = readFile(libraryFileName.data(), &bigSize);
-		assertFatal(data, "FontLibrary: Couldn't open font library file!\n");
+		if(!data) {
+			logWarning("FontLibrary: Couldn't open font library file, no fonts will be used!\n");
+			return;
+		}
 
 		uint32_t size = bigSize;
 		uint32_t offset = 0;
