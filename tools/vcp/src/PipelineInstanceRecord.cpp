@@ -3,6 +3,7 @@
 #include <PipelineInstanceRecord.hpp>
 #include <cfloat>
 #include <iostream>
+#include <algorithm>
 
 PipelineInstanceRecord::PipelineInstanceRecord(PipelineType type, const std::string_view& srcPath,
 											   const Json::Value& instanceNode)

@@ -14,6 +14,7 @@ namespace vanadium::ui {
 	  public:
 		virtual ~Shape() {}
 
+		//Position in pixels. Origin (0, 0) is the upper left corner.
 		Vector2 position() const { return m_position; }
 		void setPosition(const Vector2& position);
 		float rotation() const { return m_rotation; }
@@ -28,10 +29,9 @@ namespace vanadium::ui {
 
 	  protected:
 		Shape(const std::string_view& typeName, uint32_t layerIndex, const Vector2& relativePos, float rotation);
-
+		bool m_dirtyFlag = true;
 	  private:
 		size_t m_typenameHash;
-		bool m_dirtyFlag = true;
 
 		Vector2 m_position;
 		float m_rotation;

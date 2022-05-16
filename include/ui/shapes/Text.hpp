@@ -92,7 +92,7 @@ namespace vanadium::ui::shapes {
 	class TextShapeRegistry : public ShapeRegistry {
 	  public:
 		TextShapeRegistry(UISubsystem* subsystem, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
-						  const graphics::RenderPassSignature& uiRenderPassSignature);
+						  const graphics::RenderPassSignature& uiRenderPassSignature, const std::string_view pipelineName = "UI Text");
 		~TextShapeRegistry() {}
 
 		void addShape(Shape* shape) override;

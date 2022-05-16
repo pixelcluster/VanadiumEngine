@@ -54,8 +54,8 @@ namespace vanadium::ui::shapes {
 
 		const Vector2& size() const { return m_size; }
 		const Vector4& color() const { return m_color; }
-		Vector2& size() { return m_size; }
-		Vector4& color() { return m_color; }
+		void setSize(const Vector2& size);
+		void setColor(const Vector4& color);
 
 		static size_t vertexDataSize() { return sizeof(m_vertexData); };
 		static size_t indexDataSize() { return sizeof(m_indexData); }

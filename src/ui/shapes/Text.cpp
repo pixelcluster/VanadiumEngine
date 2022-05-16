@@ -10,8 +10,8 @@ namespace vanadium::ui::shapes {
 
 	TextShapeRegistry::TextShapeRegistry(UISubsystem* subsystem, const graphics::RenderContext& context,
 										 VkRenderPass uiRenderPass,
-										 const graphics::RenderPassSignature& uiRenderPassSignature) {
-		m_textPipelineID = context.pipelineLibrary->findGraphicsPipeline("UI Text");
+										 const graphics::RenderPassSignature& uiRenderPassSignature, const std::string_view pipelineName) {
+		m_textPipelineID = context.pipelineLibrary->findGraphicsPipeline(pipelineName);
 
 		graphics::DescriptorSetLayoutInfo textLayoutInfo =
 			context.pipelineLibrary->graphicsPipelineSet(m_textPipelineID, 0);

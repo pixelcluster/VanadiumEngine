@@ -4,6 +4,7 @@
 #include <helper/WholeFileReader.hpp>
 #include <iostream>
 #include <optional>
+#include <algorithm>
 
 // returns true if [offset1;size1] is inside [offset2;size2]
 bool isFullyInRange(uint32_t offset1, uint32_t size1, uint32_t offset2, uint32_t size2) {

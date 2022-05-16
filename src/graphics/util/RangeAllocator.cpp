@@ -1,5 +1,6 @@
 #include <Log.hpp>
 #include <graphics/util/RangeAllocator.hpp>
+#include <algorithm>
 
 namespace vanadium::graphics {
 	VkDeviceSize roundUpAligned(VkDeviceSize n, VkDeviceSize alignment) { return n + alignmentMargin(n, alignment); }

@@ -78,4 +78,14 @@ namespace vanadium::ui::shapes {
 		m_dataManager.destroy(m_context);
 	}
 
+	void FilledRectShape::setSize(const Vector2& size) {
+		m_size = size;
+		m_dirtyFlag = true;
+	}
+
+	void FilledRectShape::setColor(const Vector4& color) {
+		m_color = color;
+		m_dirtyFlag = true;
+	}
+
 } // namespace vanadium::ui::shapes
