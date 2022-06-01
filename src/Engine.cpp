@@ -7,8 +7,7 @@ namespace vanadium {
 		: m_startupFlags(config.startupFlags()), m_windowInterface(config.settingsOverrides(), config.appName().data()),
 		  m_graphicsSubsystem(config.appName(), config.pipelineLibraryFileName(), config.appVersion(),
 							  m_windowInterface),
-		  m_uiSubsystem(m_graphicsSubsystem.context(), m_windowInterface.contentScaleDPIX(),
-						m_windowInterface.contentScaleDPIY(), config.fontLibraryFileName(),
+		  m_uiSubsystem(&m_windowInterface, m_graphicsSubsystem.context(), config.fontLibraryFileName(),
 						config.startupFlags() & static_cast<uint32_t>(EngineStartupFlag::UIOnly), Vector4(1.0f)) {
 		m_userPointer = config.userPointer();
 		for (auto& node : config.customFramegraphNodes()) {
@@ -18,7 +17,8 @@ namespace vanadium {
 	}
 
 	Engine::~Engine() {
-		//Since any subsystem might register child nodes that depend on subsystem structures, the framegraph must be destroyed first
+		// Since any subsystem might register child nodes that depend on subsystem structures, the framegraph must be
+		// destroyed first
 		m_graphicsSubsystem.destroyFramegraph();
 	}
 

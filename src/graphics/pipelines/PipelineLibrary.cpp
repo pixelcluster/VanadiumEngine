@@ -59,11 +59,11 @@ namespace vanadium::graphics {
 
 		m_fileSize = 5;
 		m_buffer = readFile(libraryFileName.data(), &m_fileSize);
-		assertFatal(m_fileSize > 0, "PipelineLibrary: Could not open pipeline file!\n");
+		assertFatal(m_fileSize > 0, "PipelineLibrary: Could not open pipeline file!");
 		uint64_t headerReadOffset = 0;
 		uint32_t version = readBuffer<uint32_t>(headerReadOffset);
 
-		assertFatal(version == pipelineFileVersion, "PipelineLibrary: Invalid pipeline file version!\n");
+		assertFatal(version == pipelineFileVersion, "PipelineLibrary: Invalid pipeline file version!");
 
 		uint32_t pipelineCount = readBuffer<uint32_t>(headerReadOffset);
 		uint32_t setLayoutCount = readBuffer<uint32_t>(headerReadOffset);
@@ -185,7 +185,7 @@ namespace vanadium::graphics {
 		for (uint32_t i = 0; i < shaderCount; ++i) {
 			VkShaderStageFlagBits stageFlags = readBuffer<VkShaderStageFlagBits>(bufferOffset);
 			uint32_t shaderSize = readBuffer<uint32_t>(bufferOffset);
-			assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
+			assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
 			VkShaderModuleCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 													.codeSize = shaderSize,
 													.pCode = reinterpret_cast<uint32_t*>(
@@ -252,7 +252,7 @@ namespace vanadium::graphics {
 
 			uint32_t nameSize = readBuffer<uint32_t>(offset);
 			std::string name = std::string(nameSize, ' ');
-			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
+			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
 			std::memcpy(name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset), nameSize);
 			offset += nameSize;
 
@@ -372,7 +372,7 @@ namespace vanadium::graphics {
 															   .size = readBuffer<uint32_t>(offset) });
 				}
 				uint32_t specializationDataSize = readBuffer<uint32_t>(offset);
-				assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!\n");
+				assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!");
 				stageSpecialization.specializationData = new char[specializationDataSize];
 				std::memcpy(stageSpecialization.specializationData,
 							reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
@@ -429,9 +429,9 @@ namespace vanadium::graphics {
 		uint32_t shaderCount = readBuffer<uint32_t>(bufferOffset);
 
 		VkShaderStageFlagBits stage = readBuffer<VkShaderStageFlagBits>(bufferOffset);
-		assertFatal(stage == VK_SHADER_STAGE_COMPUTE_BIT, "PipelineLibrary: Invalid pipeline library file!\n");
+		assertFatal(stage == VK_SHADER_STAGE_COMPUTE_BIT, "PipelineLibrary: Invalid pipeline library file!");
 		uint32_t shaderSize = readBuffer<uint32_t>(bufferOffset);
-		assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
+		assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
 		VkShaderModuleCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 												.codeSize = shaderSize,
 												.pCode = reinterpret_cast<uint32_t*>(
@@ -500,7 +500,7 @@ namespace vanadium::graphics {
 
 			uint32_t nameSize = readBuffer<uint32_t>(offset);
 			instance.name = std::string(nameSize, ' ');
-			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
+			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
 			std::memcpy(instance.name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
 						nameSize);
 			offset += nameSize;
@@ -508,7 +508,7 @@ namespace vanadium::graphics {
 			uint32_t specializationStageCount = readBuffer<uint32_t>(offset);
 			for (uint32_t i = 0; i < specializationStageCount; ++i) {
 				assertFatal(readBuffer<VkShaderStageFlagBits>(offset) == VK_SHADER_STAGE_COMPUTE_BIT,
-							"PipelineLibrary: Invalid pipeline library file!\n");
+							"PipelineLibrary: Invalid pipeline library file!");
 				uint32_t specializationMapEntryCount = readBuffer<uint32_t>(offset);
 				mapEntries.reserve(specializationMapEntryCount);
 				for (uint32_t i = 0; i < specializationMapEntryCount; ++i) {
@@ -517,7 +517,7 @@ namespace vanadium::graphics {
 										   .size = readBuffer<uint32_t>(offset) });
 				}
 				uint32_t specializationDataSize = readBuffer<uint32_t>(offset);
-				assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!\n");
+				assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!");
 				specializationData = new char[specializationDataSize];
 				std::memcpy(specializationData, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
 							specializationDataSize);

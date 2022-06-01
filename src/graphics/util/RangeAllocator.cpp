@@ -108,13 +108,13 @@ namespace vanadium::graphics {
 				area.size += nextArea.size;
 				auto areaIterator = std::find_if(gapsSizeSorted.begin(), gapsSizeSorted.end(),
 												 [area](const auto& gap) { return area.offset == gap.offset; });
-				assertFatal(areaIterator != gapsSizeSorted.end(), "RangeAllocator inconsistency!\n");
+				assertFatal(areaIterator != gapsSizeSorted.end(), "RangeAllocator inconsistency!");
 				areaIterator->size += nextArea.size;
 
 				auto nextAreaIterator =
 					std::find_if(gapsSizeSorted.begin(), gapsSizeSorted.end(),
 								 [nextArea](const auto& gap) { return nextArea.offset == gap.offset; });
-				assertFatal(nextAreaIterator != gapsSizeSorted.end(), "RangeAllocator inconsistency!\n");
+				assertFatal(nextAreaIterator != gapsSizeSorted.end(), "RangeAllocator inconsistency!");
 				gapsOffsetSorted.erase(gapsOffsetSorted.begin() + i + 1);
 				gapsSizeSorted.erase(nextAreaIterator);
 

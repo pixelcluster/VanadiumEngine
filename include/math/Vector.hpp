@@ -15,10 +15,10 @@ namespace vanadium {
 
 		constexpr bool operator==(const Vector<2, T>& other) const { return x == other.x && y == other.y; }
 		constexpr bool operator!=(const Vector<2, T>& other) const { return !(*this == other); }
-		constexpr Vector<2, T> operator+(const Vector<2, T>& other) { return Vector<2, T>(x + other.x, y + other.y); }
-		constexpr Vector<2, T> operator-(const Vector<2, T>& other) { return Vector<2, T>(x - other.x, y - other.y); }
-		constexpr Vector<2, T> operator*(const Vector<2, T>& other) { return Vector<2, T>(x * other.x, y * other.y); }
-		constexpr Vector<2, T> operator/(const Vector<2, T>& other) { return Vector<2, T>(x / other.x, y / other.y); }
+		constexpr Vector<2, T> operator+(const Vector<2, T>& other) const { return Vector<2, T>(x + other.x, y + other.y); }
+		constexpr Vector<2, T> operator-(const Vector<2, T>& other) const { return Vector<2, T>(x - other.x, y - other.y); }
+		constexpr Vector<2, T> operator*(const Vector<2, T>& other) const { return Vector<2, T>(x * other.x, y * other.y); }
+		constexpr Vector<2, T> operator/(const Vector<2, T>& other) const { return Vector<2, T>(x / other.x, y / other.y); }
 		constexpr float operator[](uint32_t index) const {
 			float result;
 			switch (index) {
@@ -35,7 +35,7 @@ namespace vanadium {
 			return result;
 		}
 		float& operator[](uint32_t index) {
-			assertFatal(index < 2, "OOB vector access!\n");
+			assertFatal(index < 2, "OOB vector access!");
 			switch (index) {
 				case 0:
 					return x;
@@ -71,16 +71,16 @@ namespace vanadium {
 			return x == other.x && y == other.y && z == other.z;
 		}
 		constexpr bool operator!=(const Vector<3, T>& other) const { return !(*this == other); }
-		constexpr Vector<3, T> operator+(const Vector<3, T>& other) {
+		constexpr Vector<3, T> operator+(const Vector<3, T>& other) const {
 			return Vector<3, T>(x + other.x, y + other.y, z + other.z);
 		}
-		constexpr Vector<3, T> operator-(const Vector<3, T>& other) {
+		constexpr Vector<3, T> operator-(const Vector<3, T>& other) const {
 			return Vector<3, T>(x - other.x, y - other.y, z - other.z);
 		}
-		constexpr Vector<3, T> operator*(const Vector<3, T>& other) {
+		constexpr Vector<3, T> operator*(const Vector<3, T>& other) const {
 			return Vector<3, T>(x * other.x, y * other.y, z * other.z);
 		}
-		constexpr Vector<3, T> operator/(const Vector<3, T>& other) {
+		constexpr Vector<3, T> operator/(const Vector<3, T>& other) const {
 			return Vector<3, T>(x / other.x, y / other.y, z / other.z);
 		}
 		constexpr float operator[](uint32_t index) const {
@@ -102,7 +102,7 @@ namespace vanadium {
 			return result;
 		}
 		float& operator[](uint32_t index) {
-			assertFatal(index < 3, "OOB vector access!\n");
+			assertFatal(index < 3, "OOB vector access!");
 			switch (index) {
 				case 0:
 					return x;
@@ -147,16 +147,16 @@ namespace vanadium {
 			return x == other.x && y == other.y && z == other.z && w == other.w;
 		}
 		constexpr bool operator!=(const Vector<4, T>& other) const { return !(*this == other); }
-		constexpr Vector<4, T> operator+(const Vector<4, T>& other) {
+		constexpr Vector<4, T> operator+(const Vector<4, T>& other) const {
 			return Vector<4, T>(x + other.x, y + other.y, z + other.z, w + other.w);
 		}
-		constexpr Vector<4, T> operator-(const Vector<4, T>& other) {
+		constexpr Vector<4, T> operator-(const Vector<4, T>& other) const {
 			return Vector<4, T>(x - other.x, y - other.y, z - other.z, w - other.w);
 		}
-		constexpr Vector<4, T> operator*(const Vector<4, T>& other) {
+		constexpr Vector<4, T> operator*(const Vector<4, T>& other) const {
 			return Vector<4, T>(x * other.x, y * other.y, z * other.z, w * other.w);
 		}
-		constexpr Vector<4, T> operator/(const Vector<4, T>& other) {
+		constexpr Vector<4, T> operator/(const Vector<4, T>& other) const {
 			return Vector<4, T>(x / other.x, y / other.y, z / other.z, w / other.w);
 		}
 		constexpr float operator[](uint32_t index) const {
@@ -181,7 +181,7 @@ namespace vanadium {
 			return result;
 		}
 		float& operator[](uint32_t index) {
-			assertFatal(index < 4, "OOB vector access!\n");
+			assertFatal(index < 4, "OOB vector access!");
 			switch (index) {
 				case 0:
 					return x;

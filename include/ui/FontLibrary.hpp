@@ -28,7 +28,7 @@ namespace vanadium::ui {
 
 	  private:
 		uint32_t readCount(void* data, uint32_t size, uint32_t& offset) {
-			assertFatal(offset + sizeof(uint32_t) <= size, "FontLibrary: Out-of-bounds read!\n");
+			assertFatal(offset + sizeof(uint32_t) <= size, "FontLibrary: Out-of-bounds read!");
 			uint32_t value;
 			std::memcpy(&value, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(data) + offset), sizeof(uint32_t));
 			offset += sizeof(uint32_t);
@@ -37,7 +37,7 @@ namespace vanadium::ui {
 		std::string readString(void* data, uint32_t size, uint32_t& offset) {
 			uint32_t stringOffset = readCount(data, size, offset);
 			uint32_t stringSize = readCount(data, size, offset);
-			assertFatal(stringOffset + stringSize <= size, "FontLibrary: Out-of-bounds read!\n");
+			assertFatal(stringOffset + stringSize <= size, "FontLibrary: Out-of-bounds read!");
 			std::string string = std::string(stringSize, ' ');
 			std::memcpy(string.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(data) + stringOffset),
 						stringSize * sizeof(char));

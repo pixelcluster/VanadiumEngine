@@ -3,7 +3,7 @@
     "custom-font-paths": [],
     "fonts": [
         {
-            "primary-name": "Liberation Sans",
+            "primary-name": "Liberation Sans Regular",
             "fallback-names": [
                 "Arial"
             ]

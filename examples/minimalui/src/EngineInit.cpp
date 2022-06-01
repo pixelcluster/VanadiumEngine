@@ -31,7 +31,7 @@ void init(vanadium::Engine& engine) {
 	}
 
 	engine.uiSubsystem().addShape<vanadium::ui::shapes::DropShadowRectShape>(vanadium::Vector2(200, 200), 2, vanadium::Vector2(300.0f, 180.0f), 0.0f,
-				vanadium::Vector2(0.15), 0.65);
+				vanadium::Vector2(0.15), 0.65 );
 
 	textShape = engine.uiSubsystem().addShape<vanadium::ui::shapes::TextShape>(
 		vanadium::Vector2(300, 300), 1, 640.0f, 0.0f, "spin f  a  s  t", 48.0f, 0,
@@ -40,7 +40,7 @@ void init(vanadium::Engine& engine) {
 		vanadium::Vector2(400, 300), 2, 640.0f, 0.0f, "bingus", 48.0f, 0,
 		vanadium::Vector4(0.0f, 1.0f, 0.0f, 1.0f));
 	engine.uiSubsystem().addShape<vanadium::ui::shapes::TextShape>(
-		vanadium::Vector2(350, 300), 2, 640.0f, 0.0f, "aaaaaaaa aaaa", 48.0f, 0,
+		vanadium::Vector2(350, 300), 2, 640.0f, 0.0f, "aaaaaaaa aaaa aa a a  a a a a a a ", 48.0f, 0,
 		vanadium::Vector4(1.0f, 0.0f, 0.0f, 1.0f));
 }
 

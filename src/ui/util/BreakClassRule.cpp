@@ -130,7 +130,7 @@ namespace vanadium::ui {
 				}
 			}
 			if (parser.currentState == ParserState::Error) {
-				logError("Syntax error parsing rule %s\n", rule);
+				logError("Syntax error parsing rule {}", rule);
 				return {};
 			}
 		}
@@ -145,7 +145,7 @@ namespace vanadium::ui {
 							case '*':
 								if (result.tokens.back().modifier.quantifier.minCount != 1U ||
 									result.tokens.back().modifier.quantifier.maxCount != 1U) {
-									logError("Error parsing rule %s: More than one quantifier per token!\n", rule);
+									logError("Error parsing rule {}: More than one quantifier per token!", rule);
 									return {};
 								}
 								result.tokens.back().modifier.quantifier.minCount = 0;
@@ -154,7 +154,7 @@ namespace vanadium::ui {
 							case '?':
 								if (result.tokens.back().modifier.quantifier.minCount != 1U ||
 									result.tokens.back().modifier.quantifier.maxCount != 1U) {
-									logError("Error parsing rule %s: More than one quantifier per token!\n", rule);
+									logError("Error parsing rule {}: More than one quantifier per token!", rule);
 									return {};
 								}
 								result.tokens.back().modifier.quantifier.minCount = 0;

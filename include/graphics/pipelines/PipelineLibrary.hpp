@@ -143,7 +143,7 @@ namespace vanadium::graphics {
 	};
 
 	template <typename T> T PipelineLibrary::readBuffer(uint64_t& currentOffset) {
-		assertFatal(currentOffset + sizeof(T) <= m_fileSize, "PipelineLibrary: Invalid pipeline library file!\n");
+		assertFatal(currentOffset + sizeof(T) <= m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
 		T value;
 		std::memcpy(&value, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + currentOffset), sizeof(T));
 		currentOffset += sizeof(T);

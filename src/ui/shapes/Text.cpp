@@ -378,8 +378,8 @@ namespace vanadium::ui::shapes {
 
 			m_fontAtlases[identifier].glyphData.push_back(
 				{ .position = Vector2(basePosition.x + rotatedOffset.x, basePosition.y + rotatedOffset.y),
-				  .color = data.referencedShape->color(),
 				  .size = data.size,
+				  .color = data.referencedShape->color(),
 				  .uvPosition = m_fontAtlases[identifier].fontAtlasPositions[data.glyphIndex].position /
 								m_fontAtlases[identifier].atlasSize,
 				  .uvSize = m_fontAtlases[identifier].fontAtlasPositions[data.glyphIndex].size /

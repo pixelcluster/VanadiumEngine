@@ -1,12 +1,14 @@
 #pragma once
 
+#include <ui/Control.hpp>
 #include <ui/FontLibrary.hpp>
 #include <ui/UIRendererNode.hpp>
+#include <windowing/WindowInterface.hpp>
 
 namespace vanadium::ui {
 	class UISubsystem {
 	  public:
-		UISubsystem(const graphics::RenderContext& context, uint32_t monitorDPIX, uint32_t monitorDPIY,
+		UISubsystem(windowing::WindowInterface* windowInterface, const graphics::RenderContext& context,
 					const std::string_view& fontLibraryFile, bool clearBackground, const Vector4& clearValue);
 
 		template <RenderableShape T, typename... Args>
@@ -19,16 +21,28 @@ namespace vanadium::ui {
 
 		FontLibrary& fontLibrary() { return m_fontLibrary; }
 
-		uint32_t monitorDPIX() const { return m_monitorDPIX; }
-		uint32_t monitorDPIY() const { return m_monitorDPIY; }
+		uint32_t monitorDPIX() const { return m_windowInterface->contentScaleDPIX(); }
+		uint32_t monitorDPIY() const { return m_windowInterface->contentScaleDPIY(); }
+
+		void acquireInputFocus(Control* newInputFocusControl, windowing::KeyModifierFlags modifierMask,
+							   windowing::KeyStateFlags stateMask);
+		void releaseInputFocus();
+
+		void invokeMouseHover(const Vector2& mousePos);
+		void invokeMouseButton(const Vector2& mousePos, uint32_t buttonID);
+		void invokeKey(uint32_t keyID, windowing::KeyModifierFlags modifierFlags, windowing::KeyStateFlags stateFlags);
+		void invokeCharacter(uint32_t codepoint);
 
 	  private:
-		uint32_t m_monitorDPIX;
-		uint32_t m_monitorDPIY;
+		windowing::WindowInterface* m_windowInterface;
 
 		UIRendererNode* m_rendererNode;
 		FontLibrary m_fontLibrary;
-		windowing::WindowInterface* m_windowInterface;
+		Control m_rootControl;
+
+		Control* m_inputFocusControl;
+		windowing::KeyModifierFlags m_inputFocusModifierMask;
+		windowing::KeyStateFlags m_inputFocusStateMask;
 	};
 
 } // namespace vanadium::ui

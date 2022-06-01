@@ -10,6 +10,8 @@
 
 #include <math/Vector.hpp>
 
+#include <helper/HashCombine.hpp>
+
 namespace vanadium::windowing {
 
 	constexpr uint32_t platformDefaultDPI = 72;
@@ -114,6 +116,24 @@ namespace vanadium::windowing {
 		KeyEventCallback eventCallback;
 		ListenerDestroyCallback listenerDestroyCallback;
 		void* userData;
+
+		bool operator==(const KeyListenerParams& other) const {
+			return eventCallback == other.eventCallback && listenerDestroyCallback == other.listenerDestroyCallback &&
+				   userData == other.userData;
+		}
+	};
+
+
+	using CharacterEventCallback = void (*)(uint32_t keyCode, void* userData);
+	struct CharacterListenerParams {
+		CharacterEventCallback eventCallback;
+		ListenerDestroyCallback listenerDestroyCallback;
+		void* userData;
+
+		bool operator==(const CharacterListenerParams& other) const {
+			return eventCallback == other.eventCallback && listenerDestroyCallback == other.listenerDestroyCallback &&
+				   userData == other.userData;
+		}
 	};
 
 	struct KeyListenerData {
@@ -145,8 +165,8 @@ namespace vanadium::windowing {
 namespace robin_hood {
 	template <> struct hash<vanadium::windowing::KeyListenerData> {
 		size_t operator()(const vanadium::windowing::KeyListenerData& data) const {
-			return hash<uint32_t>()(data.keyCode) ^
-				   hash<uint32_t>()(data.modifierMask) * hash<vanadium::windowing::KeyStateFlags>()(data.keyStateMask);
+			return hashCombine(hash<uint32_t>()(data.keyCode), hash<uint32_t>()(data.modifierMask),
+							   hash<vanadium::windowing::KeyStateFlags>()(data.keyStateMask));
 		}
 	};
 } // namespace robin_hood
@@ -168,17 +188,23 @@ namespace vanadium::windowing {
 
 		void addKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
 							const KeyListenerParams& params);
-		void removeKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask);
+		void removeKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+							   const KeyListenerParams& params);
 
 		void addMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
 								 const KeyListenerParams& params);
-		void removeMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask);
+		void removeMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+									const KeyListenerParams& params);
+
+		void addCharacterListener(uint32_t keyCode, const CharacterListenerParams& params);
+		void removeCharacterListener(uint32_t keyCode, const CharacterListenerParams& params);
 
 		void addSizeListener(const SizeListenerParams& params);
 		void removeSizeListener(const SizeListenerParams& params);
 
 		void invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state);
 		void invokeMouseKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state);
+		void invokeCharacterListeners(uint32_t keyCode);
 		void invokeSizeListeners(uint32_t newWidth, uint32_t newHeight);
 
 		Vector2 mousePos() const;
@@ -204,8 +230,9 @@ namespace vanadium::windowing {
 		uint32_t m_contentScaleDPIX;
 		uint32_t m_contentScaleDPIY;
 
-		robin_hood::unordered_flat_map<KeyListenerData, KeyListenerParams> m_keyListeners;
-		robin_hood::unordered_flat_map<KeyListenerData, KeyListenerParams> m_mouseKeyListeners;
+		robin_hood::unordered_map<KeyListenerData, std::vector<KeyListenerParams>> m_keyListeners;
+		robin_hood::unordered_map<KeyListenerData, std::vector<KeyListenerParams>> m_mouseKeyListeners;
+		robin_hood::unordered_map<uint32_t, std::vector<CharacterListenerParams>> m_characterListeners;
 		std::vector<SizeListenerParams> m_sizeListeners;
 
 		static uint32_t m_glfwWindowCount;

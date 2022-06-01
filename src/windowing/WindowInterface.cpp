@@ -55,7 +55,7 @@ namespace vanadium::windowing {
 		interface->invokeSizeListeners(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 	}
 
-	void errorCallback(int code, const char* desc) { logError("GLFW Error: %s%s", desc, "\n"); }
+	void errorCallback(int code, const char* desc) { logError("GLFW Error: {}", desc); }
 
 	WindowInterface::WindowInterface(const std::optional<WindowingSettingOverride>& override, const char* name) {
 		WindowingSettingOverride value =
@@ -66,7 +66,7 @@ namespace vanadium::windowing {
 		glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
 		if (!glfwInit()) {
 			glfwInitHint(GLFW_PLATFORM, GLFW_ANY_PLATFORM);
-			assertFatal(glfwInit(), "GLFW initialization failed!\n");
+			assertFatal(glfwInit(), "GLFW initialization failed!");
 		}
 
 		GLFWmonitor* monitor = value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
@@ -90,14 +90,16 @@ namespace vanadium::windowing {
 		m_contentScaleDPIX = platformDefaultDPI * contentScaleX;
 		m_contentScaleDPIY = platformDefaultDPI * contentScaleY;
 
-		assertFatal(m_window, "Couldn't create window!\n");
+		assertFatal(m_window, "Couldn't create window!");
 
 		++m_glfwWindowCount;
 	}
 
 	WindowInterface::~WindowInterface() {
-		for (auto& listener : m_keyListeners) {
-			listener.second.listenerDestroyCallback(listener.second.userData);
+		for (auto [key, listenerGroup] : m_keyListeners) {
+			for (auto& listener : listenerGroup) {
+				listener.listenerDestroyCallback(listener.userData);
+			}
 		}
 		for (auto& listener : m_sizeListeners) {
 			listener.listenerDestroyCallback(listener.userData);
@@ -124,30 +126,51 @@ namespace vanadium::windowing {
 
 	void WindowInterface::addKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
 										 const KeyListenerParams& params) {
-		m_keyListeners.insert(
-			{ KeyListenerData{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask }, params });
+		m_keyListeners[{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask }].push_back(
+			params);
 	}
 
-	void WindowInterface::removeKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask) {
+	void WindowInterface::removeKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+											const KeyListenerParams& params) {
 		auto iterator = m_keyListeners.find(
 			KeyListenerData{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask });
 		if (iterator != m_keyListeners.end()) {
-			m_keyListeners.erase(iterator);
+			auto groupIterator = std::find(iterator->second.begin(), iterator->second.end(), params);
+			if (groupIterator != iterator->second.end()) {
+				iterator->second.erase(groupIterator);
+			}
 		}
 	}
 
 	void WindowInterface::addMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
 											  const KeyListenerParams& params) {
-		m_mouseKeyListeners.insert(
-			{ KeyListenerData{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask }, params });
+		m_mouseKeyListeners[{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask }].push_back(
+			params);
 	}
 
 	void WindowInterface::removeMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask,
-												 KeyStateFlags stateMask) {
+												 KeyStateFlags stateMask, const KeyListenerParams& params) {
 		auto iterator = m_mouseKeyListeners.find(
 			KeyListenerData{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask });
 		if (iterator != m_mouseKeyListeners.end()) {
-			m_mouseKeyListeners.erase(iterator);
+			auto groupIterator = std::find(iterator->second.begin(), iterator->second.end(), params);
+			if (groupIterator != iterator->second.end()) {
+				iterator->second.erase(groupIterator);
+			}
+		}
+	}
+
+	void WindowInterface::addCharacterListener(uint32_t keyCode, const CharacterListenerParams& params) {
+		m_characterListeners[keyCode].push_back(params);
+	}
+
+	void WindowInterface::removeCharacterListener(uint32_t keyCode, const CharacterListenerParams& params) {
+		auto iterator = m_characterListeners.find(keyCode);
+		if (iterator != m_characterListeners.end()) {
+			auto groupIterator = std::find(iterator->second.begin(), iterator->second.end(), params);
+			if (groupIterator != iterator->second.end()) {
+				iterator->second.erase(groupIterator);
+			}
 		}
 	}
 
@@ -161,21 +184,31 @@ namespace vanadium::windowing {
 	}
 
 	void WindowInterface::invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state) {
-		for (auto& listener : m_keyListeners) {
-			if (listener.first.keyCode == keyCode &&
-				((listener.first.modifierMask & modifiers) || listener.first.modifierMask == 0) &&
-				((listener.first.keyStateMask & state) || listener.first.keyStateMask == 0)) {
-				listener.second.eventCallback(keyCode, modifiers, state, listener.second.userData);
+		for (auto [key, listenerGroup] : m_keyListeners) {
+			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) || key.modifierMask == 0) &&
+				((key.keyStateMask & state) || key.keyStateMask == 0)) {
+				for (auto& listener : listenerGroup) {
+					listener.eventCallback(keyCode, modifiers, state, listener.userData);
+				}
 			}
 		}
 	}
 
 	void WindowInterface::invokeMouseKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state) {
-		for (auto& listener : m_mouseKeyListeners) {
-			if (listener.first.keyCode == keyCode &&
-				((listener.first.modifierMask & modifiers) || listener.first.modifierMask == 0) &&
-				((listener.first.keyStateMask & state) || listener.first.keyStateMask == 0)) {
-				listener.second.eventCallback(keyCode, modifiers, state, listener.second.userData);
+		for (auto [key, listenerGroup] : m_keyListeners) {
+			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) || key.modifierMask == 0) &&
+				((key.keyStateMask & state) || key.keyStateMask == 0)) {
+				for (auto& listener : listenerGroup) {
+					listener.eventCallback(keyCode, modifiers, state, listener.userData);
+				}
+			}
+		}
+	}
+
+	void WindowInterface::invokeCharacterListeners(uint32_t keyCode) {
+		for (auto [key, listenerGroup] : m_characterListeners) {
+			for (auto& listener : listenerGroup) {
+				listener.eventCallback(keyCode, listener.userData);
 			}
 		}
 	}

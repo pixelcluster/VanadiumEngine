@@ -1,34 +1,40 @@
 #pragma once
 #include <Debug.hpp>
-#include <cstdio>
-#include <cstdlib>
+#include <fmt/core.h>
 
 namespace vanadium {
 	template <typename... Ts> void logInfo(const char* message, Ts... values) {
 		if constexpr (vanadiumDebug) {
-			fprintf(stdout, message, values...);
+			fmt::print(fmt::runtime(message), values...);
+			fmt::print("\n");
 		}
 	}
 
 	template <typename... Ts> void logWarning(const char* message, Ts... values) {
-		fprintf(stdout, message, values...);
+		fmt::print(fmt::runtime(message), values...);
+		fmt::print("\n");
 	}
 
-	template <typename... Ts> void logError(const char* message, Ts... values) { fprintf(stderr, message, values...); }
+	template <typename... Ts> void logError(const char* message, Ts... values) {
+		fmt::print(stderr, fmt::runtime(message), values...);
+		fmt::print(stderr, "\n");
+	}
 
-	template <typename... Ts> void logFatal(const char* message, Ts... values) { 
-        fprintf(stderr, message, values...);
-        std::abort();
-    }
+	template <typename... Ts> void logFatal(const char* message, Ts... values) {
+		fmt::print(stderr, fmt::runtime(message), values...);
+		fmt::print(stderr, "\n");
+		std::abort();
+	}
 
-	template <typename... Ts> void logFatal(int exitCode, const char* message, Ts... values) { 
-        fprintf(stderr, message, values...);
-        std::exit(exitCode);
-    }
+	template <typename... Ts> void logFatal(int exitCode, const char* message, Ts... values) {
+		fmt::print(stderr, fmt::runtime(message), values...);
+		fmt::print(stderr, "\n");
+		std::exit(exitCode);
+	}
 
-    inline void assertFatal(bool value, const char* message) {
-        if(!value) {
-            logFatal(message);
-        }
-    }
+	inline void assertFatal(bool value, const char* message) {
+		if (!value) {
+			logFatal(message);
+		}
+	}
 } // namespace vanadium

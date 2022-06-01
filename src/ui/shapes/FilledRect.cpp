@@ -17,8 +17,8 @@ namespace vanadium::ui::shapes {
 		m_shapes.push_back(rectShape);
 		m_dataManager.addShapeData(m_context, shape->layerIndex(),
 								   { .position = rectShape->position(),
-									 .color = rectShape->color(),
 									 .size = rectShape->size(),
+									 .color = rectShape->color(),
 									 .cosSinRotation = { cosf(rectShape->rotation()), sinf(rectShape->rotation()) } });
 		m_maxLayer = std::max(m_maxLayer, shape->layerIndex());
 	}
@@ -36,8 +36,8 @@ namespace vanadium::ui::shapes {
 		for (auto& shape : m_shapes) {
 			m_dataManager.updateShapeData(shapeIndex,
 										  { .position = shape->position(),
-											.color = shape->color(),
 											.size = shape->size(),
+											.color = shape->color(),
 											.cosSinRotation = { cosf(shape->rotation()), sinf(shape->rotation()) } });
 			++shapeIndex;
 		}

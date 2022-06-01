@@ -28,3 +28,6 @@
 [submodule "dependencies/freetype"]
 	path = dependencies/freetype
 	url = https://gitlab.freedesktop.org/freetype/freetype.git
+[submodule "dependencies/fmt"]
+	path = dependencies/fmt
+	url = https://github.com/fmtlib/fmt.git

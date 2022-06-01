@@ -11,14 +11,14 @@
 
 const char* platformSurfaceExtensionName(const std::vector<VkExtensionProperties>& instanceExtensions) {
 #ifdef VK_USE_PLATFORM_WIN32_KHR
-	vanadium::logInfo("Using Win32.\n");
+	vanadium::logInfo("Using Win32.");
 	return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
 #else
 	if (glfwGetPlatform() == GLFW_PLATFORM_WAYLAND) {
-		vanadium::logInfo("Using Wayland.\n");
+		vanadium::logInfo("Using Wayland.");
 		return VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
 	}
-	vanadium::logInfo("Using X11.\n");
+	vanadium::logInfo("Using X11.");
 	if (std::find_if(instanceExtensions.begin(), instanceExtensions.end(), [](const auto& properties) {
 			return !strcmp(properties.extensionName, VK_KHR_XCB_SURFACE_EXTENSION_NAME);
 		}) != instanceExtensions.end()) {
@@ -131,7 +131,7 @@ namespace vanadium::graphics {
 				if (queueFamilyProperties[chosenTransferQueueFamilyIndex].queueFlags &
 					(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
 					logWarning(
-						"DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.\n");
+						"DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.");
 				}
 
 				chosenDevice = device;
