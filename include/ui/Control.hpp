@@ -41,6 +41,8 @@ namespace vanadium::ui {
 		UISubsystem* subsystem;
 		ControlPosition requestedPosition;
 		Vector2 requestedSize;
+
+		
 		std::vector<Shape*> shapes;
 		StylePFNRepositionShapes repositionPFN;
 		StylePFNHoverStart hoverStartPFN;
