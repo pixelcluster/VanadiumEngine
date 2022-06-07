@@ -10,7 +10,8 @@ namespace vanadium::ui::shapes {
 
 	TextShapeRegistry::TextShapeRegistry(UISubsystem* subsystem, const graphics::RenderContext& context,
 										 VkRenderPass uiRenderPass,
-										 const graphics::RenderPassSignature& uiRenderPassSignature, const std::string_view pipelineName) {
+										 const graphics::RenderPassSignature& uiRenderPassSignature,
+										 const std::string_view pipelineName) {
 		m_textPipelineID = context.pipelineLibrary->findGraphicsPipeline(pipelineName);
 
 		graphics::DescriptorSetLayoutInfo textLayoutInfo =
@@ -194,6 +195,9 @@ namespace vanadium::ui::shapes {
 		uint32_t maxGlyphHeight = 0;
 		size_t totalGlyphCount = 0;
 		hb_codepoint_t previousGlyphIndex = 0;
+
+		m_fontAtlases[identifier].shapeGlyphData.clear();
+		m_fontAtlases[identifier].fontAtlasPositions.clear();
 
 		for (auto& shape : m_fontAtlases[identifier].referencingShapes) {
 			FT_Set_Char_Size(face, shape->pointSize() * 64.0f, 0, m_uiSubsystem->monitorDPIX(),
@@ -440,27 +444,33 @@ namespace vanadium::ui::shapes {
 		for (auto& set : m_fontAtlases[identifier].setAllocations)
 			m_renderContext.descriptorSetAllocator->freeDescriptorSet(set, m_textSetAllocationInfo);
 		m_fontAtlases.erase(identifier);
-		for (auto& font : m_fonts) {
-			hb_font_destroy(font.font);
-			hb_face_destroy(font.fontFace);
+		for (auto& fontGroup : m_fonts) {
+			for (auto& [key, font] : fontGroup.fonts) {
+				hb_font_destroy(font);
+			}
+			hb_face_destroy(fontGroup.fontFace);
 		}
 	}
 
 	void TextShapeRegistry::determineLineBreaksAndDimensions(TextShape* shape) {
 		FT_Face face = m_uiSubsystem->fontLibrary().fontFace(shape->fontID());
-		FT_Set_Char_Size(face, shape->pointSize() * 64.0f, 0, m_uiSubsystem->monitorDPIX(),
-						 m_uiSubsystem->monitorDPIY());
 
 		if (shape->fontID() >= m_fonts.size()) {
 			m_fonts.resize(shape->fontID() + 1);
 		}
 
-		if (m_fonts[shape->fontID()].font == nullptr) {
+		if (m_fonts[shape->fontID()].fontFace == nullptr) {
 			m_fonts[shape->fontID()].fontFace =
 				hb_ft_face_create_referenced(m_uiSubsystem->fontLibrary().fontFace(shape->fontID()));
-			m_fonts[shape->fontID()].font =
-				hb_ft_font_create_referenced(m_uiSubsystem->fontLibrary().fontFace(shape->fontID()));
-			hb_ft_font_set_funcs(m_fonts[shape->fontID()].font);
+		}
+
+		float pointSizeKey = shape->pointSize() - fmodf(shape->pointSize(), FontAtlasIdentifier::eps);
+		if (m_fonts[shape->fontID()].fonts.find(pointSizeKey) == m_fonts[shape->fontID()].fonts.end()) {
+			FT_Set_Char_Size(face, shape->pointSize() * 64.0f, 0, m_uiSubsystem->monitorDPIX(),
+							 m_uiSubsystem->monitorDPIY());
+			m_fonts[shape->fontID()].fonts.insert(
+				{ pointSizeKey, hb_ft_font_create_referenced(m_uiSubsystem->fontLibrary().fontFace(shape->fontID())) });
+			hb_ft_font_set_funcs(m_fonts[shape->fontID()].fonts[pointSizeKey]);
 		}
 
 		std::string_view textView = shape->text();
@@ -478,7 +488,7 @@ namespace vanadium::ui::shapes {
 					  isCodepointExtendedPictographic(utf8Codepoint(textView.data() + i, textView.size() - i)) });
 		}
 
-		hb_shape(m_fonts[shape->fontID()].font, shape->internalTextBuffer(), nullptr, 0);
+		hb_shape(m_fonts[shape->fontID()].fonts[pointSizeKey], shape->internalTextBuffer(), nullptr, 0);
 
 		unsigned int glyphCount = 0;
 		hb_glyph_info_t* glyphInfos = hb_buffer_get_glyph_infos(shape->internalTextBuffer(), &glyphCount);
@@ -568,9 +578,11 @@ namespace vanadium::ui::shapes {
 				previousGlyphIndex = glyphInfos[i].codepoint;
 			}
 		}
+		maxPenX = std::max(penX, maxPenX);
 		shape->addLinebreak(glyphCount - 1); // LB3
 
-		shape->setInternalSize(Vector2(maxPenX, shape->linebreakGlyphIndices().size() * face->size->metrics.height));
+		shape->setInternalSize(
+			Vector2(maxPenX, shape->linebreakGlyphIndices().size() * face->size->metrics.height / 64));
 	}
 
 	TextShape::TextShape(const Vector2& position, uint32_t layerIndex, float maxWidth, float rotation,
@@ -596,5 +608,10 @@ namespace vanadium::ui::shapes {
 		hb_buffer_set_script(m_textBuffer, HB_SCRIPT_LATIN);
 		hb_buffer_set_language(m_textBuffer, hb_language_from_string("en", -1));
 		m_registry->determineLineBreaksAndDimensions(this);
+	}
+
+	void TextShape::setMaxWidth(float maxWidth) {
+		m_textDirtyFlag = true;
+		m_maxWidth = maxWidth;
 	}
 } // namespace vanadium::ui::shapes

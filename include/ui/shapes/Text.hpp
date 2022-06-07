@@ -18,7 +18,8 @@ namespace vanadium::ui::shapes {
 
 	struct FontData {
 		hb_face_t* fontFace = nullptr;
-		hb_font_t* font = nullptr;
+		//Different fonts for each font size are necessary
+		robin_hood::unordered_map<float, hb_font_t*> fonts;
 	};
 
 	struct ShapeGlyphData {
@@ -71,7 +72,7 @@ namespace vanadium::ui::shapes {
 		std::vector<RenderedLayer> layers;
 		Vector2 atlasSize;
 		uint32_t maxGlyphHeight;
-
+		
 		graphics::DescriptorSetAllocation setAllocations[graphics::frameInFlightCount] = {};
 		std::vector<TextShape*> referencingShapes;
 	};
@@ -119,7 +120,7 @@ namespace vanadium::ui::shapes {
 		graphics::DescriptorSetAllocationInfo m_textSetAllocationInfo;
 
 		graphics::ImageResourceViewInfo m_atlasViewInfo;
-
+		
 		robin_hood::unordered_map<FontAtlasIdentifier, FontAtlas> m_fontAtlases;
 		std::vector<FontData> m_fonts;
 		std::vector<TextShape*> m_shapes;
@@ -138,6 +139,7 @@ namespace vanadium::ui::shapes {
 
 		void setInternalRegistry(ShapeRegistry* currentRegistry) { m_registry = currentRegistry; }
 		void setText(const std::string_view& text);
+		void setMaxWidth(float maxWidth);
 
 		// internal, do not call yourself
 		void setInternalSize(const Vector2& size) { m_size = size; }

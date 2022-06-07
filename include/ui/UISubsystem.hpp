@@ -18,8 +18,10 @@ namespace vanadium::ui {
 		void removeShape(Shape* shape) { m_rendererNode->removeShape(shape); }
 
 		void addRendererNode(graphics::FramegraphContext& context);
+		void setWindowSize(uint32_t windowWidth, uint32_t windowHeight);
 
 		FontLibrary& fontLibrary() { return m_fontLibrary; }
+		Control* rootControl() { return &m_rootControl; }
 
 		uint32_t monitorDPIX() const { return m_windowInterface->contentScaleDPIX(); }
 		uint32_t monitorDPIY() const { return m_windowInterface->contentScaleDPIY(); }
@@ -29,8 +31,8 @@ namespace vanadium::ui {
 		void releaseInputFocus();
 
 		void invokeMouseHover(const Vector2& mousePos);
-		void invokeMouseButton(const Vector2& mousePos, uint32_t buttonID);
-		void invokeKey(uint32_t keyID, windowing::KeyModifierFlags modifierFlags, windowing::KeyStateFlags stateFlags);
+		void invokeMouseButton(uint32_t buttonID);
+		void invokeKey(uint32_t keyID, windowing::KeyModifierFlags modifierFlags, windowing::KeyState stateFlags);
 		void invokeCharacter(uint32_t codepoint);
 
 	  private:

@@ -10,3 +10,4 @@ include/Debug.hpp
 include/VCPPath.hpp
 /CMakeSettings.json
 /examples/atmosphere/resources
+__pycache__/*

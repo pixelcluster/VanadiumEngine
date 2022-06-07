@@ -1,5 +1,6 @@
 #pragma once
 #include <math/Vector.hpp>
+#include <helper/CompilerSpecific.hpp>
 
 namespace vanadium::ui {
 	enum class PositionOffsetType {
@@ -33,6 +34,7 @@ namespace vanadium::ui {
 					return Vector2(origin.x + extents.x - m_position.x * extents.x,
 								   origin.y + extents.y - m_position.y * extents.y);
 			}
+			UNREACHABLE
 		}
 
 		Vector2 absoluteTopLeft(const Vector2& origin, const Vector2& parentExtent, const Vector2& shapeExtent) const {
@@ -46,6 +48,7 @@ namespace vanadium::ui {
 				case PositionOffsetType::BottomRight:
 					return absolutePosition(origin, parentExtent) - shapeExtent;
 			}
+			UNREACHABLE
 		}
 
 	  private:

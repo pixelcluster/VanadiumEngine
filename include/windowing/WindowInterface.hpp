@@ -158,6 +158,18 @@ namespace vanadium::windowing {
 		}
 	};
 
+	using MouseEventCallback = void (*)(const Vector2& position, void* userData);
+	struct MouseListenerParams {
+		MouseEventCallback eventCallback;
+		ListenerDestroyCallback listenerDestroyCallback;
+		void* userData;
+
+		bool operator==(const MouseListenerParams& other) const {
+			return eventCallback == other.eventCallback && listenerDestroyCallback == other.listenerDestroyCallback &&
+				   userData == other.userData;
+		}
+	};
+
 	inline void emptyListenerDestroyCallback(void*) {}
 
 } // namespace vanadium::windowing
@@ -202,10 +214,18 @@ namespace vanadium::windowing {
 		void addSizeListener(const SizeListenerParams& params);
 		void removeSizeListener(const SizeListenerParams& params);
 
+		void addMouseMoveListener(const MouseListenerParams& params);
+		void removeMouseMoveListener(const MouseListenerParams& params);
+
+		void addScrollListener(const MouseListenerParams& params);
+		void removeScrollListener(const MouseListenerParams& params);
+
 		void invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state);
 		void invokeMouseKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state);
 		void invokeCharacterListeners(uint32_t keyCode);
 		void invokeSizeListeners(uint32_t newWidth, uint32_t newHeight);
+		void invokeMouseMoveListeners(double x, double y);
+		void invokeScrollListeners(double x, double y);
 
 		Vector2 mousePos() const;
 
@@ -234,6 +254,8 @@ namespace vanadium::windowing {
 		robin_hood::unordered_map<KeyListenerData, std::vector<KeyListenerParams>> m_mouseKeyListeners;
 		robin_hood::unordered_map<uint32_t, std::vector<CharacterListenerParams>> m_characterListeners;
 		std::vector<SizeListenerParams> m_sizeListeners;
+		std::vector<MouseListenerParams> m_mouseMoveListeners;
+		std::vector<MouseListenerParams> m_scrollListeners;
 
 		static uint32_t m_glfwWindowCount;
 	};

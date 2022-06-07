@@ -55,6 +55,32 @@ namespace vanadium::windowing {
 		interface->invokeSizeListeners(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 	}
 
+	void mouseMoveCallback(GLFWwindow* window, double x, double y) {
+		WindowInterface* interface = std::launder(reinterpret_cast<WindowInterface*>(glfwGetWindowUserPointer(window)));
+
+		// Translate screen coordinates to pixels
+		int width, height;
+		glfwGetWindowSize(window, &width, &height);
+		double normalizedX = x / width, normalizedY = y / width;
+
+		uint32_t pixelWidth, pixelHeight;
+		interface->windowSize(pixelWidth, pixelHeight);
+		interface->invokeMouseMoveListeners(normalizedX * pixelWidth, normalizedY * pixelHeight);
+	}
+
+	void scrollCallback(GLFWwindow* window, double x, double y) {
+		WindowInterface* interface = std::launder(reinterpret_cast<WindowInterface*>(glfwGetWindowUserPointer(window)));
+
+		// Translate screen coordinates to pixels
+		int width, height;
+		glfwGetWindowSize(window, &width, &height);
+		double normalizedX = x / width, normalizedY = y / width;
+
+		uint32_t pixelWidth, pixelHeight;
+		interface->windowSize(pixelWidth, pixelHeight);
+		interface->invokeScrollListeners(normalizedX * pixelWidth, normalizedY * pixelHeight);
+	}
+
 	void errorCallback(int code, const char* desc) { logError("GLFW Error: {}", desc); }
 
 	WindowInterface::WindowInterface(const std::optional<WindowingSettingOverride>& override, const char* name) {
@@ -83,6 +109,8 @@ namespace vanadium::windowing {
 		glfwSetKeyCallback(m_window, keyCallback);
 		glfwSetFramebufferSizeCallback(m_window, sizeCallback);
 		glfwSetMouseButtonCallback(m_window, mouseKeyCallback);
+		glfwSetCursorPosCallback(m_window, mouseMoveCallback);
+		glfwSetScrollCallback(m_window, scrollCallback);
 
 		float contentScaleX, contentScaleY;
 		glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &contentScaleX, &contentScaleY);
@@ -174,6 +202,26 @@ namespace vanadium::windowing {
 		}
 	}
 
+	void WindowInterface::addMouseMoveListener(const MouseListenerParams& params) {
+		m_mouseMoveListeners.push_back(params);
+	}
+
+	void WindowInterface::removeMouseMoveListener(const MouseListenerParams& params) {
+		auto iterator = std::find(m_mouseMoveListeners.begin(), m_mouseMoveListeners.end(), params);
+		if (iterator != m_mouseMoveListeners.end()) {
+			m_mouseMoveListeners.erase(iterator);
+		}
+	}
+
+	void WindowInterface::addScrollListener(const MouseListenerParams& params) { m_scrollListeners.push_back(params); }
+
+	void WindowInterface::removeScrollListener(const MouseListenerParams& params) {
+		auto iterator = std::find(m_scrollListeners.begin(), m_scrollListeners.end(), params);
+		if (iterator != m_scrollListeners.end()) {
+			m_scrollListeners.erase(iterator);
+		}
+	}
+
 	void WindowInterface::addSizeListener(const SizeListenerParams& params) { m_sizeListeners.push_back(params); }
 
 	void WindowInterface::removeSizeListener(const SizeListenerParams& params) {
@@ -186,7 +234,7 @@ namespace vanadium::windowing {
 	void WindowInterface::invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state) {
 		for (auto [key, listenerGroup] : m_keyListeners) {
 			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) || key.modifierMask == 0) &&
-				((key.keyStateMask & state) || key.keyStateMask == 0)) {
+				(key.keyStateMask & state)) {
 				for (auto& listener : listenerGroup) {
 					listener.eventCallback(keyCode, modifiers, state, listener.userData);
 				}
@@ -195,9 +243,9 @@ namespace vanadium::windowing {
 	}
 
 	void WindowInterface::invokeMouseKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state) {
-		for (auto [key, listenerGroup] : m_keyListeners) {
-			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) || key.modifierMask == 0) &&
-				((key.keyStateMask & state) || key.keyStateMask == 0)) {
+		for (auto [key, listenerGroup] : m_mouseKeyListeners) {
+			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) || modifiers == 0) &&
+				(key.keyStateMask & state)) {
 				for (auto& listener : listenerGroup) {
 					listener.eventCallback(keyCode, modifiers, state, listener.userData);
 				}
@@ -216,6 +264,18 @@ namespace vanadium::windowing {
 	void WindowInterface::invokeSizeListeners(uint32_t newWidth, uint32_t newHeight) {
 		for (auto& listener : m_sizeListeners) {
 			listener.eventCallback(newWidth, newHeight, listener.userData);
+		}
+	}
+
+	void WindowInterface::invokeMouseMoveListeners(double x, double y) {
+		for (auto& listener : m_mouseMoveListeners) {
+			listener.eventCallback(Vector2(x, y), listener.userData);
+		}
+	}
+
+	void WindowInterface::invokeScrollListeners(double x, double y) {
+		for (auto& listener : m_scrollListeners) {
+			listener.eventCallback(Vector2(x, y), listener.userData);
 		}
 	}
 

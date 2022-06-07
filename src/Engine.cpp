@@ -14,6 +14,11 @@ namespace vanadium {
 			node->create(&m_graphicsSubsystem.framegraphContext());
 			m_graphicsSubsystem.framegraphContext().appendExistingNode(node);
 		}
+		
+		uint32_t width;
+		uint32_t height;
+		m_windowInterface.windowSize(width, height);
+		m_uiSubsystem.setWindowSize(width, height);
 	}
 
 	Engine::~Engine() {
