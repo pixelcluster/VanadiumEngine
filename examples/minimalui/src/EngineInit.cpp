@@ -10,6 +10,7 @@
 
 vanadium::ui::shapes::RectShape* shapes[25 * 25];
 vanadium::ui::shapes::TextShape* textShape;
+vanadium::ui::Control* buttonControl;
 
 void configureEngine(vanadium::EngineConfig& config) {
 	config.setAppName("Vanadium Minimal UI");
@@ -49,7 +50,7 @@ void init(vanadium::Engine& engine) {
 																   "aaaaaaaa aaaa aa a a  a a a a a a ", 48.0f, 0,
 																   vanadium::Vector4(1.0f, 0.0f, 0.0f, 1.0f));
 
-	vanadium::ui::Control* buttonControl = new vanadium::ui::Control(
+	buttonControl = new vanadium::ui::Control(
 		vanadium::ui::createParameters<vanadium::ui::styles::TextRectStyle, vanadium::ui::layouts::FreeLayout,
 									   vanadium::ui::functionalities::ButtonFunctionality>(
 			&engine.uiSubsystem(), engine.uiSubsystem().rootControl(),
@@ -76,4 +77,6 @@ bool onFrame(vanadium::Engine& engine) {
 	return true;
 }
 
-void destroy(vanadium::Engine& engine) {}
+void destroy(vanadium::Engine& engine) {
+	delete buttonControl;
+}

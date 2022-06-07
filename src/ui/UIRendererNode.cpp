@@ -138,7 +138,10 @@ namespace vanadium::ui {
 		}
 	}
 
-	void UIRendererNode::removeShape(Shape* shape) { m_shapeRegistries[shape->typenameHash()]->removeShape(shape); }
+	void UIRendererNode::removeShape(Shape* shape) { 
+		m_shapeRegistries[shape->typenameHash()]->removeShape(shape); 
+		delete shape;
+	}
 
 	void UIRendererNode::destroy(graphics::FramegraphContext* context) {
 		for (auto& [key, registry] : m_shapeRegistries) {

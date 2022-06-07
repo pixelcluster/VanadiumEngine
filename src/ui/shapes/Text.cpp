@@ -86,6 +86,9 @@ namespace vanadium::ui::shapes {
 				}
 			}
 		}
+		auto iterator = std::find(m_shapes.begin(), m_shapes.end(), textShape);
+		if (iterator != m_shapes.end())
+			m_shapes.erase(iterator);
 	}
 
 	void TextShapeRegistry::prepareFrame(uint32_t frameIndex) {
@@ -184,6 +187,12 @@ namespace vanadium::ui::shapes {
 		}
 		for (auto& atlas : m_fontAtlases) {
 			destroyAtlas(atlas.first);
+		}
+		for (auto& fontGroup : m_fonts) {
+			for (auto& [key, font] : fontGroup.fonts) {
+				hb_font_destroy(font);
+			}
+			hb_face_destroy(fontGroup.fontFace);
 		}
 	}
 
@@ -402,6 +411,8 @@ namespace vanadium::ui::shapes {
 				static_cast<VkDeviceSize>(m_fontAtlases[identifier].transferBufferCapacity * 1.61),
 				static_cast<VkDeviceSize>(m_fontAtlases[identifier].glyphData.size() * sizeof(RenderedGlyphData)));
 
+			m_fontAtlases[identifier].glyphData.reserve(m_fontAtlases[identifier].transferBufferCapacity);
+
 			m_fontAtlases[identifier].glyphDataTransfer = m_renderContext.transferManager->createTransfer(
 				m_fontAtlases[identifier].transferBufferCapacity,
 				VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -444,12 +455,6 @@ namespace vanadium::ui::shapes {
 		for (auto& set : m_fontAtlases[identifier].setAllocations)
 			m_renderContext.descriptorSetAllocator->freeDescriptorSet(set, m_textSetAllocationInfo);
 		m_fontAtlases.erase(identifier);
-		for (auto& fontGroup : m_fonts) {
-			for (auto& [key, font] : fontGroup.fonts) {
-				hb_font_destroy(font);
-			}
-			hb_face_destroy(fontGroup.fontFace);
-		}
 	}
 
 	void TextShapeRegistry::determineLineBreaksAndDimensions(TextShape* shape) {

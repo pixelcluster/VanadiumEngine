@@ -65,6 +65,8 @@ namespace vanadium::ui {
 				font.fontFace = m_fallbackFace;
 			}
 		}
+
+		delete[] reinterpret_cast<char*>(data);
 	}
 
 	FT_Face FontLibrary::tryCreateFace(const std::filesystem::path& searchPath, const std::string& name) {

@@ -64,6 +64,7 @@ namespace vanadium::ui {
 
 	template <typename T> void SimpleShapeDataManager<T>::allocateBuffer(const graphics::RenderContext& context) {
 		++m_bufferRevisionCount;
+		m_shapeData.reserve(m_maxShapeDataCapacity);
 		m_shapeDataTransfer = context.transferManager->createTransfer(
 			m_maxShapeDataCapacity * sizeof(T), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
 			VK_ACCESS_SHADER_READ_BIT);

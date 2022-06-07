@@ -4,6 +4,8 @@
 #include <limits>
 #include <malloc.h>
 
+//Read a whole file.
+//Returned data must be casted to char* and delete[]'d.
 inline void* readFile(const char* name, size_t* fileSize) { 
 	auto stream = std::ifstream(name, std::ios_base::binary);
 	if (!stream.is_open()) {
