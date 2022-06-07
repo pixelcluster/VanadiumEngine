@@ -174,11 +174,6 @@ namespace vanadium::graphics {
 
 		if (!m_resourceAllocator->bufferMemoryCapabilities(handle).hostVisible) {
 			transfer.needsStagingBuffer = true;
-
-			VkBufferCreateInfo transferBufferCreateInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-															.size = transferBufferSize,
-															.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-															.sharingMode = VK_SHARING_MODE_EXCLUSIVE };
 			transfer.stagingBuffers = { allocateStagingBufferArea(transferBufferSize) };
 			auto mappedDataStart =
 				m_resourceAllocator->mappedBufferData(m_stagingBuffers[transfer.stagingBuffers[0].bufferHandle].buffer);

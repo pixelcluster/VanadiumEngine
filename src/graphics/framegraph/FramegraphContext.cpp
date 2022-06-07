@@ -111,7 +111,6 @@ namespace vanadium::graphics {
 			return ~0U;
 		}
 
-		size_t nodeIndex = nodeIterator - m_nodes.begin();
 		m_buffers[handle].usageFlags |= usage.usageFlags;
 		m_barrierGenerator.addNodeBufferAccess(
 			nodeIterator - m_nodes.begin(),
@@ -131,7 +130,6 @@ namespace vanadium::graphics {
 			printf("invalid node as creator!\n");
 			return ~0U;
 		}
-		size_t nodeIndex = nodeIterator - m_nodes.begin();
 
 		m_images[handle].usage |= usage.usageFlags;
 		m_barrierGenerator.addNodeImageAccess(
@@ -164,8 +162,6 @@ namespace vanadium::graphics {
 			return ~0U;
 		}
 
-		size_t nodeIndex = nodeIterator - m_nodes.begin();
-
 		m_buffers[bufferHandle].usageFlags |= usage.usageFlags;
 		m_barrierGenerator.addNodeBufferAccess(
 			nodeIterator - m_nodes.begin(),
@@ -183,9 +179,6 @@ namespace vanadium::graphics {
 			printf("invalid node as creator!\n");
 			return ~0U;
 		}
-		size_t nodeIndex = nodeIterator - m_nodes.begin();
-
-		auto usageIterator = m_images.find(imageHandle);
 		m_images[imageHandle].usage |= usage.usageFlags;
 		m_barrierGenerator.addNodeImageAccess(
 			nodeIterator - m_nodes.begin(),
@@ -213,8 +206,6 @@ namespace vanadium::graphics {
 			return;
 		}
 
-		size_t nodeIndex = nodeIterator - m_nodes.begin();
-
 		m_buffers[handle].usageFlags |= usage.usageFlags;
 		m_barrierGenerator.addNodeBufferAccess(
 			nodeIterator - m_nodes.begin(),
@@ -236,8 +227,6 @@ namespace vanadium::graphics {
 			printf("invalid resource for dependency!\n");
 			return;
 		}
-
-		size_t nodeIndex = nodeIterator - m_nodes.begin();
 
 		m_images[handle].usage |= usage.usageFlags;
 		m_barrierGenerator.addNodeImageAccess(
@@ -261,8 +250,6 @@ namespace vanadium::graphics {
 			printf("invalid node for dependency!\n");
 			return;
 		}
-
-		size_t nodeIndex = nodeIterator - m_nodes.begin();
 
 		m_targetImageUsageFlags |= usage.usageFlags;
 		m_barrierGenerator.addNodeTargetImageAccess(
@@ -347,8 +334,6 @@ namespace vanadium::graphics {
 			printf("invalid node for dependency!\n");
 			return VK_NULL_HANDLE;
 		}
-
-		size_t nodeIndex = nodeIterator - m_nodes.begin();
 		return m_context.resourceAllocator->requestImageView(m_images[handle].resourceHandle,
 															 nodeIterator->resourceViewInfos[handle][index]);
 	}

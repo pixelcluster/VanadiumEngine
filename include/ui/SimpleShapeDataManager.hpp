@@ -77,7 +77,7 @@ namespace vanadium::ui {
 							 [](const auto& one, const auto& other) { return one.layerIndex < other; });
 		auto shapeIndex = shapeIterator - m_shapeMetadata.begin();
 		m_shapeMetadata.push_back({ .layerIndex = layer, .dataArrayIndex = static_cast<uint32_t>(shapeIndex) });
-		if (shapeIndex == m_shapeData.size()) {
+		if (static_cast<size_t>(shapeIndex) == m_shapeData.size()) {
 			m_shapeData.push_back(t);
 		} else {
 			m_shapeData.insert(m_shapeData.begin() + shapeIndex, t);

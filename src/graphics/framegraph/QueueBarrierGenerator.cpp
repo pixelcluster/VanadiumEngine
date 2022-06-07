@@ -253,6 +253,8 @@ namespace vanadium::graphics {
 	}
 
 	VkImageLayout QueueBarrierGenerator::lastTargetImageLayout() const {
+		if (m_targetAccessInfo.reads.empty() && m_targetAccessInfo.modifications.empty())
+			return VK_IMAGE_LAYOUT_UNDEFINED;
 		bool isLastAccessRead;
 		if (!m_targetAccessInfo.reads.empty() && !m_targetAccessInfo.modifications.empty()) {
 			isLastAccessRead = m_targetAccessInfo.reads.back().nodeIndex > m_targetAccessInfo.reads.back().nodeIndex;
@@ -269,6 +271,12 @@ namespace vanadium::graphics {
 	}
 
 	VkImageSubresourceRange QueueBarrierGenerator::lastTargetAccessRange() const {
+		if (m_targetAccessInfo.reads.empty() && m_targetAccessInfo.modifications.empty())
+			return { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					 .baseMipLevel = 0,
+					 .levelCount = 1,
+					 .baseArrayLayer = 0,
+					 .layerCount = 1 };
 		bool isLastAccessRead;
 		if (!m_targetAccessInfo.reads.empty() && !m_targetAccessInfo.modifications.empty()) {
 			isLastAccessRead = m_targetAccessInfo.reads.back().nodeIndex > m_targetAccessInfo.reads.back().nodeIndex;

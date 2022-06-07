@@ -31,8 +31,6 @@ namespace vanadium::graphics {
 		uint32_t meshCount = readFromFile<uint32_t>(inFileStream);
 		uint32_t imageCount = readFromFile<uint32_t>(inFileStream);
 
-		uint32_t imageDataSize = readFromFile<uint32_t>(inFileStream);
-
 		uint64_t meshBinaryDataSize = readFromFile<uint32_t>(inFileStream);
 		uint64_t imageBinaryDataSize = readFromFile<uint32_t>(inFileStream);
 

@@ -1,10 +1,10 @@
 #include <EnumMatchTable.hpp>
 #include <ParsingUtils.hpp>
 #include <PipelineArchetypeRecord.hpp>
+#include <algorithm>
 #include <helper/WholeFileReader.hpp>
 #include <iostream>
 #include <optional>
-#include <algorithm>
 
 // returns true if [offset1;size1] is inside [offset2;size2]
 bool isFullyInRange(uint32_t offset1, uint32_t size1, uint32_t offset2, uint32_t size2) {
@@ -40,15 +40,15 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				std::cout << srcPath << ": Error: Vertex shader node has invalid type." << std::endl;
 				return;
 			} else {
-				m_files.push_back(
-					{ .stage = VK_SHADER_STAGE_VERTEX_BIT, .path = projectDir + "/" + archetypeRoot["vert"].asCString() });
+				m_files.push_back({ .stage = VK_SHADER_STAGE_VERTEX_BIT,
+									.path = projectDir + "/" + archetypeRoot["vert"].asCString() });
 			}
 			if (!archetypeRoot["frag"].isString()) {
 				std::cout << srcPath << ": Error: Vertex shader node has invalid type." << std::endl;
 				return;
 			} else {
-				m_files.push_back(
-					{ .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .path = projectDir + "/" + archetypeRoot["frag"].asCString() });
+				m_files.push_back({ .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+									.path = projectDir + "/" + archetypeRoot["frag"].asCString() });
 			}
 			break;
 		case PipelineType::Compute:
@@ -57,8 +57,8 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				std::cout << srcPath << ": Error: Vertex shader node has invalid type." << std::endl;
 				return;
 			} else {
-				m_files.push_back(
-					{ .stage = VK_SHADER_STAGE_COMPUTE_BIT, .path = projectDir + "/" + archetypeRoot["comp"].asCString() });
+				m_files.push_back({ .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+									.path = projectDir + "/" + archetypeRoot["comp"].asCString() });
 			}
 			break;
 	}
@@ -73,11 +73,10 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 	m_setLayoutIndices.reserve(archetypeRoot["sets"].size());
 
 	for (auto& set : archetypeRoot["sets"]) {
-		if(set["bindings"].isNull()) {
+		if (set["bindings"].isNull()) {
 			++setIndex;
 			continue;
-		}
-		else if (!set["bindings"].isArray()) {
+		} else if (!set["bindings"].isArray()) {
 			std::cout << srcPath << ": Error: Invalid descriptor bindings for set " << setIndex << "." << std::endl;
 			return;
 		} else {
@@ -165,7 +164,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 							addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 						}
 
-						VkSamplerAddressMode addressModeW  = VkSamplerAddressModeFromString(
+						VkSamplerAddressMode addressModeW = VkSamplerAddressModeFromString(
 							asCStringOr(node, "address-mode-w", "VK_SAMPLER_ADDRESS_MODE_REPEAT"));
 						if (addressModeW == static_cast<VkSamplerAddressMode>(~0U)) {
 							std::cout << srcPath
@@ -219,8 +218,9 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 														 .descriptorCount = bindingNode["count"].asUInt(),
 														 .stageFlags = shaderStageFlags,
 														 .pImmutableSamplers = nullptr };
-				bindingLayoutInfos[setIndex].push_back(
-					{ .binding = binding, .usesImmutableSamplers = usesImmutableSamplers, .immutableSamplerInfos = samplerInfos });
+				bindingLayoutInfos[setIndex].push_back({ .binding = binding,
+														 .usesImmutableSamplers = usesImmutableSamplers,
+														 .immutableSamplerInfos = samplerInfos });
 			}
 		}
 		++setIndex;
@@ -386,7 +386,8 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 				});
 			if (rangeIterator == m_pushConstantRanges.end()) {
 				std::cout << srcPath << ": Error: Unbound push constant range at offset " << constant->absolute_offset
-						  << " (size " << constant->size << ")" << ".\n";
+						  << " (size " << constant->size << ")"
+						  << ".\n";
 				m_isValid = false;
 			} else if (!(rangeIterator->stageFlags & shader.stage)) {
 				std::cout << srcPath << ": Error: Missing stage flags for push constant range at offset "
@@ -435,8 +436,8 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 					m_isValid = false;
 				}
 				if (binding->count != pipelineBinding.binding.descriptorCount) {
-					std::cout << srcPath << ": Error: Descriptor count mismatch at set " << set->set << ", binding " << i
-							  << ".\n";
+					std::cout << srcPath << ": Error: Descriptor count mismatch at set " << set->set << ", binding "
+							  << i << ".\n";
 					m_isValid = false;
 				}
 				if (!(pipelineBinding.binding.stageFlags & shader.stage)) {
@@ -472,9 +473,12 @@ void PipelineArchetypeRecord::serialize(void* data) {
 	uint32_t pipelineType = static_cast<uint32_t>(m_pipelineType);
 	std::memcpy(data, &pipelineType, sizeof(uint32_t));
 	data = offsetVoidPtr(data, sizeof(uint32_t));
-	uint32_t shaderCount = static_cast<uint32_t>(m_compiledShaders.size());
-	std::memcpy(data, &shaderCount, sizeof(uint32_t));
-	data = offsetVoidPtr(data, sizeof(uint32_t));
+
+	if (m_pipelineType != PipelineType::Compute) {
+		uint32_t shaderCount = static_cast<uint32_t>(m_compiledShaders.size());
+		std::memcpy(data, &shaderCount, sizeof(uint32_t));
+		data = offsetVoidPtr(data, sizeof(uint32_t));
+	}
 
 	for (auto& compiledShader : m_compiledShaders) {
 		std::memcpy(data, &compiledShader.stage, sizeof(uint32_t));
@@ -512,7 +516,7 @@ void PipelineArchetypeRecord::serialize(void* data) {
 }
 
 void PipelineArchetypeRecord::freeShaders() {
-	for(auto& shader : m_compiledShaders) {
+	for (auto& shader : m_compiledShaders) {
 		delete[] reinterpret_cast<char*>(shader.data);
 	}
 }

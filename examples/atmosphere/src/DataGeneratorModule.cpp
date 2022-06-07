@@ -87,8 +87,6 @@ DataGenerator::DataGenerator(vanadium::graphics::GraphicsSubsystem& subsystem,
 		phi = 0.0f;
 		theta -= dTheta;
 
-		float latitude = 0.5f * std::numbers::pi_v<float> + theta;
-
 		float sinTheta = sinf(theta);
 		float cosTheta = cosf(theta);
 		for (size_t j = 0; j < individualPointsPerLongitudeSegment; ++j) {
@@ -288,7 +286,6 @@ void DataGenerator::update(vanadium::graphics::GraphicsSubsystem& subsystem,
 		m_lastMouseValid = false;
 
 	constexpr float vFoV = glm::radians(65.0f);
-	float tanHalfFoV = tanf(vFoV * 0.5);
 	uint32_t width, height;
 	interface.windowSize(width, height);
 	float aspectRatio = static_cast<float>(width) / static_cast<float>(height);

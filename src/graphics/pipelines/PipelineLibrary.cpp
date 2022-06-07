@@ -426,8 +426,6 @@ namespace vanadium::graphics {
 	}
 
 	void PipelineLibrary::createComputePipeline(uint64_t& bufferOffset) {
-		uint32_t shaderCount = readBuffer<uint32_t>(bufferOffset);
-
 		VkShaderStageFlagBits stage = readBuffer<VkShaderStageFlagBits>(bufferOffset);
 		assertFatal(stage == VK_SHADER_STAGE_COMPUTE_BIT, "PipelineLibrary: Invalid pipeline library file!");
 		uint32_t shaderSize = readBuffer<uint32_t>(bufferOffset);

@@ -15,7 +15,7 @@ struct Font {
 };
 
 bool checkOption(int argc, char** argv, size_t index, const std::string_view& argName) {
-	if (argc <= index + 1) {
+	if (static_cast<size_t>(argc) <= index + 1) {
 		std::cout << "Warning: Not enough arguments given to " << argName << ".\n";
 		return false;
 	} else if (*argv[index + 1] == '-') {
@@ -39,7 +39,7 @@ size_t parseOption(int argc, char** argv, size_t index, Options& options) {
 
 Options parseArguments(int argc, char** argv) {
 	Options options;
-	for (size_t i = 1; i < argc; ++i) {
+	for (size_t i = 1; i < static_cast<size_t>(argc); ++i) {
 		if (*argv[i] == '-') {
 			i = parseOption(argc, argv, i, options);
 			continue;

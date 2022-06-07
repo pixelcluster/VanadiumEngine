@@ -604,10 +604,10 @@ namespace vanadium::graphics {
 
 			size_t numMatchingCapabilities = std::popcount(preferred & type.properties);
 			size_t numUnrelatedCapabilities = std::popcount((~preferred) & type.properties);
-			if (numMatchingCapabilities > bestNumMatchingCapabilities ||
-				(numMatchingCapabilities == bestNumMatchingCapabilities &&
-				 numUnrelatedCapabilities < bestNumUnrelatedCapabilities) &&
-					((1U << typeIndex) & requirements.memoryTypeBits)) {
+			if ((numMatchingCapabilities > bestNumMatchingCapabilities ||
+				 (numMatchingCapabilities == bestNumMatchingCapabilities &&
+				  numUnrelatedCapabilities < bestNumUnrelatedCapabilities)) &&
+				((1U << typeIndex) & requirements.memoryTypeBits)) {
 				if (!isTypeBigEnough(typeIndex, requirements.size, createMapped)) {
 					++typeIndex;
 					continue;
@@ -639,8 +639,8 @@ namespace vanadium::graphics {
 		for (auto& block : m_memoryTypes[typeIndex].blocks) {
 			if (block.maxAllocatableSize >= size &&
 				(!createMapped || !block.capabilities.hostVisible || block.mappedPointer != nullptr)) {
-				auto result = allocateInBlock(m_memoryTypes[typeIndex].blocks.handle(blockIterator), block,
-											  alignment, size, createMapped);
+				auto result = allocateInBlock(m_memoryTypes[typeIndex].blocks.handle(blockIterator), block, alignment,
+											  size, createMapped);
 				if (result.has_value())
 					return result;
 			}
@@ -662,8 +662,8 @@ namespace vanadium::graphics {
 		auto blockIterator = m_memoryTypes[typeIndex].imageBlocks.begin();
 		for (auto& block : m_memoryTypes[typeIndex].imageBlocks) {
 			if (block.maxAllocatableSize >= size) {
-				auto result = allocateInBlock(m_memoryTypes[typeIndex].imageBlocks.handle(blockIterator),
-											  block, alignment, size, false);
+				auto result = allocateInBlock(m_memoryTypes[typeIndex].imageBlocks.handle(blockIterator), block,
+											  alignment, size, false);
 				if (result.has_value())
 					return result;
 			}
@@ -675,15 +675,15 @@ namespace vanadium::graphics {
 			}
 			auto blockHandle =
 				m_memoryTypes[typeIndex].imageBlocks.handle(--m_memoryTypes[typeIndex].imageBlocks.end());
-			return allocateInBlock(blockHandle, *(--m_memoryTypes[typeIndex].imageBlocks.end()), alignment,
-								   size, false);
+			return allocateInBlock(blockHandle, *(--m_memoryTypes[typeIndex].imageBlocks.end()), alignment, size,
+								   false);
 		}
 		return std::nullopt;
 	}
 
-	std::optional<AllocationResult> GPUResourceAllocator::allocateInBlock(BlockHandle blockHandle,
-																		  MemoryBlock& block, VkDeviceSize alignment,
-																		  VkDeviceSize size, bool createMapped) {
+	std::optional<AllocationResult> GPUResourceAllocator::allocateInBlock(BlockHandle blockHandle, MemoryBlock& block,
+																		  VkDeviceSize alignment, VkDeviceSize size,
+																		  bool createMapped) {
 		auto result = allocateFromRanges(block.freeBlocksOffsetSorted, block.freeBlocksSizeSorted, alignment, size);
 		if (block.freeBlocksSizeSorted.empty())
 			block.maxAllocatableSize = 0U;

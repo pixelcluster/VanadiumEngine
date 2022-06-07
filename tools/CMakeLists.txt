@@ -10,6 +10,8 @@ add_executable(EnumMatchTable ${CPP_SOURCES})
 target_include_directories(EnumMatchTable PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/EnumMatchTable/include")
 target_link_libraries(EnumMatchTable tinyxml2)
 
+target_compile_options(EnumMatchTable PRIVATE "-Wall")
+
 #Font configuration file generator
 
 file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/fontcfg/src/*.cpp")
@@ -20,6 +22,8 @@ target_include_directories(fontcfg PUBLIC
 	"${CMAKE_SOURCE_DIR}/include"
 	"${CMAKE_CURRENT_SOURCE_DIR}/common/include" 
 	)
+
+target_compile_options(fontcfg PRIVATE "-Wall")
 
 function(vanadium_generate_fontcfg JSON_PATH OUTFILE TARGETNAME)
 	add_custom_target(fonts_${TARGETNAME} fontcfg ${JSON_PATH} "-o" "${CMAKE_CURRENT_BINARY_DIR}/${OUTFILE}")
@@ -58,6 +62,8 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatc
 				   DEPENDS EnumMatchTable)
 
 add_executable(vcp ${CPP_SOURCES} "${CMAKE_SOURCE_DIR}/dependencies/spirv-reflect/spirv_reflect.c" ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp)
+
+target_compile_options(vcp PRIVATE "-Wall")
 
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp PROPERTIES GENERATED TRUE)
 

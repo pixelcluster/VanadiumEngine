@@ -306,10 +306,10 @@ int main() {
 	}
 	// Unspecified ranges, as outlined in the comments of UnicodeCharacterAssoc.txt
 
-	writeLine(outStream, "if (value >= 0x3400 && value <= 0x4DBF || value >= 0x4E00 && value <= 0x9FFF || "
-						 "value >= 0xF900 && value <= 0xFAFF || value >= 0x20000 && value <= 0x2FFFD"
-						 " || value >= 0x30000 && value <= 0x3FFFD || value >= 0x1F000 && value <= 0x1FAFF"
-						 " || value >= 0x1FC00 && value <= 0x1FFFD) {");
+	writeLine(outStream, "if ((value >= 0x3400 && value <= 0x4DBF) || (value >= 0x4E00 && value <= 0x9FFF) || "
+						 "(value >= 0xF900 && value <= 0xFAFF) || (value >= 0x20000 && value <= 0x2FFFD)"
+						 " || (value >= 0x30000 && value <= 0x3FFFD) || (value >= 0x1F000 && value <= 0x1FAFF)"
+						 " || (value >= 0x1FC00 && value <= 0x1FFFD)) {");
 	++indentationLevel;
 	writeLine(outStream, "return BreakClass::ID;");
 	--indentationLevel;

@@ -5,7 +5,6 @@ project ("VanadiumEngine")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-
 option(USE_TESTS "Build and run tests" ON)
 
 if(UNIX AND NOT APPLE)
@@ -72,6 +71,8 @@ add_custom_command(OUTPUT ${CHARACTERGROUP_FILE}
 add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS} dependencies/harfbuzz/src/harfbuzz.cc ${CHARACTERGROUP_FILE})
 
 set_source_files_properties(${CHARACTERGROUP_FILE} PROPERTIES GENERATED TRUE)
+
+target_compile_options(VanadiumEngine PRIVATE "-Wall")
 
 target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/tools/generated_include" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb" "dependencies/harfbuzz/src")
 target_link_libraries(VanadiumEngine volk::volk fmt::fmt glfw robin_hood freetype)

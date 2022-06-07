@@ -438,7 +438,7 @@ void PipelineInstanceRecord::deserializeRasterization(const std::string_view& sr
 		return;
 	}
 
-	VkCullModeFlags cullMode;
+	VkCullModeFlags cullMode = 0;
 	std::string cullModeFlags = asStringOr(config, "cull-mode", "VK_CULL_MODE_BACK_BIT");
 	auto flags = splitString(cullModeFlags);
 	for (auto& flag : flags) {
