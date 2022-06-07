@@ -47,8 +47,9 @@ namespace vanadium::ui::styles {
 									 const Vector2& size, std::vector<Shape*>& shapes) {
 			shapes[0]->setPosition(position);
 			reinterpret_cast<vanadium::ui::shapes::RectShape*>(shapes[0])->setSize(size);
-			shapes[1]->setPosition(position);
-			reinterpret_cast<vanadium::ui::shapes::TextShape*>(shapes[1])->setMaxWidth(size.x);
+			auto textShape = reinterpret_cast<vanadium::ui::shapes::TextShape*>(shapes[1]);
+			textShape->setPosition(position + (size - textShape->size()) / 2.0f);
+			textShape->setMaxWidth(size.x);
 		}
 		static void hoverStart(UISubsystem* subsystem, std::vector<Shape*>& shapes) {}
 		static void hoverEnd(UISubsystem* subsystem, std::vector<Shape*>& shapes) {}

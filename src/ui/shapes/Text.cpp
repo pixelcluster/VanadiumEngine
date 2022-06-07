@@ -612,6 +612,7 @@ namespace vanadium::ui::shapes {
 		hb_buffer_set_direction(m_textBuffer, HB_DIRECTION_LTR);
 		hb_buffer_set_script(m_textBuffer, HB_SCRIPT_LATIN);
 		hb_buffer_set_language(m_textBuffer, hb_language_from_string("en", -1));
+		m_linebreakGlyphIndices.clear();
 		m_registry->determineLineBreaksAndDimensions(this);
 	}
 
