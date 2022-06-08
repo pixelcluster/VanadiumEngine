@@ -8,75 +8,36 @@ namespace vanadium::ui {
 	class UISubsystem;
 	class Control;
 
-	// Use functions/function pointers to make a
-
-	using StylePFNRepositionShapes = void (*)(UISubsystem* subsystem, uint32_t treeLevel, const Vector2& position,
-											  const Vector2& size, std::vector<Shape*>& shapes);
-	using StylePFNHoverStart = void (*)(UISubsystem* subsystem, std::vector<Shape*>& shapes);
-	using StylePFNHoverEnd = void (*)(UISubsystem* subsystem, std::vector<Shape*>& shapes);
-
-	// clang-format off
-	template <typename T>
-	concept StyleTemplate = requires(UISubsystem* subsystem, uint32_t treeLevel, Vector2 position, Vector2 size) {
-		typename T::StyleParameters;
-		{
-			T::createShapes(subsystem, treeLevel, position, size, typename T::StyleParameters())
-		} -> std::same_as<std::vector<Shape*>>;
-		{ T::repositionShapes } -> std::convertible_to<StylePFNRepositionShapes>;
-		{ T::hoverStart } -> std::convertible_to<StylePFNHoverStart>;
-		{ T::hoverEnd } -> std::convertible_to<StylePFNHoverEnd>;
-	};
-
-	using LayoutPFNRegenerate = void (*)(const std::vector<Control*>& children, const Vector2& controlPosition,
-										 const Vector2& controlSize);
-
-	template <typename T>
-	concept LayoutTemplate = requires() {
-		{ T::regenerateLayout} -> std::convertible_to<LayoutPFNRegenerate>;
-	};
-
-	using MouseButtonHandler = void (*)(UISubsystem* subsystem, Control* triggerControl, void* localData,
-										const Vector2& absolutePosition, uint32_t buttonID);
-	using MouseHoverHandler = void (*)(UISubsystem* subsystem, Control* triggerControl, void* localData,
-									   const Vector2& absolutePosition);
-	using KeyInputHandler = void (*)(UISubsystem* subsystem, Control* triggerControl, void* localData, uint32_t keyID,
-									 windowing::KeyModifierFlags modifierFlags, windowing::KeyState keyState);
-	using CharInputHandler = void (*)(UISubsystem* subsystem, Control* triggerControl, void* localData,
-									  uint32_t codepoint);
-
-	class FunctionalityLocalData {
+	class Style {
 	  public:
-		virtual ~FunctionalityLocalData() {}
+		virtual ~Style() {}
+		virtual void createShapes(UISubsystem* subsystem, uint32_t layerID, const Vector2& position,
+								  const Vector2& size) {}
+		virtual void repositionShapes(UISubsystem* subsystem, uint32_t layerID, const Vector2& position,
+									  const Vector2& size) {}
+		virtual void hoverStart(UISubsystem* subsystem) {}
+		virtual void hoverEnd(UISubsystem* subsystem) {}
+
+		virtual uint32_t layerCount() const { return 1; }
 	};
 
-	template <typename T>
-	concept FunctionalityTemplate = requires(T t) {
-		typename T::LocalData;
-		{ t.mouseButtonHandler } -> std::convertible_to<MouseButtonHandler>;
-		{ t.mouseHoverHandler } -> std::convertible_to<MouseHoverHandler>; 
-		{ t.keyInputHandler } -> std::convertible_to<KeyInputHandler>;
-		{ t.charInputHandler } -> std::convertible_to<CharInputHandler>;
-	} && std::derived_from<typename T::LocalData, FunctionalityLocalData>;
+	class Layout {
+	  public:
+		virtual ~Layout() {}
+		virtual void regenerateLayout(const std::vector<Control*>& children, const Vector2& controlPosition,
+									  const Vector2& controlSize) {}
+	};
 
-	struct ControlStyleLayoutParameters {
-		// needed for shape creation
-		Control* parent;
-		UISubsystem* subsystem;
-		ControlPosition requestedPosition;
-		Vector2 requestedSize;
-
-		FunctionalityLocalData* functionalityLocalData;
-
-		std::vector<Shape*> shapes;
-		StylePFNRepositionShapes repositionPFN;
-		StylePFNHoverStart hoverStartPFN;
-		StylePFNHoverEnd hoverEndPFN;
-		LayoutPFNRegenerate regeneratePFN;
-
-		MouseButtonHandler mouseButtonHandlerPFN;
-		MouseHoverHandler mouseHoverHandlerPFN;
-		KeyInputHandler keyInputHandlerPFN;
-		CharInputHandler charInputHandlerPFN;
+	class Functionality {
+	  public:
+		virtual ~Functionality() {}
+		virtual void mouseButtonHandler(UISubsystem* subsystem, Control* triggerControl,
+										const Vector2& absolutePosition, uint32_t buttonID) {}
+		virtual void mouseHoverHandler(UISubsystem* subsystem, Control* triggeringControl,
+									   const Vector2& absolutePosition) {}
+		virtual void keyInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t keyID,
+									 windowing::KeyModifierFlags modifierFlags, windowing::KeyState keyState) {}
+		virtual void charInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t codepoint) {}
 	};
 
 	// to be specialized for each functionality and/or layout
@@ -87,9 +48,19 @@ namespace vanadium::ui {
 	template <typename Functionality, typename Layout>
 	concept CompatibleWith = IsCompatible<Functionality, Layout>::value;
 
+	template <std::derived_from<Style> T, typename... Args>
+	requires(std::constructible_from<T, Args...>) T* createStyle(Args&&... args) { return new T(args...); }
+
+	template <std::derived_from<Layout> T, typename... Args>
+	requires(std::constructible_from<T, Args...>) T* createLayout(Args&&... args) { return new T(args...); }
+
+	template <std::derived_from<Functionality> T, typename... Args>
+	requires(std::constructible_from<T, Args...>) T* createFunctionality(Args&&... args) { return new T(args...); }
+
 	class Control {
 	  public:
-		Control(ControlStyleLayoutParameters&& parameters);
+		Control(UISubsystem* subsystem, Control* parent, ControlPosition m_position, const Vector2& m_size,
+				Style* style, Layout* layout, Functionality* functionality);
 		Control(const Control&) = delete;
 		Control& operator=(const Control&) = delete;
 		Control(Control&&) = default;
@@ -109,77 +80,37 @@ namespace vanadium::ui {
 		void setPosition(const ControlPosition& position);
 		void setSize(const Vector2& size);
 
-		uint32_t treeLevel() const;
+		uint32_t layerID() const { return m_layerID; }
+
+		// This method must only be called for the root control
+		void internalRecalculateLayerIndex(uint32_t& layerID);
 
 		// TODO: Child lifetime handling is a mess (move memory management to parent or UI subsystem?)
 		void addChild(Control* newChild) { m_children.push_back(newChild); }
 
-		std::vector<Shape*>& shapes() { return m_shapes; }
+		Style* style() { return m_style; }
+		Layout* layout() { return m_layout; }
+		Functionality* functionality() { return m_functionality; }
 
+	  private:
 		void reposition();
 
-	  protected:
 		Control* m_parent;
 		std::vector<Control*> m_children;
+		uint32_t m_layerID;
 
 		UISubsystem* m_subsystem;
-		std::vector<Shape*> m_shapes;
-
-		FunctionalityLocalData* m_functionalityLocalData;
 
 		ControlPosition m_position;
 		Vector2 m_size;
 
-		StylePFNRepositionShapes m_repositionPFN;
-		StylePFNHoverStart m_hoverStartPFN;
-		StylePFNHoverEnd m_hoverEndPFN;
-		LayoutPFNRegenerate m_regeneratePFN;
-
-		MouseButtonHandler m_mouseButtonHandlerPFN;
-		MouseHoverHandler m_mouseHoverHandlerPFN;
-		KeyInputHandler m_keyInputHandlerPFN;
-		CharInputHandler m_charInputHandlerPFN;
-
-	  private:
-		void seekTreeLevel(uint32_t& childLevel) const {
-			if (m_parent) {
-				++childLevel;
-				m_parent->seekTreeLevel(childLevel);
-			}
-		}
+		Style* m_style;
+		Layout* m_layout;
+		Functionality* m_functionality;
 
 		bool boxTest(const Vector2& position, const Vector2& boxOrigin, const Vector2& boxExtent) {
 			return position.x >= boxOrigin.x && position.x <= (boxOrigin.x + boxExtent.x) &&
 				   position.y >= boxOrigin.y && position.y <= (boxOrigin.y + boxExtent.y);
 		}
 	};
-
-	template <StyleTemplate Style, LayoutTemplate Layout, FunctionalityTemplate Functionality>
-	requires(CompatibleWith<Functionality, Layout>) ControlStyleLayoutParameters
-		createParameters(UISubsystem* subsystem, Control* parent, const ControlPosition& requestedPosition,
-						 const Vector2& requestedSize, const typename Style::StyleParameters& parameters,
-						 const Functionality& functionality) {
-		Vector2 absolutePosition = parent == nullptr ? Vector2(0.0f, 0.0f)
-													 : requestedPosition.absoluteTopLeft(parent->topLeftPosition(),
-																						 parent->size(), requestedSize);
-		uint32_t treeLevel = 0;
-		if (parent) {
-			treeLevel = parent->treeLevel() + 1;
-		}
-		return { .parent = parent,
-				 .subsystem = subsystem,
-				 .requestedPosition = requestedPosition,
-				 .requestedSize = requestedSize,
-				 .functionalityLocalData = new typename Functionality::LocalData,
-				 .shapes = Style::createShapes(subsystem, treeLevel, absolutePosition, requestedSize, parameters),
-				 .repositionPFN = Style::repositionShapes,
-				 .hoverStartPFN = Style::hoverStart,
-				 .hoverEndPFN = Style::hoverEnd,
-				 .regeneratePFN = Layout::regenerateLayout,
-				 .mouseButtonHandlerPFN = functionality.mouseButtonHandler,
-				 .mouseHoverHandlerPFN = functionality.mouseHoverHandler,
-				 .keyInputHandlerPFN = functionality.keyInputHandler,
-				 .charInputHandlerPFN = functionality.charInputHandler };
-	}
-
 } // namespace vanadium::ui

@@ -2,25 +2,21 @@
 #include <ui/UISubsystem.hpp>
 
 namespace vanadium::ui {
-	Control::Control(ControlStyleLayoutParameters&& parameters)
-		: m_parent(parameters.parent), m_subsystem(parameters.subsystem), m_shapes(parameters.shapes),
-		  m_functionalityLocalData(parameters.functionalityLocalData), m_position(parameters.requestedPosition),
-		  m_size(parameters.requestedSize), m_repositionPFN(parameters.repositionPFN),
-		  m_hoverStartPFN(parameters.hoverStartPFN), m_hoverEndPFN(parameters.hoverEndPFN),
-		  m_regeneratePFN(parameters.regeneratePFN), m_mouseButtonHandlerPFN(parameters.mouseButtonHandlerPFN),
-		  m_mouseHoverHandlerPFN(parameters.mouseHoverHandlerPFN), m_keyInputHandlerPFN(parameters.keyInputHandlerPFN),
-		  m_charInputHandlerPFN(parameters.charInputHandlerPFN) {
-		if (m_parent)
+	Control::Control(UISubsystem* subsystem, Control* parent, ControlPosition position, const Vector2& size,
+					 Style* style, Layout* layout, Functionality* functionality)
+		: m_parent(parent), m_subsystem(subsystem), m_position(position), m_size(size), m_style(style),
+		  m_layout(layout), m_functionality(functionality) {
+		if (m_parent) {
 			m_parent->addChild(this);
+		}
+		m_subsystem->recalculateLayerIndices();
+		m_style->createShapes(subsystem, m_layerID, topLeftPosition(), m_size);
 	}
 
 	Control::~Control() {
-		for (auto& shape : m_shapes) {
-			if (shape) {
-				m_subsystem->removeShape(shape);
-			}
-		}
-		delete m_functionalityLocalData;
+		delete m_style;
+		delete m_layout;
+		delete m_functionality;
 	}
 
 	void Control::invokeMouseButtonHandler(UISubsystem* subsystem, const Vector2& absolutePosition, uint32_t buttonID) {
@@ -33,7 +29,7 @@ namespace vanadium::ui {
 			}
 		}
 		if (!hitChild) {
-			m_mouseButtonHandlerPFN(subsystem, this, m_functionalityLocalData, absolutePosition, buttonID);
+			m_functionality->mouseButtonHandler(subsystem, this, absolutePosition, buttonID);
 		}
 	}
 
@@ -47,30 +43,23 @@ namespace vanadium::ui {
 			}
 		}
 		if (!hitChild) {
-			m_mouseHoverHandlerPFN(subsystem, this, m_functionalityLocalData, absolutePosition);
+			m_functionality->mouseHoverHandler(subsystem, this, absolutePosition);
 		}
 	}
 
 	void Control::invokeKeyInputHandler(UISubsystem* subsystem, uint32_t keyID,
-										windowing::KeyModifierFlags modifierFlags,
-										windowing::KeyState keyState) {
-		m_keyInputHandlerPFN(subsystem, this, m_functionalityLocalData, keyID, modifierFlags, keyState);
+										windowing::KeyModifierFlags modifierFlags, windowing::KeyState keyState) {
+		m_functionality->keyInputHandler(subsystem, this, keyID, modifierFlags, keyState);
 	}
 
 	void Control::invokeCharInputHandler(UISubsystem* subsystem, uint32_t unicodeCodepoint) {
-		m_charInputHandlerPFN(subsystem, this, m_functionalityLocalData, unicodeCodepoint);
+		m_functionality->charInputHandler(subsystem, this, unicodeCodepoint);
 	}
 
 	Vector2 Control::topLeftPosition() const {
 		Vector2 parentTopLeftPosition = m_parent != nullptr ? m_parent->topLeftPosition() : Vector2(0.0f);
 		Vector2 parentSize = m_parent != nullptr ? m_parent->size() : Vector2(1.0f);
 		return m_position.absoluteTopLeft(parentTopLeftPosition, parentSize, m_size);
-	}
-
-	uint32_t Control::treeLevel() const {
-		uint32_t level = 0U;
-		seekTreeLevel(level);
-		return level;
 	}
 
 	void Control::setPosition(const ControlPosition& position) {
@@ -84,9 +73,17 @@ namespace vanadium::ui {
 	}
 
 	void Control::reposition() {
-		m_repositionPFN(m_subsystem, treeLevel(), topLeftPosition(), m_size, m_shapes);
+		m_style->repositionShapes(m_subsystem, m_layerID, topLeftPosition(), m_size);
 		for (auto& child : m_children) {
 			child->reposition();
+		}
+	}
+
+	void Control::internalRecalculateLayerIndex(uint32_t& layerID) {
+		m_layerID = layerID;
+		layerID += m_style->layerCount();
+		for (auto& child : m_children) {
+			child->internalRecalculateLayerIndex(layerID);
 		}
 	}
 } // namespace vanadium::ui

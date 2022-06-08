@@ -94,15 +94,19 @@ namespace vanadium::graphics {
 
 		void create(DeviceContext* context, GPUResourceAllocator* allocator);
 
+		// Creates a GPU transfer. This automatically allocates one destination buffer per frame in flight and
+		// corresponding staging buffers, if the destination buffer cannot be allocated in host-visible VRAM.
 		GPUTransferHandle createTransfer(VkDeviceSize transferBufferSize, VkBufferUsageFlags usageFlags,
 										 VkPipelineStageFlags usageStageFlags, VkAccessFlags usageAccessFlags);
 
 		void destroyTransfer(GPUTransferHandle handle);
 
+		// Transmits data to a buffer using the asynchronous transfer queue of the device, if any exists.
 		AsyncBufferTransferHandle createAsyncBufferTransfer(void* data, size_t size, BufferResourceHandle dstBuffer,
 															size_t offset, VkPipelineStageFlags usageStageFlags,
 															VkAccessFlags usageAccessFlags);
 
+		// Transmits data to an image using the asynchronous transfer queue of the device, if any exists.
 		AsyncImageTransferHandle createAsyncImageTransfer(void* data, size_t size, ImageResourceHandle dstImage,
 														  const VkBufferImageCopy& copy, VkImageLayout dstImageLayout,
 														  VkPipelineStageFlags usageStageFlags,
@@ -113,7 +117,8 @@ namespace vanadium::graphics {
 
 		void submitImageTransfer(ImageResourceHandle dstImage, const VkBufferImageCopy& copy, const void* data,
 								 VkDeviceSize size, VkPipelineStageFlags usageStageFlags,
-								 VkAccessFlags usageAccessFlags, VkImageLayout dstUsageLayout, VkImageLayout srcLayout = VK_IMAGE_LAYOUT_UNDEFINED);
+								 VkAccessFlags usageAccessFlags, VkImageLayout dstUsageLayout,
+								 VkImageLayout srcLayout = VK_IMAGE_LAYOUT_UNDEFINED);
 
 		BufferResourceHandle dstBufferHandle(GPUTransferHandle handle);
 
@@ -153,14 +158,21 @@ namespace vanadium::graphics {
 		Slotmap<AsyncBufferTransfer> m_asyncBufferTransfers;
 		Slotmap<AsyncImageTransfer> m_asyncImageTransfers;
 
-		std::vector<AsyncBufferTransferHandle> m_bufferHandlesToInitiate;
-		std::vector<AsyncImageTransferHandle> m_imageHandlesToInitiate;
+		// Handles of async buffer transfers whose commands need to be submitted to the async transfer queue.
+		std::vector<AsyncBufferTransferHandle> m_bufferHandlesToBegin;
+		// Handles of async image transfers whose commands need to be submitted to the async transfer queue.
+		std::vector<AsyncImageTransferHandle> m_imageHandlesToBegin;
 
+		// Barriers performing Queue Family Ownership Transfers from the asynchronous copy queue to the destination
+		// queue.
 		std::vector<VkBufferMemoryBarrier> m_bufferFinalizationBarriers;
+		// Barriers performing Queue Family Ownership Transfers from the asynchronous copy queue to the destination
+		// queue.
 		std::vector<VkImageMemoryBarrier> m_imageFinalizationBarriers;
 
 		Slotmap<StagingBuffer> m_stagingBuffers;
 
+		// An array of free staging buffers for each frame in flight.
 		std::vector<std::vector<StagingBufferAllocation>> m_stagingBufferAllocationFreeList;
 
 		std::shared_mutex m_accessMutex;

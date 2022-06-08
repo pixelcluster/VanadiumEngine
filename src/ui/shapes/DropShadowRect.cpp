@@ -20,7 +20,7 @@ namespace vanadium::ui::shapes {
 									 .size = rectShape->size(),
 									 .dropShadowPosition = rectShape->shadowPeakPos(),
 									 .cosSinRotation = { cosf(rectShape->rotation()), sinf(rectShape->rotation()) },
-                                     .maxOpacity = rectShape->maxOpacity() });
+									 .maxOpacity = rectShape->maxOpacity() });
 		m_maxLayer = std::max(m_maxLayer, shape->layerIndex());
 	}
 
@@ -34,16 +34,24 @@ namespace vanadium::ui::shapes {
 
 	void DropShadowRectShapeRegistry::prepareFrame(uint32_t frameIndex) {
 		size_t shapeIndex = 0;
+		bool anyShapeDirty = false;
 		for (auto& shape : m_shapes) {
-			m_dataManager.updateShapeData(shapeIndex,
-										  { .position = shape->position(),
-											.size = shape->size(),
-											.dropShadowPosition = shape->shadowPeakPos(),
-											.cosSinRotation = { cosf(shape->rotation()), sinf(shape->rotation()) },
-                                            .maxOpacity = shape->maxOpacity() });
+			if (shape->dirtyFlag()) {
+				m_dataManager.updateShapeData(shapeIndex, shape->layerIndex(),
+											  { .position = shape->position(),
+												.size = shape->size(),
+												.dropShadowPosition = shape->shadowPeakPos(),
+												.cosSinRotation = { cosf(shape->rotation()), sinf(shape->rotation()) },
+												.maxOpacity = shape->maxOpacity() });
+				shape->clearDirtyFlag();
+				anyShapeDirty = true;
+			}
 			++shapeIndex;
 		}
-		m_dataManager.prepareFrame(m_context, frameIndex);
+
+		if (anyShapeDirty)
+			m_dataManager.rebuildDataBuffer(frameIndex);
+		m_dataManager.uploadDataBuffer(m_context, frameIndex);
 	}
 
 	void DropShadowRectShapeRegistry::renderShapes(VkCommandBuffer commandBuffer, uint32_t frameIndex,
@@ -79,6 +87,11 @@ namespace vanadium::ui::shapes {
 			delete shape;
 		}
 		m_dataManager.destroy(m_context);
+	}
+
+	void DropShadowRectShape::setSize(const Vector2& size) {
+		m_size = size;
+		m_dirtyFlag = true;
 	}
 
 	void DropShadowRectShape::setShadowPeakPos(const Vector2& shadowPeakPos) {

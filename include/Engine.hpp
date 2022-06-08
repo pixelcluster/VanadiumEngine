@@ -6,7 +6,7 @@
 #include <windowing/WindowInterface.hpp>
 
 namespace vanadium {
-	enum class EngineStartupFlag { UIOnly = 1 };
+	enum class EngineStartupFlag {  };
 
 	class EngineConfig {
 	  public:

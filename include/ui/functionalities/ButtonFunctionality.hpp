@@ -1,17 +1,19 @@
 #include <ui/Control.hpp>
 
 namespace vanadium::ui::functionalities {
-	struct ButtonFunctionality {
-		MouseButtonHandler mouseButtonHandler;
-		static void mouseHoverHandler(UISubsystem* subsystem, Control* triggeringControl, void* localData,
-									  const Vector2& absolutePosition) {}
-		static void keyInputHandler(UISubsystem* subsystem, Control* triggeringControl, void* localData, uint32_t keyID,
-									windowing::KeyModifierFlags modifierFlags, windowing::KeyState keyState) {
-		}
-		static void charInputHandler(UISubsystem* subsystem, Control* triggeringControl, void* localData,
-									 uint32_t codepoint) {}
+	using MouseButtonHandler = void (*)(Control* triggerControl, const Vector2& absolutePosition, uint32_t buttonID);
 
-		struct LocalData : public FunctionalityLocalData {};
+	class ButtonFunctionality : public Functionality {
+	  public:
+		ButtonFunctionality(MouseButtonHandler handler) : m_mouseButtonHandler(handler) {}
+
+		void mouseButtonHandler(UISubsystem* subsystem, Control* triggerControl, const Vector2& absolutePosition,
+								uint32_t buttonID) override {
+			m_mouseButtonHandler(triggerControl, absolutePosition, buttonID);
+		}
+
+	  private:
+		MouseButtonHandler m_mouseButtonHandler;
 	};
 } // namespace vanadium::ui::functionalities
 

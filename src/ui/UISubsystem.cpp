@@ -1,7 +1,4 @@
 #include <ui/UISubsystem.hpp>
-#include <ui/functionalities/NullFunctionality.hpp>
-#include <ui/layouts/FreeLayout.hpp>
-#include <ui/styles/NullStyle.hpp>
 
 namespace vanadium::ui {
 
@@ -26,15 +23,12 @@ namespace vanadium::ui {
 	}
 
 	UISubsystem::UISubsystem(windowing::WindowInterface* windowInterface, const graphics::RenderContext& context,
-							 const std::string_view& fontLibraryFile, bool clearBackground, const Vector4& clearValue)
+							 const std::string_view& fontLibraryFile, const Vector4& clearValue)
 		: m_windowInterface(windowInterface), m_fontLibrary(fontLibraryFile),
-		  m_rootControl(createParameters<styles::NullStyle, layouts::FreeLayout, functionalities::NullFunctionality>(
-			  this, nullptr, ControlPosition(PositionOffsetType::TopLeft, Vector2(0.0f, 0.0f)), Vector2(0.0f, 0.0f), {},
-			  {})) {
-		if (clearBackground)
-			m_rendererNode = new UIRendererNode(this, context, clearBackground);
-		else
-			m_rendererNode = new UIRendererNode(this, context);
+		  m_rootControl(this, nullptr, ControlPosition(PositionOffsetType::TopLeft, Vector2(0.0f, 0.0f)),
+						Vector2(0.0f, 0.0f), createStyle<vanadium::ui::Style>(), createLayout<vanadium::ui::Layout>(),
+						createFunctionality<vanadium::ui::Functionality>()) {
+		m_rendererNode = new UIRendererNode(this, context, clearValue);
 
 		windowInterface->addSizeListener({ .eventCallback = windowSizeListener,
 										   .listenerDestroyCallback = windowing::emptyListenerDestroyCallback,
@@ -66,6 +60,11 @@ namespace vanadium::ui {
 	}
 
 	void UISubsystem::releaseInputFocus() { m_inputFocusControl = nullptr; }
+
+	void UISubsystem::recalculateLayerIndices() {
+		uint32_t layerIndex = 0;
+		m_rootControl.internalRecalculateLayerIndex(layerIndex);
+	}
 
 	void UISubsystem::invokeMouseHover(const Vector2& mousePos) { m_rootControl.invokeHoverHandler(this, mousePos); }
 

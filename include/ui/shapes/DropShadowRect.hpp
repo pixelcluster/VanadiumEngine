@@ -63,6 +63,7 @@ namespace vanadium::ui::shapes {
 		const Vector2& shadowPeakPos() const { return m_shadowPeakPos; }
 		float maxOpacity() const { return m_maxOpacity; }
 
+		void setSize(const Vector2& size);
 		void setShadowPeakPos(const Vector2& shadowPeakPos);
 		void setMaxOpacity(float maxOpacity);
 

@@ -253,7 +253,7 @@ namespace vanadium::graphics {
 		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
 		verifyResult(vkResetCommandPool(m_context->device(), m_transferCommandPools[frameIndex], 0));
 
-		if (!m_bufferHandlesToInitiate.empty() || !m_imageHandlesToInitiate.empty()) {
+		if (!m_bufferHandlesToBegin.empty() || !m_imageHandlesToBegin.empty()) {
 			AsyncTransferCommandPoolHandle poolHandle;
 			if (m_freeAsyncTransferCommandPools.empty()) {
 				AsyncTransferCommandPool newPool = {};
@@ -277,15 +277,15 @@ namespace vanadium::graphics {
 				m_freeAsyncTransferCommandPools.pop_back();
 			}
 			m_asyncTransferCommandPools[poolHandle].refCount =
-				m_bufferHandlesToInitiate.size() + m_imageHandlesToInitiate.size();
+				m_bufferHandlesToBegin.size() + m_imageHandlesToBegin.size();
 			VkCommandBufferBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 												   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
 			vkBeginCommandBuffer(m_asyncTransferCommandPools[poolHandle].buffer, &beginInfo);
 
 			std::vector<VkImageMemoryBarrier> imageLayoutTransitionBarriers;
-			imageLayoutTransitionBarriers.reserve(m_imageHandlesToInitiate.size());
+			imageLayoutTransitionBarriers.reserve(m_imageHandlesToBegin.size());
 
-			for (auto& handle : m_imageHandlesToInitiate) {
+			for (auto& handle : m_imageHandlesToBegin) {
 				auto& transfer = m_asyncImageTransfers[handle];
 				imageLayoutTransitionBarriers.push_back(transfer.layoutTransitionBarrier);
 			}
@@ -294,8 +294,8 @@ namespace vanadium::graphics {
 								 imageLayoutTransitionBarriers.data());
 
 			std::vector<VkBufferMemoryBarrier> releaseBarriers;
-			releaseBarriers.reserve(m_bufferHandlesToInitiate.size());
-			for (auto& handle : m_bufferHandlesToInitiate) {
+			releaseBarriers.reserve(m_bufferHandlesToBegin.size());
+			for (auto& handle : m_bufferHandlesToBegin) {
 				auto& transfer = m_asyncBufferTransfers[handle];
 
 				transfer.containingCommandPool = poolHandle;
@@ -307,8 +307,8 @@ namespace vanadium::graphics {
 			}
 
 			std::vector<VkImageMemoryBarrier> imageReleaseBarriers;
-			imageReleaseBarriers.reserve(m_imageHandlesToInitiate.size());
-			for (auto& handle : m_imageHandlesToInitiate) {
+			imageReleaseBarriers.reserve(m_imageHandlesToBegin.size());
+			for (auto& handle : m_imageHandlesToBegin) {
 				auto& transfer = m_asyncImageTransfers[handle];
 
 				transfer.containingCommandPool = poolHandle;

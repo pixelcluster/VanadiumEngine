@@ -33,15 +33,24 @@ namespace vanadium::ui::shapes {
 
 	void FilledRectShapeRegistry::prepareFrame(uint32_t frameIndex) {
 		size_t shapeIndex = 0;
+		bool anyShapeDirty = false;
 		for (auto& shape : m_shapes) {
-			m_dataManager.updateShapeData(shapeIndex,
-										  { .position = shape->position(),
-											.size = shape->size(),
-											.color = shape->color(),
-											.cosSinRotation = { cosf(shape->rotation()), sinf(shape->rotation()) } });
+			if (shape->dirtyFlag()) {
+				m_dataManager.updateShapeData(
+					shapeIndex, shape->layerIndex(),
+					{ .position = shape->position(),
+					  .size = shape->size(),
+					  .color = shape->color(),
+					  .cosSinRotation = { cosf(shape->rotation()), sinf(shape->rotation()) } });
+				shape->clearDirtyFlag();
+				anyShapeDirty = true;
+			}
 			++shapeIndex;
 		}
-		m_dataManager.prepareFrame(m_context, frameIndex);
+
+		if (anyShapeDirty)
+			m_dataManager.rebuildDataBuffer(frameIndex);
+		m_dataManager.uploadDataBuffer(m_context, frameIndex);
 	}
 
 	void FilledRectShapeRegistry::renderShapes(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint32_t layerIndex,
@@ -59,7 +68,7 @@ namespace vanadium::ui::shapes {
 								.minDepth = 0.0f,
 								.maxDepth = 1.0f };
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-		
+
 		PushConstantData constantData = { .targetDimensions = Vector2(m_context.targetSurface->properties().width,
 																	  m_context.targetSurface->properties().height),
 										  .instanceOffset = layer.offset };

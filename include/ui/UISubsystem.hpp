@@ -9,7 +9,7 @@ namespace vanadium::ui {
 	class UISubsystem {
 	  public:
 		UISubsystem(windowing::WindowInterface* windowInterface, const graphics::RenderContext& context,
-					const std::string_view& fontLibraryFile, bool clearBackground, const Vector4& clearValue);
+					const std::string_view& fontLibraryFile, const Vector4& clearValue);
 
 		template <RenderableShape T, typename... Args>
 		requires(std::constructible_from<T, Args...>) T* addShape(Args&&... args) {
@@ -29,6 +29,8 @@ namespace vanadium::ui {
 		void acquireInputFocus(Control* newInputFocusControl, windowing::KeyModifierFlags modifierMask,
 							   windowing::KeyStateFlags stateMask);
 		void releaseInputFocus();
+
+		void recalculateLayerIndices();
 
 		void invokeMouseHover(const Vector2& mousePos);
 		void invokeMouseButton(uint32_t buttonID);

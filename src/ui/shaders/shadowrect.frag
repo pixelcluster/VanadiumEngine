@@ -15,5 +15,5 @@ float sstep(float x, float e0, float e1) {
 void main() {
     color = vec4(sstep(pos.x, 0, shadowPeakPos.x) * sstep(pos.y, 0, shadowPeakPos.y) * 
             (1 - sstep(pos.x, 1 - shadowPeakPos.x, 1)) * (1 - sstep(pos.y, 1 - shadowPeakPos.y, 1)) * maxOpacity);
-    color.rgb = vec3(0.3);
+    color.rgb = vec3(0.0);
 }

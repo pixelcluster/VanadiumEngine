@@ -521,7 +521,11 @@ namespace vanadium::ui::shapes {
 		hb_position_t penY = 0;
 		hb_codepoint_t previousGlyphIndex = 0;
 
+		uint32_t maxLineHeight = 0;
+
 		for (unsigned int i = 0; i < glyphCount; ++i) {
+			FT_Load_Glyph(face, glyphInfos[i].codepoint, FT_LOAD_DEFAULT);
+
 			hb_position_t xAdvance = glyphPositions[i].x_advance / 64;
 			hb_position_t yAdvance = glyphPositions[i].y_advance / 64;
 
@@ -533,6 +537,7 @@ namespace vanadium::ui::shapes {
 				penY += face->size->metrics.height;
 				maxPenX = std::max(penX, maxPenX);
 				penX = 0;
+				maxLineHeight = 0;
 			} else {
 				FT_Vector kerningDelta;
 				FT_Get_Kerning(face, previousGlyphIndex, glyphInfos[i].codepoint, FT_KERNING_DEFAULT, &kerningDelta);
@@ -566,6 +571,7 @@ namespace vanadium::ui::shapes {
 							shape->addLinebreak(brokenGlyphIndex - 1);
 							i = lastLinebreakIndex;
 							penX = 0;
+							maxLineHeight = 0;
 							foundLinebreak = true;
 							previousGlyphIndex = 0;
 							break;
@@ -582,12 +588,13 @@ namespace vanadium::ui::shapes {
 				}
 				previousGlyphIndex = glyphInfos[i].codepoint;
 			}
+
+			maxLineHeight = std::max(maxLineHeight, static_cast<uint32_t>(face->glyph->metrics.height / 64));
 		}
 		maxPenX = std::max(penX, maxPenX);
 		shape->addLinebreak(glyphCount - 1); // LB3
 
-		shape->setInternalSize(
-			Vector2(maxPenX, shape->linebreakGlyphIndices().size() * face->size->metrics.height / 64));
+		shape->setInternalSize(Vector2(maxPenX, penY + maxLineHeight));
 	}
 
 	TextShape::TextShape(const Vector2& position, uint32_t layerIndex, float maxWidth, float rotation,
