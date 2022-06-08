@@ -543,7 +543,7 @@ namespace vanadium::ui::shapes {
 			} else {
 				FT_Vector kerningDelta;
 				FT_Get_Kerning(face, previousGlyphIndex, glyphInfos[i].codepoint, FT_KERNING_DEFAULT, &kerningDelta);
-				// penX += kerningDelta.x / 64;
+				penX += kerningDelta.x / 64;
 			}
 
 			// skip over line control characters
