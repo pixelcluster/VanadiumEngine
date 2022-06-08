@@ -219,13 +219,16 @@ namespace vanadium::ui::shapes {
 
 			hb_position_t penX = 0;
 			hb_position_t penY = 0;
+			previousGlyphIndex = 0;
 
 			std::string_view textView = shape->text();
 
 			for (unsigned int i = 0; i < glyphCount; ++i) {
 				hb_codepoint_t glyphID = glyphInfos[i].codepoint;
-				hb_position_t xOffset = shapeGlyphPositions[i].x_offset / 64;
-				hb_position_t yOffset = shapeGlyphPositions[i].y_offset / 64;
+				FT_Load_Glyph(face, glyphID, FT_LOAD_DEFAULT);
+
+				hb_position_t xOffset = (shapeGlyphPositions[i].x_offset + face->glyph->metrics.horiBearingX) / 64;
+				hb_position_t yOffset = (shapeGlyphPositions[i].y_offset) / 64;
 				hb_position_t xAdvance = shapeGlyphPositions[i].x_advance / 64;
 				hb_position_t yAdvance = shapeGlyphPositions[i].y_advance / 64;
 
@@ -245,8 +248,6 @@ namespace vanadium::ui::shapes {
 					utf8Codepoint(textView.data() + glyphInfos[i].cluster, textView.size() - glyphInfos[i].cluster));
 				if (breakClass == BreakClass::CR || breakClass == BreakClass::LF || breakClass == BreakClass::BK)
 					continue;
-
-				FT_Load_Glyph(face, glyphID, FT_LOAD_DEFAULT);
 
 				m_fontAtlases[identifier].shapeGlyphData.push_back(
 					{ .referencedShape = shape,
@@ -312,7 +313,8 @@ namespace vanadium::ui::shapes {
 			}
 
 			m_fontAtlases[identifier].fontAtlasPositions[glyphIndex] = { .position = Vector2(pixelPenX, pixelPenY),
-																		 .size = Vector2(pixelWidth, pixelHeight) };
+																		 .size =
+																			 Vector2(pixelWidth - 1, pixelHeight - 1) };
 
 			pixelPenX += pixelWidth;
 			maxLineHeight = std::max(pixelHeight, maxLineHeight);
@@ -541,7 +543,7 @@ namespace vanadium::ui::shapes {
 			} else {
 				FT_Vector kerningDelta;
 				FT_Get_Kerning(face, previousGlyphIndex, glyphInfos[i].codepoint, FT_KERNING_DEFAULT, &kerningDelta);
-				penX += kerningDelta.x / 64;
+				// penX += kerningDelta.x / 64;
 			}
 
 			// skip over line control characters
@@ -589,6 +591,7 @@ namespace vanadium::ui::shapes {
 				previousGlyphIndex = glyphInfos[i].codepoint;
 			}
 
+			previousGlyphIndex = glyphInfos[i].codepoint;
 			maxLineHeight = std::max(maxLineHeight, static_cast<uint32_t>(face->glyph->metrics.height / 64));
 		}
 		maxPenX = std::max(penX, maxPenX);

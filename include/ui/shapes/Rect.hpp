@@ -58,15 +58,7 @@ namespace vanadium::ui::shapes {
 		void setSize(const Vector2& size);
 		void setColor(const Vector4& color);
 
-		static size_t vertexDataSize() { return sizeof(m_vertexData); };
-		static size_t indexDataSize() { return sizeof(m_indexData); }
-		static void writeVertexData(void* data) { std::memcpy(data, m_vertexData, sizeof(m_vertexData)); }
-		static void writeIndexData(void* data) { std::memcpy(data, m_indexData, sizeof(m_indexData)); }
-
 	  private:
-		static constexpr Vector2 m_vertexData[] = { { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f } };
-		static constexpr uint32_t m_indexData[] = { 0, 2, 3, 3, 1, 0 };
-
 		Vector2 m_size;
 		Vector4 m_color;
 	};

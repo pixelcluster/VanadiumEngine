@@ -3,6 +3,7 @@
 #include <ui/Shape.hpp>
 #include <ui/UISubsystem.hpp>
 #include <ui/shapes/DropShadowRect.hpp>
+#include <ui/shapes/FilledRoundedRect.hpp>
 #include <ui/shapes/Rect.hpp>
 #include <ui/shapes/Text.hpp>
 #include <vector>
@@ -61,6 +62,46 @@ namespace vanadium::ui::styles {
 		shapes::TextShape* m_textShape;
 	};
 
+	class TextRoundedRectStyle : public Style {
+	  public:
+		TextRoundedRectStyle(std::string_view text, uint32_t fontID, float fontSize, const Vector4& textColor, const Vector4& rectColor,
+							 float edgeSize)
+			: m_text(text), m_fontID(fontID), m_fontSize(fontSize), m_textColor(textColor), m_rectColor(rectColor), m_edgeSize(edgeSize) {}
+
+		void createShapes(UISubsystem* subsystem, uint32_t layerID, const Vector2& position,
+						  const Vector2& size) override {
+			m_textShape = subsystem->addShape<vanadium::ui::shapes::TextShape>(position, layerID + 1, size.x, 0.0f, m_text,
+																			   m_fontSize, m_fontID, m_textColor);
+			m_textShape->setPosition(position + (size - m_textShape->size()) / 2.0f);
+			m_rectShape = subsystem->addShape<vanadium::ui::shapes::FilledRoundedRectShape>(position, layerID, size,
+																							0.0f, m_edgeSize, m_rectColor);
+		}
+		void repositionShapes(UISubsystem* subsystem, uint32_t layerID, const Vector2& position,
+							  const Vector2& size) override {
+			m_rectShape->setPosition(position);
+			m_rectShape->setSize(size);
+			m_rectShape->setLayerIndex(layerID);
+			m_textShape->setPosition(position + (size - m_textShape->size()) / 2.0f);
+			m_textShape->setMaxWidth(size.x);
+			m_textShape->setLayerIndex(layerID + 1);
+		}
+
+		void setText(const std::string_view& text) { m_textShape->setText(text); }
+
+		uint32_t layerCount() const { return 2; }
+
+	  private:
+		std::string_view m_text;
+		uint32_t m_fontID;
+		float m_fontSize;
+		Vector4 m_textColor;
+		Vector4 m_rectColor;
+		float m_edgeSize;
+
+		shapes::FilledRoundedRectShape* m_rectShape;
+		shapes::TextShape* m_textShape;
+	};
+
 	class TextDropShadowStyle : public Style {
 	  public:
 		TextDropShadowStyle(std::string_view text, uint32_t fontID, float fontSize, Vector4 color,
@@ -97,7 +138,7 @@ namespace vanadium::ui::styles {
 			m_rectShape->setShadowPeakPos(shadowPeakPos);
 		}
 
-		uint32_t layerCount() const { return 1; }
+		uint32_t layerCount() const { return 2; }
 
 	  private:
 		std::string_view m_text;
