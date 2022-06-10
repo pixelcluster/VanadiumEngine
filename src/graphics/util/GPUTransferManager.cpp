@@ -34,14 +34,19 @@ namespace vanadium::graphics {
 														.size = transferBufferSize,
 														.usage = usageFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 														.sharingMode = VK_SHARING_MODE_EXCLUSIVE };
-		BufferResourceHandle dstBuffer = m_resourceAllocator->createBuffer(
-			transferBufferCreateInfo, {}, { .deviceLocal = true, .hostVisible = true }, true);
+		BufferResourceHandle dstBuffer = m_resourceAllocator->createPerFrameBuffer(
+			transferBufferCreateInfo, { .deviceLocal = true, .hostVisible = true }, {}, true);
 		GPUTransfer transfer = { .dstBuffer = dstBuffer,
 								 .bufferSize = transferBufferSize,
 								 .dstUsageStageFlags = usageStageFlags,
 								 .dstUsageAccessFlags = usageAccessFlags };
 		transfer.stagingBuffers.reserve(frameInFlightCount);
-		if (!m_resourceAllocator->bufferMemoryCapabilities(transfer.dstBuffer).hostVisible) {
+		if (dstBuffer == ~0U) {
+			// Nothing has used the buffer yet, no need for it to hang around in free lists
+			m_resourceAllocator->destroyBufferImmediately(dstBuffer);
+			dstBuffer = m_resourceAllocator->createBuffer(transferBufferCreateInfo, {},
+														  { .deviceLocal = true, .hostVisible = true }, true);
+			transfer.dstBuffer = dstBuffer;
 			transfer.needsStagingBuffer = true;
 			for (size_t i = 0; i < frameInFlightCount; ++i) {
 				transfer.stagingBuffers.push_back(allocateStagingBufferArea(transferBufferSize));
