@@ -2,11 +2,12 @@
 #include <cstdint>
 #include <graphics/GraphicsSubsystem.hpp>
 #include <optional>
+#include <timer/TimerManager.hpp>
 #include <ui/UISubsystem.hpp>
 #include <windowing/WindowInterface.hpp>
 
 namespace vanadium {
-	enum class EngineStartupFlag {  };
+	enum class EngineStartupFlag {};
 
 	class EngineConfig {
 	  public:
@@ -65,6 +66,7 @@ namespace vanadium {
 		graphics::GraphicsSubsystem& graphicsSubsystem() { return m_graphicsSubsystem; }
 		windowing::WindowInterface& windowInterface() { return m_windowInterface; }
 		ui::UISubsystem& uiSubsystem() { return m_uiSubsystem; }
+		timers::TimerManager& timerManager() { return m_timerManager; }
 
 		void* userPointer() const { return m_userPointer; }
 		void setUserPointer(void* userPointer) { m_userPointer = userPointer; }
@@ -77,5 +79,6 @@ namespace vanadium {
 		windowing::WindowInterface m_windowInterface;
 		graphics::GraphicsSubsystem m_graphicsSubsystem;
 		ui::UISubsystem m_uiSubsystem;
+		timers::TimerManager m_timerManager;
 	};
 } // namespace vanadium

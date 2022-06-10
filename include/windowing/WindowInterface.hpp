@@ -208,8 +208,8 @@ namespace vanadium::windowing {
 		void removeMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
 									const KeyListenerParams& params);
 
-		void addCharacterListener(uint32_t keyCode, const CharacterListenerParams& params);
-		void removeCharacterListener(uint32_t keyCode, const CharacterListenerParams& params);
+		void addCharacterListener(const CharacterListenerParams& params);
+		void removeCharacterListener(const CharacterListenerParams& params);
 
 		void addSizeListener(const SizeListenerParams& params);
 		void removeSizeListener(const SizeListenerParams& params);
@@ -252,7 +252,7 @@ namespace vanadium::windowing {
 
 		robin_hood::unordered_map<KeyListenerData, std::vector<KeyListenerParams>> m_keyListeners;
 		robin_hood::unordered_map<KeyListenerData, std::vector<KeyListenerParams>> m_mouseKeyListeners;
-		robin_hood::unordered_map<uint32_t, std::vector<CharacterListenerParams>> m_characterListeners;
+		std::vector<CharacterListenerParams> m_characterListeners;
 		std::vector<SizeListenerParams> m_sizeListeners;
 		std::vector<MouseListenerParams> m_mouseMoveListeners;
 		std::vector<MouseListenerParams> m_scrollListeners;

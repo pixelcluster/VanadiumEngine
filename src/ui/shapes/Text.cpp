@@ -92,6 +92,7 @@ namespace vanadium::ui::shapes {
 	}
 
 	void TextShapeRegistry::prepareFrame(uint32_t frameIndex) {
+		m_maxLayer = 0;
 		for (auto& shape : m_shapes) {
 			FontAtlasIdentifier identifier = { .fontID = shape->fontID(), .pointSize = shape->pointSize() };
 			if (shape->textDirtyFlag()) {
@@ -108,26 +109,29 @@ namespace vanadium::ui::shapes {
 			} else if (shape->dirtyFlag()) {
 				m_fontAtlases[identifier].bufferDirtyFlag = true;
 			}
+			m_maxLayer = std::max(shape->layerIndex(), m_maxLayer);
 		}
 		for (auto& [key, atlas] : m_fontAtlases) {
 			if (atlas.dirtyFlag) {
 				regenerateFontAtlas(key, frameIndex);
 				regenerateGlyphData(key, frameIndex);
-				m_renderContext.transferManager->updateTransferData(atlas.glyphDataTransfer, frameIndex,
-																	atlas.glyphData.data());
-				if (atlas.lastRecreateFrameIndex != ~0U)
-					updateAtlasDescriptors(key, frameIndex);
+				if (atlas.glyphDataTransfer != ~0U)
+					m_renderContext.transferManager->updateTransferData(atlas.glyphDataTransfer, frameIndex,
+																		atlas.glyphData.data());
+
+				updateAtlasDescriptors(key, frameIndex);
 			} else if (atlas.bufferDirtyFlag) {
 				regenerateGlyphData(key, frameIndex);
 				m_renderContext.transferManager->updateTransferData(atlas.glyphDataTransfer, frameIndex,
 																	atlas.glyphData.data());
-				if (atlas.lastRecreateFrameIndex != ~0U)
-					updateAtlasDescriptors(key, frameIndex);
+
+				updateAtlasDescriptors(key, frameIndex);
 			} else {
 				if (atlas.lastUpdateFrameIndex != ~0U) {
 					if (atlas.lastUpdateFrameIndex == frameIndex) {
 						atlas.lastUpdateFrameIndex = ~0U;
 					} else {
+
 						m_renderContext.transferManager->updateTransferData(atlas.glyphDataTransfer, frameIndex,
 																			atlas.glyphData.data());
 					}
@@ -274,6 +278,11 @@ namespace vanadium::ui::shapes {
 					  return first.referencedShape->layerIndex() < second.referencedShape->layerIndex();
 				  });
 
+		m_fontAtlases[identifier].layers.clear();
+
+		if (m_fontAtlases[identifier].shapeGlyphData.empty())
+			return;
+
 		m_fontAtlases[identifier].layers.reserve(m_maxLayer + 1);
 		for (uint32_t i = 0; i <= m_maxLayer; ++i) {
 			auto layerBegin = std::lower_bound(
@@ -381,6 +390,9 @@ namespace vanadium::ui::shapes {
 	}
 
 	void TextShapeRegistry::regenerateGlyphData(const FontAtlasIdentifier& identifier, uint32_t frameIndex) {
+		if (m_fontAtlases[identifier].shapeGlyphData.empty())
+			return;
+
 		m_fontAtlases[identifier].glyphData.clear();
 		for (auto& data : m_fontAtlases[identifier].shapeGlyphData) {
 			Vector2 basePosition = data.referencedShape->position();
@@ -425,6 +437,9 @@ namespace vanadium::ui::shapes {
 	}
 
 	void TextShapeRegistry::updateAtlasDescriptors(const FontAtlasIdentifier& identifier, uint32_t frameIndex) {
+		if (m_fontAtlases[identifier].glyphData.empty())
+			return;
+
 		VkDescriptorBufferInfo bufferInfo = {
 			.buffer = m_renderContext.resourceAllocator->nativeBufferHandle(
 				m_renderContext.transferManager->dstBufferHandle(m_fontAtlases[identifier].glyphDataTransfer)),
@@ -471,10 +486,11 @@ namespace vanadium::ui::shapes {
 				hb_ft_face_create_referenced(m_uiSubsystem->fontLibrary().fontFace(shape->fontID()));
 		}
 
+		FT_Set_Char_Size(face, shape->pointSize() * 64.0f, 0, m_uiSubsystem->monitorDPIX(),
+						 m_uiSubsystem->monitorDPIY());
+
 		float pointSizeKey = shape->pointSize() - fmodf(shape->pointSize(), FontAtlasIdentifier::eps);
 		if (m_fonts[shape->fontID()].fonts.find(pointSizeKey) == m_fonts[shape->fontID()].fonts.end()) {
-			FT_Set_Char_Size(face, shape->pointSize() * 64.0f, 0, m_uiSubsystem->monitorDPIX(),
-							 m_uiSubsystem->monitorDPIY());
 			m_fonts[shape->fontID()].fonts.insert(
 				{ pointSizeKey, hb_ft_font_create_referenced(m_uiSubsystem->fontLibrary().fontFace(shape->fontID())) });
 			hb_ft_font_set_funcs(m_fonts[shape->fontID()].fonts[pointSizeKey]);
@@ -524,6 +540,8 @@ namespace vanadium::ui::shapes {
 		hb_codepoint_t previousGlyphIndex = 0;
 
 		uint32_t maxLineHeight = 0;
+		std::vector<GlyphInfo> shapeGlyphInfos;
+		shapeGlyphInfos.reserve(glyphCount);
 
 		for (unsigned int i = 0; i < glyphCount; ++i) {
 			FT_Load_Glyph(face, glyphInfos[i].codepoint, FT_LOAD_DEFAULT);
@@ -593,10 +611,15 @@ namespace vanadium::ui::shapes {
 
 			previousGlyphIndex = glyphInfos[i].codepoint;
 			maxLineHeight = std::max(maxLineHeight, static_cast<uint32_t>(face->glyph->metrics.height / 64));
+
+			// undo addition by xAdvance
+			shapeGlyphInfos.push_back({ .position = Vector2(penX - xAdvance, penY),
+										.advance = static_cast<float>(xAdvance),
+										.clusterIndex = glyphInfos[i].cluster });
 		}
 		maxPenX = std::max(penX, maxPenX);
 		shape->addLinebreak(glyphCount - 1); // LB3
-
+		shape->setGlyphInfos(std::move(shapeGlyphInfos));
 		shape->setInternalSize(Vector2(maxPenX, penY + maxLineHeight));
 	}
 
@@ -629,5 +652,26 @@ namespace vanadium::ui::shapes {
 	void TextShape::setMaxWidth(float maxWidth) {
 		m_textDirtyFlag = true;
 		m_maxWidth = maxWidth;
+	}
+
+	void TextShape::setPointSize(float pointSize) {
+		m_textDirtyFlag = true;
+		m_pointSize = pointSize;
+	}
+
+	void TextShape::deleteClusters(uint32_t glyphIndex) {
+		uint32_t charCount = utf8CharSize(m_text[m_glyphInfos[glyphIndex].clusterIndex]);
+		m_text.erase(m_text.begin() + m_glyphInfos[glyphIndex].clusterIndex,
+					 m_text.begin() + m_glyphInfos[glyphIndex].clusterIndex + charCount);
+
+		m_textDirtyFlag = true;
+		hb_buffer_destroy(m_textBuffer);
+		m_textBuffer = hb_buffer_create();
+		hb_buffer_add_utf8(m_textBuffer, m_text.data(), m_text.size(), 0, -1);
+		hb_buffer_set_direction(m_textBuffer, HB_DIRECTION_LTR);
+		hb_buffer_set_script(m_textBuffer, HB_SCRIPT_LATIN);
+		hb_buffer_set_language(m_textBuffer, hb_language_from_string("en", -1));
+		m_linebreakGlyphIndices.clear();
+		m_registry->determineLineBreaksAndDimensions(this);
 	}
 } // namespace vanadium::ui::shapes

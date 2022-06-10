@@ -22,12 +22,17 @@ namespace vanadium::ui {
 		subsystem->invokeKey(keyCode, modifiers, state);
 	}
 
+	void charListener(uint32_t codepoint, void* userData) {
+		UISubsystem* subsystem = std::launder(reinterpret_cast<UISubsystem*>(userData));
+		subsystem->invokeCharacter(codepoint);
+	}
+
 	UISubsystem::UISubsystem(windowing::WindowInterface* windowInterface, const graphics::RenderContext& context,
 							 const std::string_view& fontLibraryFile, const Vector4& clearValue)
 		: m_windowInterface(windowInterface), m_fontLibrary(fontLibraryFile),
 		  m_rootControl(this, nullptr, ControlPosition(PositionOffsetType::TopLeft, Vector2(0.0f, 0.0f)),
-						Vector2(0.0f, 0.0f), createStyle<vanadium::ui::Style>(), createLayout<vanadium::ui::Layout>(),
-						createFunctionality<vanadium::ui::Functionality>()) {
+						Vector2(0.0f, 0.0f), createStyle<Style>(), createLayout<Layout>(),
+						createFunctionality<Style, Functionality>()) {
 		m_rendererNode = new UIRendererNode(this, context, clearValue);
 
 		windowInterface->addSizeListener({ .eventCallback = windowSizeListener,
@@ -41,6 +46,9 @@ namespace vanadium::ui {
 		windowInterface->addMouseMoveListener({ .eventCallback = mouseListener,
 												.listenerDestroyCallback = windowing::emptyListenerDestroyCallback,
 												.userData = this });
+		windowInterface->addCharacterListener({ .eventCallback = charListener,
+												.listenerDestroyCallback = windowing::emptyListenerDestroyCallback,
+												.userData = this });
 	}
 
 	void UISubsystem::addRendererNode(graphics::FramegraphContext& context) {
@@ -52,14 +60,42 @@ namespace vanadium::ui {
 		m_rootControl.setSize(Vector2(windowWidth, windowHeight));
 	}
 
-	void UISubsystem::acquireInputFocus(Control* newInputFocusControl, windowing::KeyModifierFlags modifierMask,
-										windowing::KeyStateFlags stateMask) {
+	void UISubsystem::acquireInputFocus(Control* newInputFocusControl, const std::vector<uint32_t>& keyCodes,
+										windowing::KeyModifierFlags modifierMask, windowing::KeyStateFlags stateMask) {
+		if (m_inputFocusControl) {
+			for (auto& keyCode : m_inputFocusKeyCodes) {
+				m_windowInterface->removeKeyListener(
+					keyCode, m_inputFocusModifierMask, m_inputFocusStateMask,
+					{ .eventCallback = keyListener,
+					  .listenerDestroyCallback = windowing::emptyListenerDestroyCallback,
+					  .userData = this });
+			}
+			m_inputFocusControl->releaseInputFocus(this);
+		}
 		m_inputFocusControl = newInputFocusControl;
+		m_inputFocusKeyCodes = keyCodes;
 		m_inputFocusModifierMask = modifierMask;
 		m_inputFocusStateMask = stateMask;
+		for (auto& keyCode : keyCodes) {
+			m_windowInterface->addKeyListener(keyCode, modifierMask, stateMask,
+											  { .eventCallback = keyListener,
+												.listenerDestroyCallback = windowing::emptyListenerDestroyCallback,
+												.userData = this });
+		}
 	}
 
-	void UISubsystem::releaseInputFocus() { m_inputFocusControl = nullptr; }
+	void UISubsystem::releaseInputFocus() {
+		if (m_inputFocusControl) {
+			m_inputFocusControl->releaseInputFocus(this);
+		}
+		m_inputFocusControl = nullptr;
+		for (auto& keyCode : m_inputFocusKeyCodes) {
+			m_windowInterface->removeKeyListener(keyCode, m_inputFocusModifierMask, m_inputFocusStateMask,
+												 { .eventCallback = keyListener,
+												   .listenerDestroyCallback = windowing::emptyListenerDestroyCallback,
+												   .userData = this });
+		}
+	}
 
 	void UISubsystem::recalculateLayerIndices() {
 		uint32_t layerIndex = 0;

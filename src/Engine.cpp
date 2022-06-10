@@ -38,6 +38,8 @@ namespace vanadium {
 		else
 			m_windowInterface.waitEvents();
 
+		m_timerManager.update(m_windowInterface.deltaTime());
+		
 		m_lastRenderSuccessful = m_graphicsSubsystem.tickFrame();
 
 		return !m_windowInterface.shouldClose();

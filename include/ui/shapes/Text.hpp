@@ -18,7 +18,7 @@ namespace vanadium::ui::shapes {
 
 	struct FontData {
 		hb_face_t* fontFace = nullptr;
-		//Different fonts for each font size are necessary
+		// Different fonts for each font size are necessary
 		robin_hood::unordered_map<float, hb_font_t*> fonts;
 	};
 
@@ -72,7 +72,7 @@ namespace vanadium::ui::shapes {
 		std::vector<RenderedLayer> layers;
 		Vector2 atlasSize;
 		uint32_t maxGlyphHeight;
-		
+
 		graphics::DescriptorSetAllocation setAllocations[graphics::frameInFlightCount] = {};
 		std::vector<TextShape*> referencingShapes;
 	};
@@ -93,7 +93,8 @@ namespace vanadium::ui::shapes {
 	class TextShapeRegistry : public ShapeRegistry {
 	  public:
 		TextShapeRegistry(UISubsystem* subsystem, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
-						  const graphics::RenderPassSignature& uiRenderPassSignature, const std::string_view pipelineName = "UI Text");
+						  const graphics::RenderPassSignature& uiRenderPassSignature,
+						  const std::string_view pipelineName = "UI Text");
 		~TextShapeRegistry() {}
 
 		void addShape(Shape* shape) override;
@@ -120,7 +121,7 @@ namespace vanadium::ui::shapes {
 		graphics::DescriptorSetAllocationInfo m_textSetAllocationInfo;
 
 		graphics::ImageResourceViewInfo m_atlasViewInfo;
-		
+
 		robin_hood::unordered_map<FontAtlasIdentifier, FontAtlas> m_fontAtlases;
 		std::vector<FontData> m_fonts;
 		std::vector<TextShape*> m_shapes;
@@ -129,17 +130,24 @@ namespace vanadium::ui::shapes {
 		UISubsystem* m_uiSubsystem;
 	};
 
+	struct GlyphInfo {
+		Vector2 position;
+		float advance;
+		uint32_t clusterIndex;
+	};
+
 	class TextShape : public Shape {
 	  public:
 		using ShapeRegistry = TextShapeRegistry;
 
-		TextShape(const Vector2& position, uint32_t layerIndex, float maxWidth, float rotation, const std::string_view& text, float fontSize,
-				  uint32_t fontID, const Vector4& color);
+		TextShape(const Vector2& position, uint32_t layerIndex, float maxWidth, float rotation,
+				  const std::string_view& text, float fontSize, uint32_t fontID, const Vector4& color);
 		~TextShape();
 
 		void setInternalRegistry(ShapeRegistry* currentRegistry) { m_registry = currentRegistry; }
 		void setText(const std::string_view& text);
 		void setMaxWidth(float maxWidth);
+		void setPointSize(float pointSize);
 
 		// internal, do not call yourself
 		void setInternalSize(const Vector2& size) { m_size = size; }
@@ -152,9 +160,18 @@ namespace vanadium::ui::shapes {
 		float maxWidth() const { return m_maxWidth; }
 
 		void addLinebreak(uint32_t index) { m_linebreakGlyphIndices.push_back(index); }
-		//Glyph indices (not text indices!) of each linebreak
+		// Glyph indices (not text indices!) of each linebreak
 		const std::vector<uint32_t>& linebreakGlyphIndices() const { return m_linebreakGlyphIndices; }
 		hb_buffer_t* internalTextBuffer() { return m_textBuffer; }
+
+		uint32_t glyphCount() { return m_glyphInfos.size(); }
+		void setGlyphInfos(std::vector<GlyphInfo>&& glyphInfos) {
+			m_glyphInfos = std::forward<std::vector<GlyphInfo>>(glyphInfos);
+		}
+
+		Vector2 glyphPosition(uint32_t index) const { return m_glyphInfos[index].position; }
+		float glyphWidth(uint32_t index) const { return m_glyphInfos[index].advance; }
+		void deleteClusters(uint32_t glyphIndex);
 
 		bool textDirtyFlag() const { return m_textDirtyFlag; }
 		void clearTextDirtyFlag() { m_textDirtyFlag = false; }
@@ -173,6 +190,7 @@ namespace vanadium::ui::shapes {
 
 		hb_buffer_t* m_textBuffer;
 		std::vector<uint32_t> m_linebreakGlyphIndices;
+		std::vector<GlyphInfo> m_glyphInfos;
 		std::string m_text;
 	};
 

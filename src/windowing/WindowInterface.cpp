@@ -81,6 +81,11 @@ namespace vanadium::windowing {
 		interface->invokeScrollListeners(normalizedX * pixelWidth, normalizedY * pixelHeight);
 	}
 
+	void charCallback(GLFWwindow* window, uint32_t codepoint) {
+		WindowInterface* interface = std::launder(reinterpret_cast<WindowInterface*>(glfwGetWindowUserPointer(window)));
+		interface->invokeCharacterListeners(codepoint);
+	}
+
 	void errorCallback(int code, const char* desc) { logError("GLFW Error: {}", desc); }
 
 	WindowInterface::WindowInterface(const std::optional<WindowingSettingOverride>& override, const char* name) {
@@ -111,6 +116,7 @@ namespace vanadium::windowing {
 		glfwSetMouseButtonCallback(m_window, mouseKeyCallback);
 		glfwSetCursorPosCallback(m_window, mouseMoveCallback);
 		glfwSetScrollCallback(m_window, scrollCallback);
+		glfwSetCharCallback(m_window, charCallback);
 
 		float contentScaleX, contentScaleY;
 		glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &contentScaleX, &contentScaleY);
@@ -188,17 +194,14 @@ namespace vanadium::windowing {
 		}
 	}
 
-	void WindowInterface::addCharacterListener(uint32_t keyCode, const CharacterListenerParams& params) {
-		m_characterListeners[keyCode].push_back(params);
+	void WindowInterface::addCharacterListener(const CharacterListenerParams& params) {
+		m_characterListeners.push_back(params);
 	}
 
-	void WindowInterface::removeCharacterListener(uint32_t keyCode, const CharacterListenerParams& params) {
-		auto iterator = m_characterListeners.find(keyCode);
+	void WindowInterface::removeCharacterListener(const CharacterListenerParams& params) {
+		auto iterator = std::find(m_characterListeners.begin(), m_characterListeners.end(), params);
 		if (iterator != m_characterListeners.end()) {
-			auto groupIterator = std::find(iterator->second.begin(), iterator->second.end(), params);
-			if (groupIterator != iterator->second.end()) {
-				iterator->second.erase(groupIterator);
-			}
+			m_characterListeners.erase(iterator);
 		}
 	}
 
@@ -233,7 +236,7 @@ namespace vanadium::windowing {
 
 	void WindowInterface::invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state) {
 		for (auto [key, listenerGroup] : m_keyListeners) {
-			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) || key.modifierMask == 0) &&
+			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) || modifiers == 0) &&
 				(key.keyStateMask & state)) {
 				for (auto& listener : listenerGroup) {
 					listener.eventCallback(keyCode, modifiers, state, listener.userData);
@@ -254,10 +257,8 @@ namespace vanadium::windowing {
 	}
 
 	void WindowInterface::invokeCharacterListeners(uint32_t keyCode) {
-		for (auto [key, listenerGroup] : m_characterListeners) {
-			for (auto& listener : listenerGroup) {
-				listener.eventCallback(keyCode, listener.userData);
-			}
+		for (auto listener : m_characterListeners) {
+			listener.eventCallback(keyCode, listener.userData);
 		}
 	}
 

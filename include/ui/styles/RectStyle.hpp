@@ -6,7 +6,6 @@
 #include <ui/shapes/FilledRoundedRect.hpp>
 #include <ui/shapes/Rect.hpp>
 #include <ui/shapes/Text.hpp>
-#include <vector>
 
 namespace vanadium::ui::styles {
 	class SimpleRectStyle : public Style {

@@ -2,17 +2,17 @@
 #include <Log.hpp>
 #include <cmath>
 #include <ui/functionalities/ButtonFunctionality.hpp>
+#include <ui/functionalities/TextBoxFunctionality.hpp>
 #include <ui/shapes/DropShadowRect.hpp>
 #include <ui/shapes/Rect.hpp>
 #include <ui/shapes/Text.hpp>
 #include <ui/styles/RectStyle.hpp>
+#include <ui/styles/TextBoxStyle.hpp>
 
 vanadium::ui::shapes::RectShape* shapes[25 * 25];
 vanadium::ui::Control* buttonControl;
 
-void configureEngine(vanadium::EngineConfig& config) {
-	config.setAppName("Vanadium Minimal UI");
-}
+void configureEngine(vanadium::EngineConfig& config) { config.setAppName("Vanadium Minimal UI"); }
 
 void preFramegraphInit(vanadium::Engine& engine) {}
 
@@ -23,7 +23,7 @@ void mouseButtonOutput(vanadium::ui::Control* triggerControl, const vanadium::Ve
 }
 
 void init(vanadium::Engine& engine) {
-	float x = 0.0f;
+	/*float x = 0.0f;
 	for (uint32_t i = 0; i < 25; ++i) {
 		float y = 0.0f;
 		for (uint32_t j = 0; j < 25; ++j) {
@@ -33,22 +33,19 @@ void init(vanadium::Engine& engine) {
 			y += 30.0f;
 		}
 		x += 50.0f;
-	}
+	}*/
 
 	buttonControl = new vanadium::ui::Control(
 		&engine.uiSubsystem(), engine.uiSubsystem().rootControl(),
 		vanadium::ui::ControlPosition(vanadium::ui::PositionOffsetType::BottomRight, vanadium::Vector2(0.05, 0.05)),
-		vanadium::Vector2(80, 40),
-		vanadium::ui::createStyle<vanadium::ui::styles::TextRoundedRectStyle>("test", 0, 24.0f,
-																			 vanadium::Vector4(1.0f),
-																			 vanadium::Vector4(0.3f, 0.3f, 0.3f, 1.0f),
-																			 0.1f),
+		vanadium::Vector2(220, 30), vanadium::ui::createStyle<vanadium::ui::styles::RoundedTextBoxStyle>(0, 0.1),
 		vanadium::ui::createLayout<vanadium::ui::Layout>(),
-		vanadium::ui::createFunctionality<vanadium::ui::functionalities::ButtonFunctionality>(mouseButtonOutput));
+		vanadium::ui::createFunctionality<vanadium::ui::styles::RoundedTextBoxStyle,
+										  vanadium::ui::functionalities::TextBoxFunctionality>(&engine));
 }
 
 bool onFrame(vanadium::Engine& engine) {
-	float x = 0.0f;
+	/*float x = 0.0f;
 	for (uint32_t i = 0; i < 25; ++i) {
 		float y = 0.0f;
 		for (uint32_t j = 0; j < 25; ++j) {
@@ -59,7 +56,7 @@ bool onFrame(vanadium::Engine& engine) {
 			y += 10.0f;
 		}
 		x += 30.0f;
-	}
+	}*/
 	return true;
 }
 

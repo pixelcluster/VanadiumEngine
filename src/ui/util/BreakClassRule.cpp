@@ -41,7 +41,7 @@ namespace vanadium::ui {
 					if (rule.action.beforeIndex == 0) {
 						matchIndex = i;
 					}
-					if(rule.tokens.size() == 1) {
+					if (rule.tokens.size() == 1) {
 						lastTokenMatched = true;
 					}
 
@@ -60,8 +60,9 @@ namespace vanadium::ui {
 				}
 			}
 		}
-		// A linebreak will be inserted unconditionally, prevent accidental additional linebreaks
-		statusArray[statusArray.size() - 1] = LinebreakStatus::DoNotBreak;
+		if (!statusArray.empty())
+			// A linebreak will be inserted unconditionally, prevent accidental additional linebreaks
+			statusArray[statusArray.size() - 1] = LinebreakStatus::DoNotBreak;
 	}
 
 	bool tryMatchToken(const std::vector<BreakClassRuleTraits>& classString, uint32_t& prevMatchCount, uint32_t& index,

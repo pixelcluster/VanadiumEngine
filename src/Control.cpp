@@ -18,7 +18,7 @@ namespace vanadium::ui {
 		delete m_layout;
 		delete m_functionality;
 	}
-
+	
 	void Control::invokeMouseButtonHandler(UISubsystem* subsystem, const Vector2& absolutePosition, uint32_t buttonID) {
 		bool hitChild = false;
 		for (auto& child : m_children) {
@@ -30,6 +30,11 @@ namespace vanadium::ui {
 		}
 		if (!hitChild) {
 			m_functionality->mouseButtonHandler(subsystem, this, absolutePosition, buttonID);
+			if (subsystem->inputFocusControl() != this) {
+				KeyMask mask = m_functionality->keyInputMask();
+				subsystem->acquireInputFocus(this, m_functionality->keyCodes(), mask.modifierMask, mask.stateMask);
+				m_functionality->inputFocusGained(subsystem, this);
+			}
 		}
 	}
 
@@ -84,6 +89,7 @@ namespace vanadium::ui {
 		layerID += m_style->layerCount();
 		for (auto& child : m_children) {
 			child->internalRecalculateLayerIndex(layerID);
+			layerID = m_layerID; // assume children don't overlap
 		}
 	}
 } // namespace vanadium::ui

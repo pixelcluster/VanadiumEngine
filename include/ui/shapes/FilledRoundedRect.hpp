@@ -1,4 +1,4 @@
-
+#pragma once
 #include <graphics/RenderContext.hpp>
 #include <ui/ShapeRegistry.hpp>
 #include <ui/SimpleShapeDataManager.hpp>
@@ -32,6 +32,7 @@ namespace vanadium::ui::shapes {
 			float cosSinRotation[2];
 			// From 0 (no rounded edge, entire edge is straight) to 1 (entire edge is rounded, no straight segment)
 			float edgeSize;
+			float _pad;
 		};
 		struct PushConstantData {
 			Vector2 targetDimensions;

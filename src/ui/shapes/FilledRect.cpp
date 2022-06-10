@@ -34,6 +34,7 @@ namespace vanadium::ui::shapes {
 	void FilledRectShapeRegistry::prepareFrame(uint32_t frameIndex) {
 		size_t shapeIndex = 0;
 		bool anyShapeDirty = false;
+		m_maxLayer = 0;
 		for (auto& shape : m_shapes) {
 			if (shape->dirtyFlag()) {
 				m_dataManager.updateShapeData(
@@ -45,6 +46,7 @@ namespace vanadium::ui::shapes {
 				shape->clearDirtyFlag();
 				anyShapeDirty = true;
 			}
+			m_maxLayer = std::max(m_maxLayer, shape->layerIndex());
 			++shapeIndex;
 		}
 

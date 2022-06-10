@@ -1,3 +1,4 @@
+#pragma once
 #include <ui/Control.hpp>
 
 namespace vanadium::ui::functionalities {
@@ -18,7 +19,7 @@ namespace vanadium::ui::functionalities {
 } // namespace vanadium::ui::functionalities
 
 namespace vanadium::ui {
-	template <typename Layout> struct IsCompatible<functionalities::ButtonFunctionality, Layout> {
+	template <typename Style> struct IsCompatible<functionalities::ButtonFunctionality, Style> {
 		static constexpr bool value = true;
 	};
 } // namespace vanadium::ui

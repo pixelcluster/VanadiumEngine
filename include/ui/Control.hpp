@@ -28,6 +28,11 @@ namespace vanadium::ui {
 									  const Vector2& controlSize) {}
 	};
 
+	struct KeyMask {
+		windowing::KeyStateFlags stateMask;
+		windowing::KeyModifierFlags modifierMask;
+	};
+
 	class Functionality {
 	  public:
 		virtual ~Functionality() {}
@@ -38,14 +43,22 @@ namespace vanadium::ui {
 		virtual void keyInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t keyID,
 									 windowing::KeyModifierFlags modifierFlags, windowing::KeyState keyState) {}
 		virtual void charInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t codepoint) {}
+
+		virtual KeyMask keyInputMask() const { return { 0, 0 }; }
+		virtual std::vector<uint32_t> keyCodes() const { return {}; }
+
+		virtual void inputFocusGained(UISubsystem* subsystem, Control* triggeringControl) {}
+		virtual void inputFocusLost(UISubsystem* subsystem, Control* triggeringControl) {}
 	};
 
 	// to be specialized for each functionality and/or layout
 	// must define constexpr static boolean member named "value" that defines if the layout and functionality are
 	// compatible
-	template <typename Functionality, typename Layout> struct IsCompatible { static constexpr bool value = false; };
+	template <typename Functionality, typename Style> struct IsCompatible { static constexpr bool value = false; };
 
-	template <typename Functionality, typename Layout>
+	template <typename Style> struct IsCompatible<Functionality, Style> { static constexpr bool value = true; };
+
+	template <typename Functionality, typename Style>
 	concept CompatibleWith = IsCompatible<Functionality, Layout>::value;
 
 	template <std::derived_from<Style> T, typename... Args>
@@ -54,8 +67,11 @@ namespace vanadium::ui {
 	template <std::derived_from<Layout> T, typename... Args>
 	requires(std::constructible_from<T, Args...>) T* createLayout(Args&&... args) { return new T(args...); }
 
-	template <std::derived_from<Functionality> T, typename... Args>
-	requires(std::constructible_from<T, Args...>) T* createFunctionality(Args&&... args) { return new T(args...); }
+	template <std::derived_from<Style> Style, std::derived_from<Functionality> T, typename... Args>
+	requires(std::constructible_from<T, Args...>&& IsCompatible<T, Style>::value) T* createFunctionality(
+		Args&&... args) {
+		return new T(args...);
+	}
 
 	class Control {
 	  public:
@@ -72,6 +88,8 @@ namespace vanadium::ui {
 		void invokeKeyInputHandler(UISubsystem* subsystem, uint32_t keyID, windowing::KeyModifierFlags modifierFlags,
 								   windowing::KeyState keyStateFlags);
 		void invokeCharInputHandler(UISubsystem* subsystem, uint32_t unicodeCodepoint);
+
+		void releaseInputFocus(UISubsystem* subsystem) { m_functionality->inputFocusLost(subsystem, this); }
 
 		Vector2 topLeftPosition() const;
 		const ControlPosition& position() const { return m_position; }
