@@ -14,7 +14,7 @@ namespace vanadium::ui::shapes {
 
 	class FilledRoundedRectShapeRegistry : public ShapeRegistry {
 	  public:
-		FilledRoundedRectShapeRegistry(UISubsystem*, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
+		FilledRoundedRectShapeRegistry(UISubsystem* subsystem, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
 									   const graphics::RenderPassSignature& uiRenderPassSignature);
 
 		void addShape(Shape* shape) override;
@@ -44,6 +44,7 @@ namespace vanadium::ui::shapes {
 
 		graphics::RenderContext m_context;
 		std::vector<FilledRoundedRectShape*> m_shapes;
+		UISubsystem* m_subsystem;
 	};
 
 	class FilledRoundedRectShape : public Shape {

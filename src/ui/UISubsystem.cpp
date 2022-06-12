@@ -102,6 +102,20 @@ namespace vanadium::ui {
 		m_rootControl.internalRecalculateLayerIndex(layerIndex);
 	}
 
+	void UISubsystem::setLayerScissor(uint32_t layerIndex, VkRect2D scissorRect) {
+		if(m_layerScissors.size() <= layerIndex) {
+			m_layerScissors.resize(layerIndex + 1, {});
+		}
+		m_layerScissors[layerIndex] = scissorRect;
+	}
+
+	VkRect2D UISubsystem::layerScissor(uint32_t layerIndex) {
+		if(m_layerScissors.size() <= layerIndex) {
+			m_layerScissors.resize(layerIndex + 1, {});
+		}
+		return m_layerScissors[layerIndex];
+	}
+
 	void UISubsystem::invokeMouseHover(const Vector2& mousePos) { m_rootControl.invokeHoverHandler(this, mousePos); }
 
 	void UISubsystem::invokeMouseButton(uint32_t buttonID) {

@@ -44,7 +44,7 @@ namespace vanadium::ui::shapes {
 		float cosSinRotation[2];
 		float _pad[2];
 	};
-
+	
 	struct FontAtlasIdentifier {
 		static constexpr float eps = 0.001f;
 		uint32_t fontID;
@@ -71,6 +71,7 @@ namespace vanadium::ui::shapes {
 		std::vector<RenderedGlyphData> glyphData;
 		std::vector<RenderedLayer> layers;
 		Vector2 atlasSize;
+		// max. glyph height *above baseline*
 		uint32_t maxGlyphHeight;
 
 		graphics::DescriptorSetAllocation setAllocations[graphics::frameInFlightCount] = {};
@@ -165,12 +166,13 @@ namespace vanadium::ui::shapes {
 		hb_buffer_t* internalTextBuffer() { return m_textBuffer; }
 
 		uint32_t glyphCount() { return m_glyphInfos.size(); }
-		void setGlyphInfos(std::vector<GlyphInfo>&& glyphInfos) {
-			m_glyphInfos = std::forward<std::vector<GlyphInfo>>(glyphInfos);
-		}
+
+		void setGlyphInfos(std::vector<GlyphInfo>&& glyphInfos);
+		void setBaselineOffset(float baselineOffset) { m_baselineOffset = baselineOffset; }
 
 		Vector2 glyphPosition(uint32_t index) const { return m_glyphInfos[index].position; }
 		float glyphWidth(uint32_t index) const { return m_glyphInfos[index].advance; }
+		float baselineOffset() const { return m_baselineOffset; }
 		void deleteClusters(uint32_t glyphIndex);
 
 		bool textDirtyFlag() const { return m_textDirtyFlag; }
@@ -191,6 +193,7 @@ namespace vanadium::ui::shapes {
 		hb_buffer_t* m_textBuffer;
 		std::vector<uint32_t> m_linebreakGlyphIndices;
 		std::vector<GlyphInfo> m_glyphInfos;
+		float m_baselineOffset;
 		std::string m_text;
 	};
 

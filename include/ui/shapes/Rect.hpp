@@ -15,7 +15,7 @@ namespace vanadium::ui::shapes {
 
 	class RectShapeRegistry : public ShapeRegistry {
 	  public:
-		RectShapeRegistry(UISubsystem*, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
+		RectShapeRegistry(UISubsystem* subsystem, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
 						  const graphics::RenderPassSignature& uiRenderPassSignature);
 
 		void addShape(Shape* shape) override;
@@ -43,6 +43,7 @@ namespace vanadium::ui::shapes {
 
 		graphics::RenderContext m_context;
 		std::vector<RectShape*> m_shapes;
+		UISubsystem* m_subsystem;
 	};
 
 	class RectShape : public Shape {

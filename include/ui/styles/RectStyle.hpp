@@ -87,7 +87,7 @@ namespace vanadium::ui::styles {
 
 		void setText(const std::string_view& text) { m_textShape->setText(text); }
 
-		uint32_t layerCount() const { return 2; }
+		uint32_t layerCount() const override { return 2; }
 
 	  private:
 		std::string_view m_text;
@@ -137,7 +137,7 @@ namespace vanadium::ui::styles {
 			m_rectShape->setShadowPeakPos(shadowPeakPos);
 		}
 
-		uint32_t layerCount() const { return 2; }
+		uint32_t layerCount() const override { return 2; }
 
 	  private:
 		std::string_view m_text;

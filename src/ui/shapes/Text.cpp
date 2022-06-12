@@ -104,6 +104,17 @@ namespace vanadium::ui::shapes {
 						break;
 					}
 				}
+
+				if (m_fontAtlases.find(identifier) == m_fontAtlases.end()) {
+					std::vector<graphics::DescriptorSetAllocationInfo> infos =
+						std::vector<graphics::DescriptorSetAllocationInfo>(graphics::frameInFlightCount,
+																		   m_textSetAllocationInfo);
+					auto allocations = m_renderContext.descriptorSetAllocator->allocateDescriptorSets(infos);
+					for (uint32_t i = 0; i < graphics::frameInFlightCount; ++i) {
+						m_fontAtlases[identifier].setAllocations[i] = allocations[i];
+					}
+				}
+
 				m_fontAtlases[identifier].dirtyFlag = true;
 				m_fontAtlases[identifier].referencingShapes.push_back(shape);
 			} else if (shape->dirtyFlag()) {
@@ -111,6 +122,15 @@ namespace vanadium::ui::shapes {
 			}
 			m_maxLayer = std::max(shape->layerIndex(), m_maxLayer);
 		}
+
+	atlasTrim:
+		for (auto& [key, atlas] : m_fontAtlases) {
+			if (atlas.referencingShapes.empty()) {
+				destroyAtlas(key);
+				goto atlasTrim; // iterator invalidation, have to retry
+			}
+		}
+
 		for (auto& [key, atlas] : m_fontAtlases) {
 			if (atlas.dirtyFlag) {
 				regenerateFontAtlas(key, frameIndex);
@@ -157,6 +177,14 @@ namespace vanadium::ui::shapes {
 
 	void TextShapeRegistry::renderShapes(VkCommandBuffer commandBuffer, uint32_t frameIndex, uint32_t layerIndex,
 										 const graphics::RenderPassSignature& uiRenderPassSignature) {
+		auto scissorRect = m_uiSubsystem->layerScissor(layerIndex);
+
+		if (scissorRect.extent.width == 0 && scissorRect.extent.height == 0) {
+			scissorRect.extent = { m_renderContext.targetSurface->properties().width,
+								   m_renderContext.targetSurface->properties().height };
+			scissorRect.offset = {};
+		}
+
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 						  m_renderContext.pipelineLibrary->graphicsPipeline(m_textPipelineID, uiRenderPassSignature));
 		VkViewport viewport = { .width = static_cast<float>(m_renderContext.targetSurface->properties().width),
@@ -164,6 +192,7 @@ namespace vanadium::ui::shapes {
 								.minDepth = 0.0f,
 								.maxDepth = 1.0f };
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissorRect);
 
 		VkShaderStageFlags stageFlags =
 			m_renderContext.pipelineLibrary->graphicsPipelinePushConstantRanges(m_textPipelineID)[0].stageFlags;
@@ -211,6 +240,7 @@ namespace vanadium::ui::shapes {
 
 		m_fontAtlases[identifier].shapeGlyphData.clear();
 		m_fontAtlases[identifier].fontAtlasPositions.clear();
+		m_fontAtlases[identifier].maxGlyphHeight = 0;
 
 		for (auto& shape : m_fontAtlases[identifier].referencingShapes) {
 			FT_Set_Char_Size(face, shape->pointSize() * 64.0f, 0, m_uiSubsystem->monitorDPIX(),
@@ -265,8 +295,11 @@ namespace vanadium::ui::shapes {
 				penY += yAdvance;
 
 				oneLinePenX += xAdvance;
-				maxGlyphHeight =
-					std::max(maxGlyphHeight, static_cast<uint32_t>(face->glyph->metrics.horiBearingY / 64));
+				maxGlyphHeight = std::max(maxGlyphHeight, static_cast<uint32_t>(face->size->metrics.height));
+
+				m_fontAtlases[identifier].maxGlyphHeight =
+					std::max(m_fontAtlases[identifier].maxGlyphHeight,
+							 static_cast<uint32_t>(face->glyph->metrics.horiBearingY / 64));
 
 				++totalGlyphCount;
 				previousGlyphIndex = glyphInfos[i].codepoint;
@@ -302,7 +335,6 @@ namespace vanadium::ui::shapes {
 		uint32_t pixelPenY = 0;
 
 		uint32_t maxLineHeight = 0;
-		m_fontAtlases[identifier].maxGlyphHeight = 0;
 
 		for (auto& glyphIndex : usedGlyphs) {
 			FT_Load_Glyph(face, glyphIndex, FT_LOAD_DEFAULT);
@@ -327,7 +359,6 @@ namespace vanadium::ui::shapes {
 
 			pixelPenX += pixelWidth;
 			maxLineHeight = std::max(pixelHeight, maxLineHeight);
-			m_fontAtlases[identifier].maxGlyphHeight = std::max(pixelHeight, m_fontAtlases[identifier].maxGlyphHeight);
 		}
 
 		uint32_t atlasWidth = approximateTextureDimensions;
@@ -467,8 +498,10 @@ namespace vanadium::ui::shapes {
 	}
 
 	void TextShapeRegistry::destroyAtlas(const FontAtlasIdentifier& identifier) {
-		m_renderContext.transferManager->destroyTransfer(m_fontAtlases[identifier].glyphDataTransfer);
-		m_renderContext.resourceAllocator->destroyImage(m_fontAtlases[identifier].fontAtlasImage);
+		if (m_fontAtlases[identifier].glyphDataTransfer != ~0U)
+			m_renderContext.transferManager->destroyTransfer(m_fontAtlases[identifier].glyphDataTransfer);
+		if (m_fontAtlases[identifier].fontAtlasImage != ~0U)
+			m_renderContext.resourceAllocator->destroyImage(m_fontAtlases[identifier].fontAtlasImage);
 		for (auto& set : m_fontAtlases[identifier].setAllocations)
 			m_renderContext.descriptorSetAllocator->freeDescriptorSet(set, m_textSetAllocationInfo);
 		m_fontAtlases.erase(identifier);
@@ -540,6 +573,9 @@ namespace vanadium::ui::shapes {
 		hb_codepoint_t previousGlyphIndex = 0;
 
 		uint32_t maxLineHeight = 0;
+		uint32_t maxBearingY = 0;
+		bool onFirstLine = true;
+
 		std::vector<GlyphInfo> shapeGlyphInfos;
 		shapeGlyphInfos.reserve(glyphCount);
 
@@ -558,6 +594,7 @@ namespace vanadium::ui::shapes {
 				maxPenX = std::max(penX, maxPenX);
 				penX = 0;
 				maxLineHeight = 0;
+				onFirstLine = false;
 			} else {
 				FT_Vector kerningDelta;
 				FT_Get_Kerning(face, previousGlyphIndex, glyphInfos[i].codepoint, FT_KERNING_DEFAULT, &kerningDelta);
@@ -571,7 +608,7 @@ namespace vanadium::ui::shapes {
 				continue;
 			}
 
-			if (penX > shape->maxWidth()) {
+			if (penX > shape->maxWidth() && shape->maxWidth() > 0.0f) {
 				uint32_t lastLinebreakIndex = 0;
 				for (auto& index : shape->linebreakGlyphIndices()) {
 					if (index > i)
@@ -612,6 +649,8 @@ namespace vanadium::ui::shapes {
 			previousGlyphIndex = glyphInfos[i].codepoint;
 			maxLineHeight = std::max(maxLineHeight, static_cast<uint32_t>(face->glyph->metrics.height / 64));
 
+			if (onFirstLine)
+				maxBearingY = std::max(maxBearingY, static_cast<uint32_t>(face->glyph->metrics.horiBearingY / 64));
 			// undo addition by xAdvance
 			shapeGlyphInfos.push_back({ .position = Vector2(penX - xAdvance, penY),
 										.advance = static_cast<float>(xAdvance),
@@ -621,6 +660,7 @@ namespace vanadium::ui::shapes {
 		shape->addLinebreak(glyphCount - 1); // LB3
 		shape->setGlyphInfos(std::move(shapeGlyphInfos));
 		shape->setInternalSize(Vector2(maxPenX, penY + maxLineHeight));
+		shape->setBaselineOffset(maxBearingY);
 	}
 
 	TextShape::TextShape(const Vector2& position, uint32_t layerIndex, float maxWidth, float rotation,
@@ -673,5 +713,9 @@ namespace vanadium::ui::shapes {
 		hb_buffer_set_language(m_textBuffer, hb_language_from_string("en", -1));
 		m_linebreakGlyphIndices.clear();
 		m_registry->determineLineBreaksAndDimensions(this);
+	}
+
+	void TextShape::setGlyphInfos(std::vector<GlyphInfo>&& glyphInfos) {
+		m_glyphInfos = std::forward<std::vector<GlyphInfo>>(glyphInfos);
 	}
 } // namespace vanadium::ui::shapes

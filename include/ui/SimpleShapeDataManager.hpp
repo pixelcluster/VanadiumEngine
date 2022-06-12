@@ -129,6 +129,7 @@ namespace vanadium::ui {
 		auto dataComparator = [](const auto& one, const auto& other) { return one.layerIndex < other; };
 
 		m_renderedLayers.clear();
+
 		uint32_t layerIndex = 0;
 
 		auto offsetIterator =

@@ -84,6 +84,7 @@ namespace vanadium::ui::functionalities {
 			text.push_back(newText[i]);
 		style->inputTextShape()->setText(text);
 		style->incrementCursorGlyphIndex();
+		style->recalculateTextPosition();
 	}
 
 	KeyMask TextBoxFunctionality::keyInputMask() const {

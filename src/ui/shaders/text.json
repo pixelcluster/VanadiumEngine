@@ -68,7 +68,8 @@
                 "depth-bounds-max": 0
             },
             "dynamic-states": [
-                "VK_DYNAMIC_STATE_VIEWPORT"
+                "VK_DYNAMIC_STATE_VIEWPORT",
+                "VK_DYNAMIC_STATE_SCISSOR"
             ],
             "color-blend": {
                 "logic-op-enable": false,

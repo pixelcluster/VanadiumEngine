@@ -14,7 +14,7 @@ namespace vanadium::ui::shapes {
 
 	class DropShadowRectShapeRegistry : public ShapeRegistry {
 	  public:
-		DropShadowRectShapeRegistry(UISubsystem*, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
+		DropShadowRectShapeRegistry(UISubsystem* subsystem, const graphics::RenderContext& context, VkRenderPass uiRenderPass,
 									const graphics::RenderPassSignature& uiRenderPassSignature);
 
 		void addShape(Shape* shape) override;
@@ -50,6 +50,7 @@ namespace vanadium::ui::shapes {
 
 		graphics::RenderContext m_context;
 		std::vector<DropShadowRectShape*> m_shapes;
+		UISubsystem* m_subsystem;
 	};
 
 	class DropShadowRectShape : public Shape {
@@ -67,15 +68,7 @@ namespace vanadium::ui::shapes {
 		void setShadowPeakPos(const Vector2& shadowPeakPos);
 		void setMaxOpacity(float maxOpacity);
 
-		static size_t vertexDataSize() { return sizeof(m_vertexData); };
-		static size_t indexDataSize() { return sizeof(m_indexData); }
-		static void writeVertexData(void* data) { std::memcpy(data, m_vertexData, sizeof(m_vertexData)); }
-		static void writeIndexData(void* data) { std::memcpy(data, m_indexData, sizeof(m_indexData)); }
-
 	  private:
-		static constexpr Vector2 m_vertexData[] = { { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f } };
-		static constexpr uint32_t m_indexData[] = { 0, 2, 3, 3, 1, 0 };
-
 		Vector2 m_size;
 		Vector2 m_shadowPeakPos;
 		float m_maxOpacity;

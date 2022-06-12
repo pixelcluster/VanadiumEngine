@@ -1,13 +1,14 @@
 #include <ui/shapes/FilledRect.hpp>
 #include <volk.h>
+#include <ui/UISubsystem.hpp>
 
 namespace vanadium::ui::shapes {
 
-	FilledRectShapeRegistry::FilledRectShapeRegistry(UISubsystem*, const graphics::RenderContext& context,
+	FilledRectShapeRegistry::FilledRectShapeRegistry(UISubsystem* subsystem, const graphics::RenderContext& context,
 													 VkRenderPass uiRenderPass,
 													 const graphics::RenderPassSignature& uiRenderPassSignature)
 		: m_rectPipelineID(context.pipelineLibrary->findGraphicsPipeline("UI Filled Rect")),
-		  m_dataManager(context, m_rectPipelineID) {
+		  m_dataManager(context, m_rectPipelineID), m_subsystem(subsystem) {
 		m_context = context;
 		context.pipelineLibrary->createForPass(uiRenderPassSignature, uiRenderPass, { m_rectPipelineID });
 	}
@@ -60,6 +61,15 @@ namespace vanadium::ui::shapes {
 		auto layer = m_dataManager.layer(layerIndex);
 		if (layer.elementCount == 0)
 			return;
+
+		auto scissorRect = m_subsystem->layerScissor(layerIndex);
+
+		if (scissorRect.extent.width == 0 && scissorRect.extent.height == 0) {
+			scissorRect.extent = { m_context.targetSurface->properties().width,
+										 m_context.targetSurface->properties().height };
+			scissorRect.offset = {};
+		}
+
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 						  m_context.pipelineLibrary->graphicsPipeline(m_rectPipelineID, uiRenderPassSignature));
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -70,6 +80,7 @@ namespace vanadium::ui::shapes {
 								.minDepth = 0.0f,
 								.maxDepth = 1.0f };
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissorRect);
 
 		PushConstantData constantData = { .targetDimensions = Vector2(m_context.targetSurface->properties().width,
 																	  m_context.targetSurface->properties().height),

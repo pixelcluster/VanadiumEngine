@@ -89,7 +89,6 @@ namespace vanadium::ui {
 		layerID += m_style->layerCount();
 		for (auto& child : m_children) {
 			child->internalRecalculateLayerIndex(layerID);
-			layerID = m_layerID; // assume children don't overlap
 		}
 	}
 } // namespace vanadium::ui

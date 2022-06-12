@@ -17,6 +17,7 @@ namespace vanadium::ui::styles {
 		void eraseLetterAfter();
 		void toggleCursor();
 		void disableCursor() { m_cursorShape->setColor(Vector4(0.0f)); }
+		void recalculateTextPosition();
 
 	  protected:
 		void recalculateCursorOffset();
@@ -27,6 +28,7 @@ namespace vanadium::ui::styles {
 		uint32_t m_cursorGlyphIndex = 0;
 		Vector2 m_currentCursorOffset = Vector2(0.0f);
 		Vector2 m_contentOrigin = Vector2(0.0f);
+		Vector2 m_contentSize = Vector2(0.0f);
 	};
 
 	class RoundedTextBoxStyle : public TextBoxStyle {
@@ -43,6 +45,7 @@ namespace vanadium::ui::styles {
 
 	  private:
 		float m_edgeSize;
+		uint32_t m_layerIndex;
 
 		shapes::FilledRoundedRectShape* m_backgroundShape;
 		shapes::FilledRoundedRectShape* m_outlineShape;

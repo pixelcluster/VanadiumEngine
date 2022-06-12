@@ -32,6 +32,8 @@ namespace vanadium::ui {
 		Control* inputFocusControl() { return m_inputFocusControl; }
 
 		void recalculateLayerIndices();
+		void setLayerScissor(uint32_t layerIndex, VkRect2D scissorRect);
+		VkRect2D layerScissor(uint32_t layerIndex);
 
 		void invokeMouseHover(const Vector2& mousePos);
 		void invokeMouseButton(uint32_t buttonID);
@@ -46,9 +48,12 @@ namespace vanadium::ui {
 		Control m_rootControl;
 
 		Control* m_inputFocusControl = nullptr;
+
 		std::vector<uint32_t> m_inputFocusKeyCodes;
 		windowing::KeyModifierFlags m_inputFocusModifierMask;
 		windowing::KeyStateFlags m_inputFocusStateMask;
+
+		std::vector<VkRect2D> m_layerScissors;
 	};
 
 } // namespace vanadium::ui
