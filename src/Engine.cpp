@@ -8,28 +8,20 @@ namespace vanadium {
 		  m_graphicsSubsystem(config.appName(), config.pipelineLibraryFileName(), config.appVersion(),
 							  m_windowInterface),
 		  m_uiSubsystem(&m_windowInterface, m_graphicsSubsystem.context(), config.fontLibraryFileName(),
-						Vector4(1.0f)) {
+						config.uiBackgroundColor()) {
 		m_userPointer = config.userPointer();
-		for (auto& node : config.customFramegraphNodes()) {
-			node->create(&m_graphicsSubsystem.framegraphContext());
-			m_graphicsSubsystem.framegraphContext().appendExistingNode(node);
-		}
 
 		uint32_t width;
 		uint32_t height;
 		m_windowInterface.windowSize(width, height);
 		m_uiSubsystem.setWindowSize(width, height);
+		m_uiSubsystem.addRendererNode(m_graphicsSubsystem.framegraphContext());
 	}
 
 	Engine::~Engine() {
 		// Since any subsystem might register child nodes that depend on subsystem structures, the framegraph must be
 		// destroyed first
 		m_graphicsSubsystem.destroyFramegraph();
-	}
-
-	void Engine::initFramegraph() {
-		m_uiSubsystem.addRendererNode(m_graphicsSubsystem.framegraphContext());
-		m_graphicsSubsystem.setupFramegraphResources();
 	}
 
 	bool Engine::tickFrame() {

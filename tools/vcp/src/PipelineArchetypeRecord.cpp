@@ -420,7 +420,7 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 				auto& binding = set->bindings[i];
 				auto pipelineBindingIterator =
 					std::find_if(bindingInfos.begin(), bindingInfos.end(),
-								 [set, binding](const auto& info) { return info.binding.binding == binding->binding; });
+								 [binding](const auto& info) { return info.binding.binding == binding->binding; });
 				if (pipelineBindingIterator == bindingInfos.end()) {
 					std::cout << srcPath << ": Error: Unbound descriptor at set " << set->set << ", binding" << i
 							  << ".\n";
@@ -456,7 +456,10 @@ size_t PipelineArchetypeRecord::serializedSize() const {
 	size_t totalSize = 0;
 
 	totalSize += sizeof(uint32_t);
-	totalSize += sizeof(uint32_t);
+
+	if (m_pipelineType != PipelineType::Compute) {
+		totalSize += sizeof(uint32_t);
+	}
 	for (auto& shader : m_compiledShaders) {
 		totalSize += sizeof(uint32_t) * 2 + shader.dataSize;
 	}

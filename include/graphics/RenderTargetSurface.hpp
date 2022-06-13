@@ -23,7 +23,7 @@ namespace vanadium::graphics {
 
 	class RenderTargetSurface {
 	  public:
-		RenderTargetSurface(DeviceContext* context);
+		RenderTargetSurface(DeviceContext* context, VkFormat imageFormat);
 		void create(const std::vector<VkImage>& swapchainImages, const RenderTargetSurfaceProperties& properties);
 
 		void setTargetImageIndex(uint32_t index) { m_currentTargetIndex = index; }

@@ -29,8 +29,9 @@ namespace vanadium::graphics {
 	};
 
 	struct FramegraphBufferResource {
+		bool isImported = false;
 		FramegraphBufferCreationParameters creationParameters;
-		BufferResourceHandle resourceHandle;
+		BufferResourceHandle resourceHandle = ~0U;
 
 		VkBufferUsageFlags usageFlags;
 	};
@@ -50,9 +51,10 @@ namespace vanadium::graphics {
 	};
 
 	struct FramegraphImageResource {
+		bool isImported = false;
 		FramegraphImageCreationParameters creationParameters;
 		VkImageUsageFlags usage;
-		ImageResourceHandle resourceHandle;
+		ImageResourceHandle resourceHandle = ~0U;
 	};
 
 	using FramegraphImageHandle = SlotmapHandle;
@@ -80,17 +82,13 @@ namespace vanadium::graphics {
 		void create(const RenderContext& context);
 
 		template <std::derived_from<FramegraphNode> T, typename... Args>
-		requires(std::constructible_from<T, Args...>) T* appendNode(Args... constructorArgs);
+		requires(std::constructible_from<T, Args...>) T* insertNode(FramegraphNode* insertAfter,
+																	Args... constructorArgs);
 
 		// node must have been allocated with new, and you must call node->create() yourself
-		template <std::derived_from<FramegraphNode> T> void appendExistingNode(T* node);
+		template <std::derived_from<FramegraphNode> T> void insertExistingNode(FramegraphNode* insertAfter, T* node);
 
-		//setupResources and initResources should be called together
-		//setupResources determines usage information and barriers
-		//At the time setupResources is called, swapchain formats are potentially unknown!
-		void setupResources();
-		//initResources handles initialization when usage etc. is known
-		void initResources();
+		void removeNode(FramegraphNode* node);
 
 		FramegraphBufferHandle declareTransientBuffer(FramegraphNode* creator,
 													  const FramegraphBufferCreationParameters& parameters,
@@ -137,6 +135,8 @@ namespace vanadium::graphics {
 		VkCommandBuffer recordFrame(uint32_t frameIndex);
 
 		void handleSwapchainResize(uint32_t width, uint32_t height);
+		bool swapchainDirtyFlag() const { return m_swapchainDirtyFlag; }
+		void clearSwapchainDirtyFlag() { m_swapchainDirtyFlag = false; }
 
 		void destroy();
 
@@ -144,6 +144,8 @@ namespace vanadium::graphics {
 		void createBuffer(FramegraphBufferHandle handle);
 		void createImage(FramegraphImageHandle handle);
 
+		// initResources handles initialization when usage etc. is known
+		void initResources();
 		void updateDependencyInfo();
 		void updateBarriers();
 
@@ -162,20 +164,57 @@ namespace vanadium::graphics {
 		std::vector<FramegraphBufferHandle> m_transientBuffers;
 		std::vector<FramegraphImageHandle> m_transientImages;
 
-		bool m_firstFrameFlag = true;
+		bool m_resourceDirtyFlag = false;
+		bool m_swapchainDirtyFlag = false;
 
 		VkImageUsageFlags m_targetImageUsageFlags = 0;
 	};
 
 	template <std::derived_from<FramegraphNode> T, typename... Args>
-	requires(std::constructible_from<T, Args...>) inline T* FramegraphContext::appendNode(Args... constructorArgs) {
-		m_nodes.push_back({ .node = new T(constructorArgs...) });
+	requires(std::constructible_from<T, Args...>) inline T* FramegraphContext::insertNode(FramegraphNode* insertAfter,
+																						  Args... constructorArgs) {
+		decltype(m_nodes)::iterator nodeIterator = m_nodes.begin();
+		if (insertAfter) {
+			nodeIterator = std::find_if(m_nodes.begin(), m_nodes.end(),
+										[insertAfter](const auto& info) { return info.node == insertAfter; });
+			if (nodeIterator == m_nodes.end()) {
+				logError("Trying to insert after nonexistent node {}!", static_cast<void*>(insertAfter));
+				return nullptr;
+			}
+			++nodeIterator;
+		}
+		size_t nodeIndex = static_cast<size_t>(nodeIterator - m_nodes.begin());
+		if (nodeIterator == m_nodes.end()) {
+			m_nodes.push_back({ .node = new T(constructorArgs...) });
+		} else {
+			m_nodes.insert(nodeIterator, { .node = new T(constructorArgs...) });
+		}
+		m_barrierGenerator.insertNodeBeforeIndex(nodeIndex);
 		// FramegraphNode might not be defined at this point, but T will contain all of its methods
-		reinterpret_cast<T*>(m_nodes.back().node)->create(this);
-		return reinterpret_cast<T*>(m_nodes.back().node);
+		reinterpret_cast<T*>(m_nodes[nodeIndex].node)->create(this);
+		m_resourceDirtyFlag = true;
+		return reinterpret_cast<T*>(m_nodes[nodeIndex].node);
 	}
 
-	template <std::derived_from<FramegraphNode> T> inline void FramegraphContext::appendExistingNode(T* node) {
-		m_nodes.push_back({ .node = node });
+	template <std::derived_from<FramegraphNode> T>
+	inline void FramegraphContext::insertExistingNode(FramegraphNode* insertAfter, T* node) {
+		decltype(m_nodes)::iterator nodeIterator = m_nodes.begin();
+		if (insertAfter) {
+			nodeIterator = std::find_if(m_nodes.begin(), m_nodes.end(),
+										[insertAfter](const auto& info) { return info.node == insertAfter; });
+			if (nodeIterator == m_nodes.end()) {
+				logError("Trying to insert after nonexistent node {}!", static_cast<void*>(insertAfter));
+				return;
+			}
+			++nodeIterator;
+		}
+		size_t nodeIndex = static_cast<size_t>(nodeIterator - m_nodes.begin());
+		if (nodeIterator == m_nodes.end()) {
+			m_nodes.push_back({ .node = node });
+		} else {
+			m_nodes.insert(nodeIterator, { .node = node });
+		}
+		m_barrierGenerator.insertNodeBeforeIndex(nodeIndex);
+		m_resourceDirtyFlag = true;
 	}
 } // namespace vanadium::graphics

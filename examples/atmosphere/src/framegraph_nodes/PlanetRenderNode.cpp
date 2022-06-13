@@ -9,9 +9,7 @@ using namespace vanadium::graphics;
 
 PlanetRenderNode::PlanetRenderNode() {}
 
-void PlanetRenderNode::create(FramegraphContext* context) {}
-
-void PlanetRenderNode::setupResources(FramegraphContext* context) {
+void PlanetRenderNode::create(FramegraphContext* context) {
 	FramegraphNodeImageUsage usage = {
 		.subresourceAccesses = { {
 			.accessingPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -46,9 +44,7 @@ void PlanetRenderNode::setupResources(FramegraphContext* context) {
 		} } 
 	};
 	context->declareReferencedSwapchainImage(this, usage);
-}
 
-void PlanetRenderNode::initResources(FramegraphContext* context) {
 	VkAttachmentDescription description = { .format = context->renderContext().targetSurface->properties().format,
 											.samples = VK_SAMPLE_COUNT_1_BIT,
 											.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -137,7 +133,7 @@ void PlanetRenderNode::setupObjects(BufferResourceHandle vertexDataBuffer, Buffe
 	m_name = "Planet rendering";
 }
 
-void PlanetRenderNode::handleWindowResize(FramegraphContext* context, uint32_t width, uint32_t height) {
+void PlanetRenderNode::recreateSwapchainResources(FramegraphContext* context, uint32_t width, uint32_t height) {
 	for (auto& framebuffer : m_framebuffers) {
 		vkDestroyFramebuffer(context->renderContext().deviceContext->device(), framebuffer, nullptr);
 	}

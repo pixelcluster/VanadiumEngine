@@ -534,13 +534,14 @@ namespace vanadium::graphics {
 			verifyResult(vkCreateComputePipelines(m_deviceContext->device(), VK_NULL_HANDLE, 1, &computeCreateInfo,
 												  nullptr, &instance.pipeline));
 			instance.layout = layout;
-			m_computeInstances.push_back(std::move(instance));
 
 			if constexpr (vanadiumGPUDebug) {
 				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE, instance.pipeline, instance.name);
-				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE, instance.layout,
+				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE_LAYOUT, instance.layout,
 							  instance.name + " Pipeline Layout");
 			}
+
+			m_computeInstances.push_back(std::move(instance));
 
 			vkDestroyShaderModule(m_deviceContext->device(), shaderModule, nullptr);
 			delete[] specializationData;

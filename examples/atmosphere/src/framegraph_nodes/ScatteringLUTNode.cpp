@@ -14,9 +14,7 @@ void ScatteringLUTNode::create(FramegraphContext* context) {
 		context->renderContext().descriptorSetAllocator->allocateDescriptorSets(allocationInfosForPipeline(
 			context->renderContext().pipelineLibrary, PipelineType::Compute, m_transmittanceComputationID))[0];
 	m_transmittanceComputationOutputSet = transmittanceSetAllocation.set;
-}
 
-void ScatteringLUTNode::setupResources(vanadium::graphics::FramegraphContext* context) {
 	VkImageSubresourceRange lutSubresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 													.baseMipLevel = 0,
 													.levelCount = 1,
@@ -122,7 +120,7 @@ void ScatteringLUTNode::setupResources(vanadium::graphics::FramegraphContext* co
 						   .subresourceRange = lutSubresourceRange } } });
 }
 
-void ScatteringLUTNode::initResources(FramegraphContext* context) {
+void ScatteringLUTNode::afterResourceInit(FramegraphContext* context) {
 	VkImageView transmittanceImageView = context->imageView(this, m_transmittanceLUTHandle, 0);
 
 	VkDescriptorImageInfo transmittanceImageInfo = { .imageView = transmittanceImageView,

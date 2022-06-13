@@ -24,14 +24,12 @@ class ScatteringLUTNode : public vanadium::graphics::FramegraphNode {
 
 	virtual void create(vanadium::graphics::FramegraphContext* context);
 
-	virtual void setupResources(vanadium::graphics::FramegraphContext* context);
-
-	virtual void initResources(vanadium::graphics::FramegraphContext* context);
+	virtual void afterResourceInit(vanadium::graphics::FramegraphContext* context);
 
 	virtual void recordCommands(vanadium::graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 								const vanadium::graphics::FramegraphNodeContext& nodeContext);
 
-	virtual void handleWindowResize(vanadium::graphics::FramegraphContext* context, uint32_t width, uint32_t height) {}
+	virtual void recreateSwapchainResources(vanadium::graphics::FramegraphContext* context, uint32_t width, uint32_t height) {}
 
 	virtual void destroy(vanadium::graphics::FramegraphContext* context);
 

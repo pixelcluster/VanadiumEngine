@@ -19,8 +19,8 @@ namespace vanadium {
 		const std::optional<windowing::WindowingSettingOverride>& settingsOverrides() const {
 			return m_windowingSettingOverride;
 		}
-		const std::vector<graphics::FramegraphNode*>& customFramegraphNodes() const { return m_customFramegraphNodes; }
 		void* userPointer() const { return m_userPointer; }
+		const Vector4& uiBackgroundColor() const { return m_uiBackgroundColor; }
 
 		void setAppName(const std::string_view& name) { m_appName = name; }
 		void setAppVersion(uint32_t version) { m_appVersion = version; }
@@ -31,13 +31,7 @@ namespace vanadium {
 		void setPipelineLibraryFileName(const std::string_view& name) { m_pipelineLibraryFileName = name; }
 		void setFontLibraryFileName(const std::string_view& name) { m_fontLibraryFileName = name; }
 		void setUserPointer(void* userPointer) { m_userPointer = userPointer; }
-
-		template <std::derived_from<graphics::FramegraphNode> T, typename... Args>
-		requires(std::constructible_from<T, Args...>) T* addCustomFramegraphNode(Args&&... constructorArgs) {
-			T* node = new T(constructorArgs...);
-			m_customFramegraphNodes.push_back(node);
-			return node;
-		}
+		void setUIBackgroundColor(const Vector4& uiBackgroundColor) { m_uiBackgroundColor = uiBackgroundColor; }
 
 	  private:
 		uint32_t m_startupFlags = 0;
@@ -45,9 +39,9 @@ namespace vanadium {
 		std::string_view m_pipelineLibraryFileName = "./shaders.vcp";
 		std::string_view m_fontLibraryFileName = "./fonts.fcfg";
 		uint32_t m_appVersion;
+		Vector4 m_uiBackgroundColor = Vector4(0.0f);
 
 		std::optional<windowing::WindowingSettingOverride> m_windowingSettingOverride;
-		std::vector<graphics::FramegraphNode*> m_customFramegraphNodes;
 		void* m_userPointer;
 	};
 
@@ -55,8 +49,6 @@ namespace vanadium {
 	  public:
 		Engine(const EngineConfig& config);
 		~Engine();
-
-		void initFramegraph();
 
 		bool tickFrame();
 

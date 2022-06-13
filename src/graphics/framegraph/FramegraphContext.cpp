@@ -57,18 +57,42 @@ namespace vanadium::graphics {
 		}
 	}
 
-	void FramegraphContext::setupResources() {
-		for (auto& node : m_nodes) {
-			node.node->setupResources(this);
+	void FramegraphContext::removeNode(FramegraphNode* node) {
+		auto nodeIterator =
+			std::find_if(m_nodes.begin(), m_nodes.end(), [node](const auto& info) { return info.node == node; });
+		if (nodeIterator == m_nodes.end()) {
+			logError("Trying to delete nonexistent node {}!", static_cast<void*>(node));
 		}
+		m_barrierGenerator.removeNodeIndex(nodeIterator - m_nodes.begin());
+		auto unusedBuffers = m_barrierGenerator.unusedBuffers();
+		for (auto& buffer : unusedBuffers) {
+			m_context.resourceAllocator->destroyBuffer(m_buffers[buffer].resourceHandle);
+			m_buffers.removeElement(buffer);
+			auto iterator = std::find(m_transientBuffers.begin(), m_transientBuffers.end(), buffer);
+			if (iterator != m_transientBuffers.end()) {
+				m_transientBuffers.erase(iterator);
+			}
+		}
+		auto unusedImages = m_barrierGenerator.unusedImages();
+		for (auto& image : unusedImages) {
+			m_context.resourceAllocator->destroyBuffer(m_images[image].resourceHandle);
+			m_images.removeElement(image);
+			auto iterator = std::find(m_transientImages.begin(), m_transientImages.end(), image);
+			if (iterator != m_transientImages.end()) {
+				m_transientImages.erase(iterator);
+			}
+		}
+		m_resourceDirtyFlag = true;
 	}
 
 	void FramegraphContext::initResources() {
 		for (auto handle : m_transientBuffers) {
-			createBuffer(handle);
+			if (m_buffers[handle].resourceHandle == ~0U)
+				createBuffer(handle);
 		}
 		for (auto handle : m_transientImages) {
-			createImage(handle);
+			if (m_images[handle].resourceHandle == ~0U)
+				createImage(handle);
 		}
 
 		for (auto& node : m_nodes) {
@@ -77,15 +101,13 @@ namespace vanadium::graphics {
 					m_context.resourceAllocator->requestImageView(m_images[infos.first].resourceHandle, info);
 				}
 			}
-			for(auto& info : node.swapchainResourceViewInfos) {
+			for (auto& info : node.swapchainResourceViewInfos) {
 				m_context.targetSurface->addRequestedView(info);
 			}
-			node.node->initResources(this);
-		}
-
-		for (auto& node : m_nodes) {
-			node.node->handleWindowResize(this, m_context.targetSurface->properties().width,
-										  m_context.targetSurface->properties().height);
+			if (m_context.targetSurface->currentImageCount() > 0)
+				node.node->recreateSwapchainResources(this, m_context.targetSurface->properties().width,
+													  m_context.targetSurface->properties().height);
+			node.node->afterResourceInit(this);
 		}
 
 		updateDependencyInfo();
@@ -147,7 +169,7 @@ namespace vanadium::graphics {
 																	const FramegraphNodeBufferUsage& usage) {
 
 		FramegraphBufferHandle bufferHandle =
-			m_buffers.addElement(FramegraphBufferResource{ .resourceHandle = handle });
+			m_buffers.addElement(FramegraphBufferResource{ .isImported = true, .resourceHandle = handle });
 
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
@@ -171,7 +193,8 @@ namespace vanadium::graphics {
 
 	FramegraphImageHandle FramegraphContext::declareImportedImage(FramegraphNode* creator, ImageResourceHandle handle,
 																  const FramegraphNodeImageUsage& usage) {
-		FramegraphImageHandle imageHandle = m_images.addElement(FramegraphImageResource{ .resourceHandle = handle });
+		FramegraphImageHandle imageHandle =
+			m_images.addElement(FramegraphImageResource{ .isImported = true, .resourceHandle = handle });
 
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
@@ -206,6 +229,11 @@ namespace vanadium::graphics {
 			return;
 		}
 
+		if (m_buffers[handle].resourceHandle != ~0U && !m_buffers[handle].isImported) {
+			m_context.resourceAllocator->destroyBuffer(m_buffers[handle].resourceHandle);
+			m_buffers[handle].resourceHandle = ~0U;
+		}
+
 		m_buffers[handle].usageFlags |= usage.usageFlags;
 		m_barrierGenerator.addNodeBufferAccess(
 			nodeIterator - m_nodes.begin(),
@@ -226,6 +254,11 @@ namespace vanadium::graphics {
 		if (usageIterator == m_images.end()) {
 			printf("invalid resource for dependency!\n");
 			return;
+		}
+
+		if (m_images[handle].resourceHandle != ~0U && !m_images[handle].isImported) {
+			m_context.resourceAllocator->destroyImage(m_images[handle].resourceHandle);
+			m_images[handle].resourceHandle = ~0U;
 		}
 
 		m_images[handle].usage |= usage.usageFlags;
@@ -251,7 +284,10 @@ namespace vanadium::graphics {
 			return;
 		}
 
+		auto oldFlags = m_targetImageUsageFlags;
 		m_targetImageUsageFlags |= usage.usageFlags;
+		m_swapchainDirtyFlag |= oldFlags != m_targetImageUsageFlags;
+
 		m_barrierGenerator.addNodeTargetImageAccess(
 			nodeIterator - m_nodes.begin(), NodeImageAccess{ .subresourceAccesses = usage.subresourceAccesses });
 		for (auto& info : usage.viewInfos) {
@@ -362,6 +398,11 @@ namespace vanadium::graphics {
 	}
 
 	VkCommandBuffer FramegraphContext::recordFrame(uint32_t frameIndex) {
+		if (m_resourceDirtyFlag) {
+			initResources();
+			updateDependencyInfo();
+			m_resourceDirtyFlag = false;
+		}
 		updateBarriers();
 
 		vkResetCommandPool(m_context.deviceContext->device(), m_frameCommandPools[frameIndex], 0);
@@ -451,8 +492,13 @@ namespace vanadium::graphics {
 	}
 
 	void FramegraphContext::handleSwapchainResize(uint32_t width, uint32_t height) {
-		for (auto& node : m_nodes) {
-			node.node->handleWindowResize(this, width, height);
+		if (m_resourceDirtyFlag) {
+			initResources();
+			m_resourceDirtyFlag = false;
+		} else { //initResources calls recreateSwapchainResources for all nodes, no need to do it again
+			for (auto& node : m_nodes) {
+				node.node->recreateSwapchainResources(this, width, height);
+			}
 		}
 		updateDependencyInfo();
 	}
@@ -496,7 +542,7 @@ namespace vanadium::graphics {
 										 .tiling = parameters.tiling,
 										 .usage = usage,
 										 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
-		if(parameters.useTargetImageExtent) {
+		if (parameters.useTargetImageExtent) {
 			createInfo.extent.width = m_context.targetSurface->properties().width;
 			createInfo.extent.height = m_context.targetSurface->properties().height;
 		}
@@ -505,13 +551,12 @@ namespace vanadium::graphics {
 	}
 
 	void FramegraphContext::updateDependencyInfo() {
-		m_firstFrameFlag = true;
 		m_barrierGenerator.create(m_nodes.size());
 		m_barrierGenerator.generateDependencyInfo();
 	}
 
 	void FramegraphContext::updateBarriers() {
-		m_barrierGenerator.generateBarrierInfo(m_firstFrameFlag, &FramegraphContext::nativeBufferHandle,
+		m_barrierGenerator.generateBarrierInfo(&FramegraphContext::nativeBufferHandle,
 											   &FramegraphContext::nativeImageHandle, this,
 											   m_context.targetSurface->currentTargetImage());
 	}

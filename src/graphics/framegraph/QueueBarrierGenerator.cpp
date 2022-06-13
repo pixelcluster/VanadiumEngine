@@ -75,6 +75,7 @@ namespace vanadium::graphics {
 		}
 		m_imageAccessInfos[imageAccess.image].preserveAcrossFrames |= imageAccess.preserveAcrossFrames;
 		m_imageAccessInfos[imageAccess.image].initialLayout = imageAccess.initialLayout;
+		m_imageAccessInfos[imageAccess.image].isNew = true;
 	}
 
 	void QueueBarrierGenerator::addNodeTargetImageAccess(size_t nodeIndex, const NodeImageAccess& imageAccess) {
@@ -97,6 +98,137 @@ namespace vanadium::graphics {
 					  .nodeIndex = nodeIndex });
 			}
 		}
+	}
+
+	void QueueBarrierGenerator::removeNodeIndex(size_t nodeIndex) {
+		for (auto& [handle, info] : m_bufferAccessInfos) {
+			auto readIterator = std::find_if(info.reads.begin(), info.reads.end(),
+											 [nodeIndex](auto& read) { return read.nodeIndex == nodeIndex; });
+			if (readIterator != info.reads.end()) {
+				info.reads.erase(readIterator);
+			}
+			for (auto& read : info.reads) {
+				if (read.nodeIndex > nodeIndex) {
+					--read.nodeIndex;
+				}
+			}
+
+			auto modificationIterator =
+				std::find_if(info.modifications.begin(), info.modifications.end(),
+							 [nodeIndex](auto& modification) { return modification.nodeIndex == nodeIndex; });
+			if (modificationIterator != info.modifications.end()) {
+				info.modifications.erase(modificationIterator);
+			}
+			for (auto& modification : info.modifications) {
+				if (modification.nodeIndex > nodeIndex) {
+					--modification.nodeIndex;
+				}
+			}
+		}
+		for (auto& [handle, info] : m_imageAccessInfos) {
+			auto readIterator = std::find_if(info.reads.begin(), info.reads.end(),
+											 [nodeIndex](auto& read) { return read.nodeIndex == nodeIndex; });
+			if (readIterator != info.reads.end()) {
+				info.reads.erase(readIterator);
+			}
+			for (auto& read : info.reads) {
+				if (read.nodeIndex > nodeIndex) {
+					--read.nodeIndex;
+				}
+			}
+
+			auto modificationIterator =
+				std::find_if(info.modifications.begin(), info.modifications.end(),
+							 [nodeIndex](auto& modification) { return modification.nodeIndex == nodeIndex; });
+			if (modificationIterator != info.modifications.end()) {
+				info.modifications.erase(modificationIterator);
+			}
+			for (auto& modification : info.modifications) {
+				if (modification.nodeIndex > nodeIndex) {
+					--modification.nodeIndex;
+				}
+			}
+		}
+		auto readIterator = std::find_if(m_targetAccessInfo.reads.begin(), m_targetAccessInfo.reads.end(),
+										 [nodeIndex](auto& read) { return read.nodeIndex == nodeIndex; });
+		if (readIterator != m_targetAccessInfo.reads.end()) {
+			m_targetAccessInfo.reads.erase(readIterator);
+		}
+		for (auto& read : m_targetAccessInfo.reads) {
+			if (read.nodeIndex > nodeIndex) {
+				--read.nodeIndex;
+			}
+		}
+
+		auto modificationIterator =
+			std::find_if(m_targetAccessInfo.modifications.begin(), m_targetAccessInfo.modifications.end(),
+						 [nodeIndex](auto& modification) { return modification.nodeIndex == nodeIndex; });
+		if (modificationIterator != m_targetAccessInfo.modifications.end()) {
+			m_targetAccessInfo.modifications.erase(modificationIterator);
+		}
+		for (auto& modification : m_targetAccessInfo.modifications) {
+			if (modification.nodeIndex > nodeIndex) {
+				--modification.nodeIndex;
+			}
+		}
+	}
+
+	void QueueBarrierGenerator::insertNodeBeforeIndex(size_t nodeIndex) {
+		for (auto& [handle, info] : m_bufferAccessInfos) {
+			for (auto& read : info.reads) {
+				if (read.nodeIndex >= nodeIndex) {
+					++read.nodeIndex;
+				}
+			}
+			for (auto& modification : info.modifications) {
+				if (modification.nodeIndex >= nodeIndex) {
+					++modification.nodeIndex;
+				}
+			}
+		}
+		for (auto& [handle, info] : m_imageAccessInfos) {
+			for (auto& read : info.reads) {
+				if (read.nodeIndex >= nodeIndex) {
+					++read.nodeIndex;
+				}
+			}
+			for (auto& modification : info.modifications) {
+				if (modification.nodeIndex >= nodeIndex) {
+					++modification.nodeIndex;
+				}
+			}
+		}
+
+		for (auto& read : m_targetAccessInfo.reads) {
+			if (read.nodeIndex >= nodeIndex) {
+				++read.nodeIndex;
+			}
+		}
+		for (auto& modification : m_targetAccessInfo.modifications) {
+			if (modification.nodeIndex >= nodeIndex) {
+				++modification.nodeIndex;
+			}
+		}
+	}
+
+	std::vector<SlotmapHandle> QueueBarrierGenerator::unusedBuffers() const {
+		std::vector<SlotmapHandle> result;
+		for (auto& [handle, info] : m_bufferAccessInfos) {
+			if(info.modifications.empty() && info.reads.empty()) {
+				result.push_back(handle);
+			}
+		}
+		return result;
+	}
+
+	std::vector<SlotmapHandle> QueueBarrierGenerator::unusedImages() const {
+		std::vector<SlotmapHandle> result;
+		for (auto& [handle, info] : m_imageAccessInfos) {
+			if(info.modifications.empty() && info.reads.empty()) {
+				result.push_back(handle);
+			}
+		}
+		return result;
 	}
 
 	void QueueBarrierGenerator::generateDependencyInfo() {
@@ -166,7 +298,7 @@ namespace vanadium::graphics {
 		}
 	}
 
-	void QueueBarrierGenerator::generateBarrierInfo(bool initStage, BufferHandleRetriever bufferHandleRetriever,
+	void QueueBarrierGenerator::generateBarrierInfo(BufferHandleRetriever bufferHandleRetriever,
 													ImageHandleRetriever imageHandleRetriever,
 													FramegraphContext* context, VkImage currentTargetImage) {
 		m_vulkanFrameStartImageBarriers.reserve(m_frameStartImageBarriers.size());
@@ -175,14 +307,19 @@ namespace vanadium::graphics {
 		for (auto& barrier : m_frameStartImageBarriers) {
 			VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			if (barrier.image.has_value()) {
-				initialLayout = m_imageAccessInfos[barrier.image.value()].initialLayout;
+				if (m_imageAccessInfos[barrier.image.value()].isNew) {
+					initialLayout = barrier.beforeLayout;
+				} else {
+					initialLayout = m_imageAccessInfos[barrier.image.value()].initialLayout;
+				}
+				m_imageAccessInfos[barrier.image.value()].isNew = false;
 			}
 
 			m_vulkanFrameStartImageBarriers.push_back(
 				{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 				  .srcAccessMask = barrier.srcAccessFlags,
 				  .dstAccessMask = barrier.dstAccessFlags,
-				  .oldLayout = initStage ? initialLayout : barrier.beforeLayout,
+				  .oldLayout = initialLayout,
 				  .newLayout = barrier.afterLayout,
 				  .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 				  .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,

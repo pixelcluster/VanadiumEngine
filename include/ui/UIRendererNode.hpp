@@ -24,14 +24,10 @@ namespace vanadium::ui {
 
 		void create(graphics::FramegraphContext* context) override;
 
-		void setupResources(graphics::FramegraphContext* context) override;
-
-		void initResources(graphics::FramegraphContext* context) override;
-
 		void recordCommands(graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 							const graphics::FramegraphNodeContext& nodeContext) override;
 
-		void handleWindowResize(graphics::FramegraphContext* context, uint32_t width, uint32_t height) override;
+		void recreateSwapchainResources(graphics::FramegraphContext* context, uint32_t width, uint32_t height) override;
 
 		void destroy(graphics::FramegraphContext* context) override;
 

@@ -4,7 +4,11 @@
 #include <volk.h>
 
 namespace vanadium::graphics {
-	RenderTargetSurface::RenderTargetSurface(DeviceContext* context) : m_context(context) {}
+	RenderTargetSurface::RenderTargetSurface(DeviceContext* context, VkFormat imageFormat) : m_context(context) {
+		m_properties = {
+			.format = imageFormat
+		};
+	}
 
 	void RenderTargetSurface::create(const std::vector<VkImage>& swapchainImages,
 									 const RenderTargetSurfaceProperties& properties) {

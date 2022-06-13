@@ -3,7 +3,7 @@
 
 using namespace vanadium::graphics;
 
-void SwapchainClearNode::setupResources(FramegraphContext* context) {
+void SwapchainClearNode::create(FramegraphContext* context) {
 	context->declareReferencedSwapchainImage(this, {
 			.subresourceAccesses = {
 				NodeImageSubresourceAccess {

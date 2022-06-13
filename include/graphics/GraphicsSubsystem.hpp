@@ -16,7 +16,8 @@ namespace vanadium::graphics {
 		FramegraphContext& framegraphContext() { return m_framegraphContext; }
 		const RenderContext& context() { return m_context; }
 
-		void setupFramegraphResources();
+		void createInitialSwapchain();
+
 		// returns if rendering is possible, if false, waitEvents should be called
 		bool tickFrame();
 

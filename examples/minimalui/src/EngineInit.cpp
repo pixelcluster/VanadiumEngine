@@ -12,9 +12,10 @@
 vanadium::ui::shapes::RectShape* shapes[25 * 25];
 vanadium::ui::Control* buttonControl;
 
-void configureEngine(vanadium::EngineConfig& config) { config.setAppName("Vanadium Minimal UI"); }
-
-void preFramegraphInit(vanadium::Engine& engine) {}
+void configureEngine(vanadium::EngineConfig& config) {
+	config.setAppName("Vanadium Minimal UI");
+	config.setUIBackgroundColor(vanadium::Vector4(1.0f));
+}
 
 void mouseButtonOutput(vanadium::ui::Control* triggerControl, const vanadium::Vector2& absolutePosition,
 					   uint32_t buttonID) {

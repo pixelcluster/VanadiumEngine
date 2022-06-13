@@ -10,9 +10,6 @@ namespace vanadium::ui {
 			.viewType = VK_IMAGE_VIEW_TYPE_2D,
 			.subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1 }
 		};
-	}
-
-	void UIRendererNode::setupResources(graphics::FramegraphContext* context) {
 		context->declareReferencedSwapchainImage(this, {
 			.subresourceAccesses = {
 				graphics::NodeImageSubresourceAccess {
@@ -34,9 +31,7 @@ namespace vanadium::ui {
 			.writes = true,
 			.viewInfos = { m_attachmentResourceViewInfo }
 		});
-	} // namespace vanadium::ui
 
-	void UIRendererNode::initResources(graphics::FramegraphContext* context) {
 		VkAttachmentDescription attachmentDescription = { .format = m_renderContext.targetSurface->properties().format,
 														  .samples = VK_SAMPLE_COUNT_1_BIT,
 														  .loadOp = m_backgroundClearColor != Vector4(0.f)
@@ -106,7 +101,7 @@ namespace vanadium::ui {
 		vkCmdEndRenderPass(targetCommandBuffer);
 	}
 
-	void UIRendererNode::handleWindowResize(graphics::FramegraphContext* context, uint32_t width, uint32_t height) {
+	void UIRendererNode::recreateSwapchainResources(graphics::FramegraphContext* context, uint32_t width, uint32_t height) {
 		for (auto& framebuffer : m_imageFramebuffers) {
 			vkDestroyFramebuffer(m_renderContext.deviceContext->device(), framebuffer, nullptr);
 		}

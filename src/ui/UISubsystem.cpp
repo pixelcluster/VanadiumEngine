@@ -52,8 +52,8 @@ namespace vanadium::ui {
 	}
 
 	void UISubsystem::addRendererNode(graphics::FramegraphContext& context) {
+		context.insertExistingNode(nullptr, m_rendererNode);
 		m_rendererNode->create(&context);
-		context.appendExistingNode(m_rendererNode);
 	}
 
 	void UISubsystem::setWindowSize(uint32_t windowWidth, uint32_t windowHeight) {

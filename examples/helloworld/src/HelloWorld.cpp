@@ -1,23 +1,22 @@
 #include <Engine.hpp>
-#include <framegraph_nodes/SwapchainClearNode.hpp>
-#include <framegraph_nodes/HelloTriangleNode.hpp>
 #include <VertexBufferUpdater.hpp>
+#include <framegraph_nodes/HelloTriangleNode.hpp>
+#include <framegraph_nodes/SwapchainClearNode.hpp>
 
-void configureEngine(vanadium::EngineConfig& config) {
-	config.setAppName("Vanadium Minimal UI");
+void configureEngine(vanadium::EngineConfig& config) { config.setAppName("Vanadium Minimal UI"); }
+
+void preFramegraphInit(vanadium::Engine& engine) {}
+
+void init(vanadium::Engine& engine) {
 	VertexBufferUpdater* updater = new VertexBufferUpdater;
-	config.setUserPointer(updater);
-	config.addCustomFramegraphNode<SwapchainClearNode>();
-	config.addCustomFramegraphNode<HelloTriangleNode>(updater);
-}
-
-
-void preFramegraphInit(vanadium::Engine& engine) {
-	VertexBufferUpdater* updater = std::launder(reinterpret_cast<VertexBufferUpdater*>(engine.userPointer()));
 	updater->init(engine.graphicsSubsystem());
-}
 
-void init(vanadium::Engine& engine) {}
+	SwapchainClearNode* clearNode =
+		engine.graphicsSubsystem().framegraphContext().insertNode<SwapchainClearNode>(nullptr);
+	engine.graphicsSubsystem().framegraphContext().insertNode<HelloTriangleNode>(clearNode, updater);
+
+	engine.setUserPointer(updater);
+}
 
 bool onFrame(vanadium::Engine& engine) {
 	VertexBufferUpdater* updater = std::launder(reinterpret_cast<VertexBufferUpdater*>(engine.userPointer()));
@@ -25,6 +24,4 @@ bool onFrame(vanadium::Engine& engine) {
 	return true;
 }
 
-void destroy(vanadium::Engine& engine) {
-
-}
+void destroy(vanadium::Engine& engine) {}

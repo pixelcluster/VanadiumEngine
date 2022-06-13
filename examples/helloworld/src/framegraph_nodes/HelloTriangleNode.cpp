@@ -13,7 +13,7 @@ HelloTriangleNode::HelloTriangleNode(VertexBufferUpdater* updater) : m_bufferUpd
 								.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1 } };
 }
 
-void HelloTriangleNode::setupResources(FramegraphContext* context) {
+void HelloTriangleNode::create(vanadium::graphics::FramegraphContext* context) {
 	m_pipelineID = context->renderContext().pipelineLibrary->findGraphicsPipeline("Hello Triangle");
 
 	VkAttachmentDescription description = { .format = VK_FORMAT_B8G8R8A8_SRGB,
@@ -117,7 +117,7 @@ void HelloTriangleNode::recordCommands(FramegraphContext* context, VkCommandBuff
 	vkCmdEndRenderPass(targetCommandBuffer);
 }
 
-void HelloTriangleNode::handleWindowResize(FramegraphContext* context, uint32_t width, uint32_t height) {
+void HelloTriangleNode::recreateSwapchainResources(FramegraphContext* context, uint32_t width, uint32_t height) {
 	for (auto& framebuffer : m_framebuffers) {
 		vkDestroyFramebuffer(context->renderContext().deviceContext->device(), framebuffer, nullptr);
 	}

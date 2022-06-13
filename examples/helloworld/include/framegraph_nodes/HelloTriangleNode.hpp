@@ -8,16 +8,12 @@ class HelloTriangleNode : public vanadium::graphics::FramegraphNode {
   public:
 	HelloTriangleNode(VertexBufferUpdater* bufferUpdater);
 
-	void create(vanadium::graphics::FramegraphContext* context) override {}
-
-	void setupResources(vanadium::graphics::FramegraphContext* context) override;
-
-	void initResources(vanadium::graphics::FramegraphContext* context) override {}
+	void create(vanadium::graphics::FramegraphContext* context) override;
 
 	void recordCommands(vanadium::graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 						const vanadium::graphics::FramegraphNodeContext& nodeContext) override;
 
-	void handleWindowResize(vanadium::graphics::FramegraphContext* context, uint32_t width, uint32_t height) override;
+	void recreateSwapchainResources(vanadium::graphics::FramegraphContext* context, uint32_t width, uint32_t height) override;
 
 	void destroy(vanadium::graphics::FramegraphContext* context) override;
 

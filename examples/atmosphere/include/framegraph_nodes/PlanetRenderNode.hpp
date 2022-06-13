@@ -14,14 +14,10 @@ class PlanetRenderNode : public vanadium::graphics::FramegraphNode {
 					  VkDescriptorSetLayout sceneDataLayout, VkDescriptorSet sceneDataSet,
 					  VkDescriptorSetLayout texSetLayout, VkDescriptorSet texSet, uint32_t indexCount);
 
-	void setupResources(vanadium::graphics::FramegraphContext* context);
-
-	void initResources(vanadium::graphics::FramegraphContext* context);
-
 	void recordCommands(vanadium::graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
 						const vanadium::graphics::FramegraphNodeContext& nodeContext);
 
-	void handleWindowResize(vanadium::graphics::FramegraphContext* context, uint32_t width, uint32_t height);
+	void recreateSwapchainResources(vanadium::graphics::FramegraphContext* context, uint32_t width, uint32_t height);
 
 	void destroy(vanadium::graphics::FramegraphContext* context);
 

@@ -41,6 +41,7 @@ namespace vanadium::graphics {
 		std::vector<ImageSubresourceAccess> modifications;
 		bool preserveAcrossFrames = false;
 		VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		bool isNew;
 	};
 
 	struct ImageFramegraphBarrier {
@@ -132,9 +133,15 @@ namespace vanadium::graphics {
 		void addNodeImageAccess(size_t nodeIndex, const NodeImageAccess& imageAccess);
 		void addNodeTargetImageAccess(size_t nodeIndex, const NodeImageAccess& imageAccess);
 
+		void insertNodeBeforeIndex(size_t nodeIndex);
+		void removeNodeIndex(size_t nodeIndex);
+
+		std::vector<SlotmapHandle> unusedBuffers() const;
+		std::vector<SlotmapHandle> unusedImages() const;
+
 		void generateDependencyInfo();
 
-		void generateBarrierInfo(bool initStage, BufferHandleRetriever bufferHandleRetriever,
+		void generateBarrierInfo(BufferHandleRetriever bufferHandleRetriever,
 								 ImageHandleRetriever imageHandleRetriever, FramegraphContext* context,
 								 VkImage currentTargetImageHandle);
 
