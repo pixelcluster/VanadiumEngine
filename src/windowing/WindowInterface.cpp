@@ -94,13 +94,13 @@ namespace vanadium::windowing {
 
 		glfwSetErrorCallback(errorCallback);
 
-		glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+		glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
 		if (!glfwInit()) {
 			glfwInitHint(GLFW_PLATFORM, GLFW_ANY_PLATFORM);
 			assertFatal(glfwInit(), "GLFW initialization failed!");
 		}
 
-		GLFWmonitor* monitor = value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
+		GLFWmonitor* monitor =glfwGetPrimaryMonitor();  value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
 		if (value.createFullScreen && (value.width == 0 || value.height == 0)) {
 			const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
 			value.width = vidmode->width;
