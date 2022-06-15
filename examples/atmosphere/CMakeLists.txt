@@ -28,7 +28,7 @@ add_custom_target(atmosphere_shaders DEPENDS ${SHADER_DEPENDS})
 
 add_dependencies(ExampleAtmosphere atmosphere_shaders)
 
-vanadium_init_vcp_project()
-vanadium_add_vcp_shader("shaders/transmittance.json")
-vanadium_add_vcp_shader("shaders/planet.json")
-vanadium_compile_vcp_shaders(ExampleAtmosphere)
+#vanadium_init_vcp_project()
+#vanadium_add_vcp_shader("shaders/transmittance.json")
+#vanadium_add_vcp_shader("shaders/planet.json")
+#vanadium_compile_vcp_shaders(ExampleAtmosphere)

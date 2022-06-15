@@ -13,5 +13,5 @@ target_include_directories(MinimalUI PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/includ
 target_link_libraries(MinimalUI PRIVATE VanadiumEngine)
 
 vanadium_init_vcp_project()
-vanadium_compile_vcp_shaders(MinimalUI)
-vanadium_generate_fontcfg(${CMAKE_CURRENT_SOURCE_DIR}/fonts/fontcfg.json ./fonts.fcfg MinimalUI)
+#vanadium_compile_vcp_shaders(MinimalUI)
+#vanadium_generate_fontcfg(${CMAKE_CURRENT_SOURCE_DIR}/fonts/fontcfg.json ./fonts.fcfg MinimalUI)
