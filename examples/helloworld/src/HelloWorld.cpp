@@ -3,7 +3,10 @@
 #include <framegraph_nodes/HelloTriangleNode.hpp>
 #include <framegraph_nodes/SwapchainClearNode.hpp>
 
-void configureEngine(vanadium::EngineConfig& config) { config.setAppName("Vanadium Minimal UI"); }
+void configureEngine(vanadium::EngineConfig& config) {
+	config.setAppName("Vanadium Hello World");
+	config.overrideWindowSettings(vanadium::windowing::WindowingSettingOverride{ .createFullScreen = true });
+}
 
 void preFramegraphInit(vanadium::Engine& engine) {}
 

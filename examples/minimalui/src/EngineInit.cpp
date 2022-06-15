@@ -14,6 +14,7 @@ vanadium::ui::Control* buttonControl;
 
 void configureEngine(vanadium::EngineConfig& config) {
 	config.setAppName("Vanadium Minimal UI");
+	config.overrideWindowSettings(vanadium::windowing::WindowingSettingOverride{ .createFullScreen = true });
 	config.setUIBackgroundColor(vanadium::Vector4(1.0f));
 }
 

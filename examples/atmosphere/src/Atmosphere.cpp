@@ -4,7 +4,10 @@
 #include <framegraph_nodes/PlanetRenderNode.hpp>
 #include <framegraph_nodes/ScatteringLUTNode.hpp>
 
-void configureEngine(vanadium::EngineConfig& config) { config.setAppName("Vanadium Atmosphere"); }
+void configureEngine(vanadium::EngineConfig& config) {
+	config.setAppName("Vanadium Atmosphere");
+	config.overrideWindowSettings(vanadium::windowing::WindowingSettingOverride{ .createFullScreen = true });
+}
 
 void init(vanadium::Engine& engine) {
 	ScatteringLUTNode* lutNode = engine.graphicsSubsystem().framegraphContext().insertNode<ScatteringLUTNode>(nullptr);
