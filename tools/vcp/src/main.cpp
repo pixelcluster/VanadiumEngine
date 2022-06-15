@@ -84,8 +84,11 @@ int main(int argc, char** argv) {
 		return EXIT_FAILURE;
 	}
 
-	path tempDirPath = path("./temp");
+
+
+	path tempDirPath = path("./shader_temp");
 	std::error_code error;
+	remove_all(tempDirPath, error);
 	if (!create_directory(tempDirPath, error)) {
 		std::cout << "Error: Could not create temporary shader output directory inside the project directory."
 				  << std::endl;
