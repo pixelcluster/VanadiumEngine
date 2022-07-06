@@ -91,7 +91,7 @@ std::string stringToClass(const std::string& classString) {
 	} else if (classString == "ID") {
 		return "ID";
 	} else if (classString == "IN") {
-		return "IN";
+		return "INSEP"; // thanks MSVC
 	} else if (classString == "IS") {
 		return "IS";
 	} else if (classString == "JL") {

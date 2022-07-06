@@ -56,7 +56,7 @@ enum class BreakClass {
 	HL,
 	HY,
 	ID,
-	IN,
+	INSEP,
 	IS,
 	JL,
 	JT,
@@ -129,7 +129,7 @@ inline BreakClass breakClassFromString(const std::string_view& string) {
 	} else if (string == "ID") {
 		return BreakClass::ID;
 	} else if (string == "IN") {
-		return BreakClass::IN;
+		return BreakClass::INSEP;
 	} else if (string == "IS") {
 		return BreakClass::IS;
 	} else if (string == "JL") {
