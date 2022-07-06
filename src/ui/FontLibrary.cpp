@@ -79,24 +79,25 @@ namespace vanadium::ui {
 				FT_Long faceCount = 0;
 				FT_Face dummyFace = nullptr;
 
-				FT_Error error = FT_New_Face(m_library, entry.path().c_str(), -1, &dummyFace);
+				std::string entryPathString = entry.path().string();
+				FT_Error error = FT_New_Face(m_library, entryPathString.c_str(), -1, &dummyFace);
 				if (error == FT_Err_Unknown_File_Format) {
 					continue;
 				} else if (error != FT_Err_Ok) {
-					logError("FontLibrary: Error opening face {}!", entry.path().c_str());
+					logError("FontLibrary: Error opening face {}!", entryPathString.c_str());
 				} else {
 					faceCount = dummyFace->num_faces;
 					FT_Done_Face(dummyFace);
 				}
 				for (FT_Long i = 0; i < faceCount; ++i) {
 					FT_Face face;
-					FT_Error error = FT_New_Face(m_library, entry.path().c_str(), i, &face);
+					FT_Error error = FT_New_Face(m_library, entryPathString.c_str(), i, &face);
 					if (error != FT_Err_Ok) {
-						logError("FontLibrary: Error opening face {}!", entry.path().c_str());
+						logError("FontLibrary: Error opening face {}!", entryPathString.c_str());
 					}
 					if (name == std::string(face->family_name) ||
 						name == std::string(face->family_name) + " " + std::string(face->style_name)) {
-						logInfo("FontLibrary: Found name {} in path {}", name.c_str(), entry.path().c_str());
+						logInfo("FontLibrary: Found name {} in path {}", name.c_str(), entryPathString.c_str());
 						return face;
 					}
 					FT_Done_Face(face);

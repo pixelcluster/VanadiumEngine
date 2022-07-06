@@ -157,8 +157,9 @@ int main(int argc, char** argv) {
 			return EXIT_FAILURE;
 		}
 
+		std::string parentPathString = filePath.parent_path().string();
 		records.push_back(
-			{ .archetypeRecord = PipelineArchetypeRecord(filePath.string(), filePath.parent_path().c_str(),
+			{ .archetypeRecord = PipelineArchetypeRecord(filePath.string(), parentPathString.c_str(),
 														 setLayoutInfos, rootValue["archetype"]) });
 		if (!records[recordIndex].archetypeRecord.isValid()) {
 			outStream.close();
