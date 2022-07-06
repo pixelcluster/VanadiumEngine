@@ -2,7 +2,7 @@
 #include <graphics/helper/ErrorHelper.hpp>
 #include <volk.h>
 
-#include <helper/WholeFileReader.hpp>
+#include <util/WholeFileReader.hpp>
 
 using namespace vanadium::graphics;
 

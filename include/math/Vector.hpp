@@ -3,7 +3,7 @@
 #include <Log.hpp>
 #include <concepts>
 #include <cstdint>
-#include <helper/CompilerSpecific.hpp>
+#include <util/CompilerSpecific.hpp>
 
 namespace vanadium {
 	template <uint32_t n, std::floating_point T> struct Vector;

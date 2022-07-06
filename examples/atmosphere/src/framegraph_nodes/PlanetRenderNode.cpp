@@ -2,7 +2,7 @@
 #include <framegraph_nodes/PlanetRenderNode.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <graphics/helper/ErrorHelper.hpp>
-#include <helper/WholeFileReader.hpp>
+#include <util/WholeFileReader.hpp>
 #include <volk.h>
 
 using namespace vanadium::graphics;

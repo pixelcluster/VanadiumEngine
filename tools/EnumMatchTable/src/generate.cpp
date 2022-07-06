@@ -37,9 +37,9 @@ EnumMap parseBasicEnums(const XMLElement* registry) {
 		if (nameC) {
 			name = nameC;
 		}
-		std::vector<std::string> blocklist = { "VkPipelineLayoutCreateFlagBits", "VkSemaphoreCreateFlagBits",
-											   "VkImageFormatConstraintsFlagBitsFUCHSIA",
-											   "VkShaderModuleCreateFlagBits" };
+		vanadium::SimpleVector<std::string> blocklist = { "VkPipelineLayoutCreateFlagBits", "VkSemaphoreCreateFlagBits",
+														  "VkImageFormatConstraintsFlagBitsFUCHSIA",
+														  "VkShaderModuleCreateFlagBits", "VkPrivateDataSlotCreateFlagBits" };
 
 		bool isNameAllowed = true;
 		for (auto& entry : blocklist) {
@@ -73,6 +73,7 @@ void writeEnums(const EnumMap& enumMap, std::ostream& outStream) {
 	addLine(outStream, "#include <vulkan/vulkan.h>");
 
 	for (auto& pair : enumMap) {
+
 		addLine(outStream, "");
 		const VulkanEnum& enumValue = pair.second;
 

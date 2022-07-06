@@ -1,12 +1,12 @@
 #pragma once
 
 #include <array>
-#include <helper/UTF8.hpp>
+#include <util/UTF8.hpp>
 #include <robin_hood.h>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
+#include <util/Vector.hpp>
 
 namespace vanadium::ui {
 
@@ -102,7 +102,7 @@ namespace vanadium::ui {
 	};
 
 	struct BreakClassRuleToken {
-		std::vector<BreakClass> classOptions;
+		SimpleVector<BreakClass> classOptions;
 		BreakClassRuleModifier modifier;
 	};
 
@@ -113,7 +113,7 @@ namespace vanadium::ui {
 
 	struct BreakClassRule {
 		bool isValid = false;
-		std::vector<BreakClassRuleToken> tokens;
+		SimpleVector<BreakClassRuleToken> tokens;
 		BreakClassRuleAction action;
 	};
 
@@ -186,14 +186,14 @@ namespace vanadium::ui {
 		};
 
 	struct Parser {
-		std::vector<BreakClassStackEntry> stack;
+		SimpleVector<BreakClassStackEntry> stack;
 		ParserState currentState;
 	};
 
-	void executeRule(const std::vector<BreakClassRuleTraits>& classString, std::vector<LinebreakStatus>& statusArray,
+	void executeRule(const SimpleVector<BreakClassRuleTraits>& classString, SimpleVector<LinebreakStatus>& statusArray,
 					 const std::string_view& ruleString);
 
-	bool tryMatchToken(const std::vector<BreakClassRuleTraits>& classString, uint32_t& prevMatchCount, uint32_t& index,
+	bool tryMatchToken(const SimpleVector<BreakClassRuleTraits>& classString, uint32_t& prevMatchCount, uint32_t& index,
 					   const BreakClassRuleToken& token);
 	bool currentTokenMatches(const BreakClassRuleTraits& traits, uint32_t& index, const BreakClassRuleToken& token);
 

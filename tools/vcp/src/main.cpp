@@ -2,7 +2,7 @@
 #include <iostream>
 #include <limits>
 #include <string_view>
-#include <vector>
+#include <util/Vector.hpp>
 
 #include <filesystem>
 
@@ -13,13 +13,13 @@
 
 #include <unordered_map>
 
-#include <helper/WholeFileReader.hpp>
+#include <util/WholeFileReader.hpp>
 
 struct Options {
 	std::string outFile;
-	std::vector<std::string> fileNames;
+	vanadium::SimpleVector<std::string> fileNames;
 	std::string compilerCommand = "glslc";
-	std::vector<std::string> additionalCommandArgs;
+	vanadium::SimpleVector<std::string> additionalCommandArgs;
 };
 
 bool checkOption(int argc, char** argv, size_t index, const std::string_view& argName) {
@@ -69,7 +69,7 @@ Options parseArguments(int argc, char** argv) {
 
 struct PipelineRecord {
 	PipelineArchetypeRecord archetypeRecord;
-	std::vector<PipelineInstanceRecord> instanceRecords;
+	vanadium::SimpleVector<PipelineInstanceRecord> instanceRecords;
 	uint64_t totalRecordSize;
 	uint64_t instanceOffset;
 };
@@ -86,6 +86,9 @@ int main(int argc, char** argv) {
 
 	path tempDirPath = path("./temp");
 	std::error_code error;
+	if (exists(tempDirPath)) {
+		remove_all(tempDirPath);
+	}
 	if (!create_directory(tempDirPath, error)) {
 		std::cout << "Error: Could not create temporary shader output directory inside the project directory."
 				  << std::endl;
@@ -104,9 +107,9 @@ int main(int argc, char** argv) {
 	uint32_t pipelineCount = static_cast<uint32_t>(options.fileNames.size());
 	outStream.write(reinterpret_cast<char*>(&pipelineCount), sizeof(uint32_t));
 
-	auto records = std::vector<PipelineRecord>();
-	std::vector<path> localRecordPaths;
-	std::vector<std::vector<DescriptorBindingLayoutInfo>> setLayoutInfos;
+	auto records = vanadium::SimpleVector<PipelineRecord>();
+	vanadium::SimpleVector<path> localRecordPaths;
+	vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>> setLayoutInfos;
 
 	records.reserve(options.fileNames.size());
 	localRecordPaths.reserve(options.fileNames.size());
@@ -167,7 +170,7 @@ int main(int argc, char** argv) {
 		records[recordIndex].archetypeRecord.compileShaders(localRecordPath.string(), options.compilerCommand,
 															options.additionalCommandArgs);
 
-		std::vector<PipelineInstanceRecord> instanceRecords;
+		vanadium::SimpleVector<PipelineInstanceRecord> instanceRecords;
 		instanceRecords.reserve(rootValue["instances"].size());
 		for (auto& instance : rootValue["instances"]) {
 			instanceRecords.push_back(

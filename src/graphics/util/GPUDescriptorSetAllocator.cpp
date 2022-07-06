@@ -8,7 +8,7 @@ namespace vanadium::graphics {
 		DescriptorSizeClassHandle sizeClassHandle;
 		DescriptorPoolHandle poolHandle;
 
-		std::vector<size_t> allocationIndices;
+		SimpleVector<size_t> allocationIndices;
 	};
 
 	GPUDescriptorSetAllocator::GPUDescriptorSetAllocator() {}
@@ -18,12 +18,12 @@ namespace vanadium::graphics {
 		m_poolFreeLists.resize(frameInFlightCount);
 	}
 
-	std::vector<DescriptorSetAllocation> GPUDescriptorSetAllocator::allocateDescriptorSets(
-		const std::vector<DescriptorSetAllocationInfo>& infos) {
+	SimpleVector<DescriptorSetAllocation> GPUDescriptorSetAllocator::allocateDescriptorSets(
+		const SimpleVector<DescriptorSetAllocationInfo>& infos) {
 		auto lock = std::lock_guard<std::shared_mutex>(m_accessMutex);
-		auto allocations = std::vector<DescriptorSetAllocation>(infos.size());
+		auto allocations = SimpleVector<DescriptorSetAllocation>(infos.size());
 
-		std::vector<DescriptorAllocationBatch> allocatedBatches;
+		SimpleVector<DescriptorAllocationBatch> allocatedBatches;
 
 		size_t allocationIndex = 0;
 		for (auto& info : infos) {
@@ -79,9 +79,9 @@ namespace vanadium::graphics {
 		}
 
 		for (auto& batch : allocatedBatches) {
-			auto dstDescriptorSets = std::vector<VkDescriptorSet>(batch.allocationIndices.size());
+			auto dstDescriptorSets = SimpleVector<VkDescriptorSet>(batch.allocationIndices.size());
 
-			std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+			SimpleVector<VkDescriptorSetLayout> descriptorSetLayouts;
 			descriptorSetLayouts.reserve(batch.allocationIndices.size());
 			for (auto index : batch.allocationIndices) {
 				descriptorSetLayouts.push_back(infos[index].layout);
@@ -206,7 +206,7 @@ namespace vanadium::graphics {
 	}
 
 	void GPUDescriptorSetAllocator::addPool(DescriptorSetSizeClass& sizeClass) {
-		std::vector<VkDescriptorPoolSize> poolSizes;
+		SimpleVector<VkDescriptorPoolSize> poolSizes;
 		poolSizes.reserve(sizeClass.descriptorsPerSet.size());
 
 		DescriptorPoolInfo info = { .m_remainingSets = m_setsPerPool };

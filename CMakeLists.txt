@@ -5,6 +5,8 @@ project ("VanadiumEngine")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+add_compile_options("-ftime-trace")
+
 option(USE_TESTS "Build and run tests" ON)
 
 if(UNIX AND NOT APPLE)
@@ -28,6 +30,7 @@ add_subdirectory(dependencies/tinyxml EXCLUDE_FROM_ALL)
 add_subdirectory(dependencies/jsoncpp EXCLUDE_FROM_ALL)
 add_subdirectory(dependencies/robin-hood)
 add_subdirectory(dependencies/fmt EXCLUDE_FROM_ALL)
+add_subdirectory(dependencies/entt)
 
 find_package(TBB)
 
@@ -69,13 +72,14 @@ add_custom_command(OUTPUT ${CHARACTERGROUP_FILE}
 				   DEPENDS UnicodeLineBreak)
 
 add_library(VanadiumEngine ${CPP_SOURCES} ${HEADERS} dependencies/harfbuzz/src/harfbuzz.cc ${CHARACTERGROUP_FILE})
+target_precompile_headers(VanadiumEngine PUBLIC include/PCH.hpp)
 
 set_source_files_properties(${CHARACTERGROUP_FILE} PROPERTIES GENERATED TRUE)
 
 target_compile_options(VanadiumEngine PRIVATE "-Wall")
 
 target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/tools/generated_include" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb" "dependencies/harfbuzz/src")
-target_link_libraries(VanadiumEngine volk::volk fmt::fmt glfw robin_hood freetype)
+target_link_libraries(VanadiumEngine volk::volk fmt::fmt glfw robin_hood freetype EnTT::EnTT)
 
 if(UNIX AND NOT APPLE AND TBB_FOUND)
 	target_link_libraries(VanadiumEngine tbb)

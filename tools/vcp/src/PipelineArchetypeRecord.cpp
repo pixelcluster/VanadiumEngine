@@ -2,18 +2,19 @@
 #include <ParsingUtils.hpp>
 #include <PipelineArchetypeRecord.hpp>
 #include <algorithm>
-#include <helper/WholeFileReader.hpp>
 #include <iostream>
 #include <optional>
+#include <util/WholeFileReader.hpp>
 
 // returns true if [offset1;size1] is inside [offset2;size2]
 bool isFullyInRange(uint32_t offset1, uint32_t size1, uint32_t offset2, uint32_t size2) {
 	return offset2 <= offset1 && (offset2 + size2) >= (offset1 + size1);
 }
 
-PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath, const std::string& projectDir,
-												 std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
-												 const Json::Value& archetypeRoot) {
+PipelineArchetypeRecord::PipelineArchetypeRecord(
+	const std::string_view& srcPath, const std::string& projectDir,
+	vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
+	const Json::Value& archetypeRoot) {
 	if (!archetypeRoot.isObject()) {
 		std::cout << srcPath << ": Error: Archetype node is invalid." << std::endl;
 		return;
@@ -69,7 +70,8 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 	}
 	uint32_t setIndex = 0;
 
-	auto bindingLayoutInfos = std::vector<std::vector<DescriptorBindingLayoutInfo>>(archetypeRoot["sets"].size());
+	auto bindingLayoutInfos =
+		vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>(archetypeRoot["sets"].size());
 	m_setLayoutIndices.reserve(archetypeRoot["sets"].size());
 
 	for (auto& set : archetypeRoot["sets"]) {
@@ -116,7 +118,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 				}
 
 				bool usesImmutableSamplers = false;
-				std::vector<SamplerInfo> samplerInfos;
+				vanadium::SimpleVector<SamplerInfo> samplerInfos;
 				if (bindingNode["immutable-samplers"].isArray()) {
 					usesImmutableSamplers = !bindingNode["immutable-samplers"].empty();
 					samplerInfos.reserve(bindingNode["immutable-samplers"].size());
@@ -296,7 +298,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(const std::string_view& srcPath
 }
 
 void PipelineArchetypeRecord::compileShaders(const std::string& tempDir, const std::string& compilerCommand,
-											 const std::vector<std::string>& additionalArgs) {
+											 const vanadium::SimpleVector<std::string>& additionalArgs) {
 	m_compilerSubprocessIDs.clear();
 	m_compilerSubprocessIDs.reserve(m_files.size());
 	for (auto& file : m_files) {
@@ -315,7 +317,7 @@ void PipelineArchetypeRecord::compileShaders(const std::string& tempDir, const s
 				break;
 		}
 
-		std::vector<const char*> args = { file.path.c_str(), "-o", dstFile.c_str() };
+		vanadium::SimpleVector<const char*> args = { file.path.c_str(), "-o", dstFile.c_str() };
 		// source file, -o, dst file + command + additional args
 		args.reserve(3 + additionalArgs.size());
 		for (auto& arg : additionalArgs) {
@@ -326,11 +328,11 @@ void PipelineArchetypeRecord::compileShaders(const std::string& tempDir, const s
 	}
 }
 
-std::vector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(const std::string_view& srcPath,
-																			 const std::string& tempDir) {
+vanadium::SimpleVector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(const std::string_view& srcPath,
+																						const std::string& tempDir) {
 	size_t subprocessIDIndex = 0;
 
-	std::vector<ReflectedShader> shaderModules;
+	vanadium::SimpleVector<ReflectedShader> shaderModules;
 	shaderModules.reserve(m_files.size());
 
 	for (auto& file : m_files) {
@@ -369,14 +371,15 @@ std::vector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(con
 	return shaderModules;
 }
 
-void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
-											  std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
-											  const std::vector<ReflectedShader>& shaders) {
+void PipelineArchetypeRecord::verifyArchetype(
+	const std::string_view& srcPath,
+	vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
+	const vanadium::SimpleVector<ReflectedShader>& shaders) {
 	for (auto& shader : shaders) {
 		uint32_t pushConstantCount;
 		spvReflectEnumeratePushConstantBlocks(&shader.shader, &pushConstantCount, nullptr);
 
-		auto pushConstants = std::vector<SpvReflectBlockVariable*>(pushConstantCount);
+		auto pushConstants = vanadium::SimpleVector<SpvReflectBlockVariable*>(pushConstantCount);
 		spvReflectEnumeratePushConstantBlocks(&shader.shader, &pushConstantCount, pushConstants.data());
 
 		for (auto& constant : pushConstants) {
@@ -399,7 +402,7 @@ void PipelineArchetypeRecord::verifyArchetype(const std::string_view& srcPath,
 		uint32_t descriptorSetCount;
 		spvReflectEnumerateDescriptorSets(&shader.shader, &descriptorSetCount, nullptr);
 
-		auto descriptorSets = std::vector<SpvReflectDescriptorSet*>(descriptorSetCount);
+		auto descriptorSets = vanadium::SimpleVector<SpvReflectDescriptorSet*>(descriptorSetCount);
 		spvReflectEnumerateDescriptorSets(&shader.shader, &descriptorSetCount, descriptorSets.data());
 
 		for (auto& set : descriptorSets) {

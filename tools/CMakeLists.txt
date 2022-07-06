@@ -7,7 +7,8 @@ project ("VanadiumEngine")
 file(GLOB CPP_SOURCES CONFIG_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/EnumMatchTable/src/*.cpp")
 
 add_executable(EnumMatchTable ${CPP_SOURCES})
-target_include_directories(EnumMatchTable PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/EnumMatchTable/include")
+target_include_directories(EnumMatchTable PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/EnumMatchTable/include"
+												 "${CMAKE_SOURCE_DIR}/include")
 target_link_libraries(EnumMatchTable tinyxml2)
 
 target_compile_options(EnumMatchTable PRIVATE "-Wall")

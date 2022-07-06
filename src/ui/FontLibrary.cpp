@@ -1,5 +1,5 @@
-#include <helper/SplitString.hpp>
-#include <helper/WholeFileReader.hpp>
+#include <util/SplitString.hpp>
+#include <util/WholeFileReader.hpp>
 #include <locale>
 #include <ui/FontLibrary.hpp>
 #include <ui/SystemFontPaths.hpp>

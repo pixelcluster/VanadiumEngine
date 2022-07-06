@@ -46,8 +46,8 @@ namespace vanadium::ui::shapes {
 		determineLineBreaksAndDimensions(textShape);
 
 		if (m_fontAtlases.find(identifier) == m_fontAtlases.end()) {
-			std::vector<graphics::DescriptorSetAllocationInfo> infos =
-				std::vector<graphics::DescriptorSetAllocationInfo>(graphics::frameInFlightCount,
+			SimpleVector<graphics::DescriptorSetAllocationInfo> infos =
+				SimpleVector<graphics::DescriptorSetAllocationInfo>(graphics::frameInFlightCount,
 																   m_textSetAllocationInfo);
 			auto allocations = m_renderContext.descriptorSetAllocator->allocateDescriptorSets(infos);
 			for (uint32_t i = 0; i < graphics::frameInFlightCount; ++i) {
@@ -106,8 +106,8 @@ namespace vanadium::ui::shapes {
 				}
 
 				if (m_fontAtlases.find(identifier) == m_fontAtlases.end()) {
-					std::vector<graphics::DescriptorSetAllocationInfo> infos =
-						std::vector<graphics::DescriptorSetAllocationInfo>(graphics::frameInFlightCount,
+					SimpleVector<graphics::DescriptorSetAllocationInfo> infos =
+						SimpleVector<graphics::DescriptorSetAllocationInfo>(graphics::frameInFlightCount,
 																		   m_textSetAllocationInfo);
 					auto allocations = m_renderContext.descriptorSetAllocator->allocateDescriptorSets(infos);
 					for (uint32_t i = 0; i < graphics::frameInFlightCount; ++i) {
@@ -531,10 +531,10 @@ namespace vanadium::ui::shapes {
 
 		std::string_view textView = shape->text();
 		// The text, but instead of letters each codepoint is replaced with its break class
-		std::vector<BreakClassRuleTraits> ruleTraitsString;
+		SimpleVector<BreakClassRuleTraits> ruleTraitsString;
 		// Linebreak status for each character of the text
-		std::vector<LinebreakStatus> linebreakStatusString =
-			std::vector<LinebreakStatus>(textView.size(), LinebreakStatus::Undefined);
+		SimpleVector<LinebreakStatus> linebreakStatusString =
+			SimpleVector<LinebreakStatus>(textView.size(), LinebreakStatus::Undefined);
 		ruleTraitsString.reserve(textView.size());
 		for (unsigned int i = 0; i < textView.size(); ++i) {
 			ruleTraitsString.push_back(
@@ -576,7 +576,7 @@ namespace vanadium::ui::shapes {
 		uint32_t maxBearingY = 0;
 		bool onFirstLine = true;
 
-		std::vector<GlyphInfo> shapeGlyphInfos;
+		SimpleVector<GlyphInfo> shapeGlyphInfos;
 		shapeGlyphInfos.reserve(glyphCount);
 
 		for (unsigned int i = 0; i < glyphCount; ++i) {
@@ -715,7 +715,7 @@ namespace vanadium::ui::shapes {
 		m_registry->determineLineBreaksAndDimensions(this);
 	}
 
-	void TextShape::setGlyphInfos(std::vector<GlyphInfo>&& glyphInfos) {
-		m_glyphInfos = std::forward<std::vector<GlyphInfo>>(glyphInfos);
+	void TextShape::setGlyphInfos(SimpleVector<GlyphInfo>&& glyphInfos) {
+		m_glyphInfos = std::forward<SimpleVector<GlyphInfo>>(glyphInfos);
 	}
 } // namespace vanadium::ui::shapes

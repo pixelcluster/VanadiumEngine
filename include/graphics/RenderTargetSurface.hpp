@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector>
+#include <util/Vector.hpp>
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
@@ -18,13 +18,13 @@ namespace vanadium::graphics {
 
 	struct RenderTargetFramebufferContainer {
 		uint64_t revisionIndex;
-		std::vector<VkFramebuffer> m_framebuffers;
+		SimpleVector<VkFramebuffer> m_framebuffers;
 	};
 
 	class RenderTargetSurface {
 	  public:
 		RenderTargetSurface(DeviceContext* context, VkFormat imageFormat);
-		void create(const std::vector<VkImage>& swapchainImages, const RenderTargetSurfaceProperties& properties);
+		void create(const SimpleVector<VkImage>& swapchainImages, const RenderTargetSurfaceProperties& properties);
 
 		void setTargetImageIndex(uint32_t index) { m_currentTargetIndex = index; }
 		uint32_t currentTargetIndex() const { return m_currentTargetIndex; }
@@ -46,8 +46,8 @@ namespace vanadium::graphics {
 
 		uint32_t m_currentTargetIndex;
 
-		std::vector<VkImage> m_images;
-		std::vector<robin_hood::unordered_map<ImageResourceViewInfo, VkImageView>> m_imageViews = { {} };
+		SimpleVector<VkImage> m_images;
+		SimpleVector<robin_hood::unordered_map<ImageResourceViewInfo, VkImageView>> m_imageViews = { {} };
 		robin_hood::unordered_map<RenderPassSignature, RenderTargetFramebufferContainer> m_framebufferContainers;
 		RenderTargetSurfaceProperties m_properties;
 	};

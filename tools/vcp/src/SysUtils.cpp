@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-SubprocessID startSubprocess(const char* processName, const std::vector<const char*>& arguments) { 
+SubprocessID startSubprocess(const char* processName, const vanadium::SimpleVector<const char*>& arguments) { 
 	size_t totalArgsSize = strlen(processName) + 1;
 	for (auto& arg : arguments) {
 		totalArgsSize += strlen(arg) + 1;
@@ -55,7 +55,7 @@ void waitForSubprocess(const SubprocessID& id) {
 
 #elif defined(_WIN32)
 
-SubprocessID startSubprocess(const char* processName, const std::vector<const char*>& arguments) {
+SubprocessID startSubprocess(const char* processName, const vanadium::SimpleVector<const char*>& arguments) {
 	size_t commandLineLength = strlen(processName);
 	for (auto& argument : arguments) {
 		//space plus argument size

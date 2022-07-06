@@ -54,7 +54,7 @@ namespace vanadium::graphics {
 				verifyResult(vkCreateSemaphore(device, &info, nullptr, &m_presentSemaphores[i]));
 			}
 		}
-		std::vector<VkSurfaceFormatKHR> surfaceFormats = enumerate<VkPhysicalDevice, VkSurfaceFormatKHR, VkSurfaceKHR>(
+		SimpleVector<VkSurfaceFormatKHR> surfaceFormats = enumerate<VkPhysicalDevice, VkSurfaceFormatKHR, VkSurfaceKHR>(
 			physicalDevice, m_surface, vkGetPhysicalDeviceSurfaceFormatsKHR);
 
 		if (std::find_if(surfaceFormats.begin(), surfaceFormats.end(), [](const auto& format) {
@@ -104,7 +104,7 @@ namespace vanadium::graphics {
 		m_swapchainDirtyFlag = false;
 	}
 
-	std::vector<VkImage> WindowSurface::swapchainImages(VkDevice device) {
+	SimpleVector<VkImage> WindowSurface::swapchainImages(VkDevice device) {
 		return enumerate<VkDevice, VkImage, VkSwapchainKHR>(device, m_swapchain, vkGetSwapchainImagesKHR);
 	}
 

@@ -3,7 +3,7 @@
 #include <Log.hpp>
 #include <graphics/DeviceContext.hpp>
 #include <variant>
-#include <vector>
+#include <util/Vector.hpp>
 #include <graphics/RenderPassSignature.hpp>
 
 namespace vanadium::graphics {
@@ -14,14 +14,14 @@ namespace vanadium::graphics {
 
 	struct DescriptorSetLayoutInfo {
 		VkDescriptorSetLayout layout;
-		std::vector<VkDescriptorSetLayoutBinding> bindingInfos;
+		SimpleVector<VkDescriptorSetLayoutBinding> bindingInfos;
 	};
 
 	struct PipelineLibraryArchetype {
 		PipelineType type;
-		std::vector<VkShaderModule> shaderModules;
-		std::vector<uint32_t> setLayoutIndices;
-		std::vector<VkPushConstantRange> pushConstantRanges;
+		SimpleVector<VkShaderModule> shaderModules;
+		SimpleVector<uint32_t> setLayoutIndices;
+		SimpleVector<VkPushConstantRange> pushConstantRanges;
 	};
 
 	struct PipelineLibraryStageSpecialization {
@@ -36,7 +36,7 @@ namespace vanadium::graphics {
 
 		VkShaderStageFlagBits stage;
 		VkSpecializationInfo specializationInfo;
-		std::vector<VkSpecializationMapEntry> mapEntries;
+		SimpleVector<VkSpecializationMapEntry> mapEntries;
 		char* specializationData;
 	};
 
@@ -50,22 +50,22 @@ namespace vanadium::graphics {
 
 		uint32_t archetypeID;
 		std::string name;
-		std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
-		std::vector<PipelineLibraryStageSpecialization> stageSpecializations;
-		std::vector<VkVertexInputAttributeDescription> attribDescriptions;
-		std::vector<VkVertexInputBindingDescription> bindingDescriptions;
+		SimpleVector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
+		SimpleVector<PipelineLibraryStageSpecialization> stageSpecializations;
+		SimpleVector<VkVertexInputAttributeDescription> attribDescriptions;
+		SimpleVector<VkVertexInputBindingDescription> bindingDescriptions;
 		VkPipelineVertexInputStateCreateInfo vertexInputConfig;
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyConfig;
 		VkPipelineRasterizationStateCreateInfo rasterizationConfig;
 		VkPipelineMultisampleStateCreateInfo multisampleConfig;
 		VkPipelineDepthStencilStateCreateInfo depthStencilConfig;
 		VkPipelineColorBlendStateCreateInfo colorBlendConfig;
-		std::vector<VkPipelineColorBlendAttachmentState> colorAttachmentBlendConfigs;
+		SimpleVector<VkPipelineColorBlendAttachmentState> colorAttachmentBlendConfigs;
 		VkPipelineDynamicStateCreateInfo dynamicStateConfig;
-		std::vector<VkDynamicState> dynamicStates;
+		SimpleVector<VkDynamicState> dynamicStates;
 		VkPipelineViewportStateCreateInfo viewportConfig;
-		std::vector<VkViewport> viewports;
-		std::vector<VkRect2D> scissorRects;
+		SimpleVector<VkViewport> viewports;
+		SimpleVector<VkRect2D> scissorRects;
 		VkGraphicsPipelineCreateInfo pipelineCreateInfo;
 
 		robin_hood::unordered_map<RenderPassSignature, VkPipeline> pipelines;
@@ -85,7 +85,7 @@ namespace vanadium::graphics {
 		void create(const std::string_view& libraryFileName, DeviceContext* deviceContext);
 
 		void createForPass(const RenderPassSignature& signature, VkRenderPass pass,
-						   const std::vector<uint32_t>& pipelineIDs);
+						   const SimpleVector<uint32_t>& pipelineIDs);
 
 		// these methods are essentially const but the user can modify state using the pipeline handles
 		VkPipeline graphicsPipeline(uint32_t id, const RenderPassSignature& signature) {
@@ -96,21 +96,21 @@ namespace vanadium::graphics {
 		const DescriptorSetLayoutInfo& graphicsPipelineSet(uint32_t id, uint32_t setIndex) {
 			return m_descriptorSetLayouts[m_archetypes[m_graphicsInstances[id].archetypeID].setLayoutIndices[setIndex]];
 		}
-		std::vector<DescriptorSetLayoutInfo> graphicsPipelineSets(uint32_t id);
+		SimpleVector<DescriptorSetLayoutInfo> graphicsPipelineSets(uint32_t id);
 		VkPipelineLayout graphicsPipelineLayout(uint32_t id) {
 			return m_graphicsInstances[id].pipelineCreateInfo.layout;
 		}
-		const std::vector<VkPushConstantRange>& graphicsPipelinePushConstantRanges(uint32_t id) const {
+		const SimpleVector<VkPushConstantRange>& graphicsPipelinePushConstantRanges(uint32_t id) const {
 			return m_archetypes[m_graphicsInstances[id].archetypeID].pushConstantRanges;
 		}
 		const DescriptorSetLayoutInfo& computePipelineSet(uint32_t id, uint32_t setIndex) {
 			return m_descriptorSetLayouts[m_archetypes[m_computeInstances[id].archetypeID].setLayoutIndices[setIndex]];
 		}
-		std::vector<DescriptorSetLayoutInfo> computePipelineSets(uint32_t id);
+		SimpleVector<DescriptorSetLayoutInfo> computePipelineSets(uint32_t id);
 		VkPipelineLayout computePipelineLayout(uint32_t id) {
 			return m_computeInstances[id].layout;
 		}
-		const std::vector<VkPushConstantRange>& computePipelinePushConstantRanges(uint32_t id) const {
+		const SimpleVector<VkPushConstantRange>& computePipelinePushConstantRanges(uint32_t id) const {
 			return m_archetypes[m_computeInstances[id].archetypeID].pushConstantRanges;
 		}
 
@@ -134,12 +134,12 @@ namespace vanadium::graphics {
 		void createGraphicsPipeline(uint64_t& bufferOffset);
 		void createComputePipeline(uint64_t& bufferOffset);
 
-		std::vector<PipelineLibraryArchetype> m_archetypes;
-		std::vector<PipelineLibraryGraphicsInstance> m_graphicsInstances;
-		std::vector<PipelineLibraryComputeInstance> m_computeInstances;
+		SimpleVector<PipelineLibraryArchetype> m_archetypes;
+		SimpleVector<PipelineLibraryGraphicsInstance> m_graphicsInstances;
+		SimpleVector<PipelineLibraryComputeInstance> m_computeInstances;
 
-		std::vector<DescriptorSetLayoutInfo> m_descriptorSetLayouts;
-		std::vector<VkSampler> m_immutableSamplers;
+		SimpleVector<DescriptorSetLayoutInfo> m_descriptorSetLayouts;
+		SimpleVector<VkSampler> m_immutableSamplers;
 	};
 
 	template <typename T> T PipelineLibrary::readBuffer(uint64_t& currentOffset) {

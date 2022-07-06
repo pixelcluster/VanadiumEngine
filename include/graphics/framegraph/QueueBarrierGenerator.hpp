@@ -3,9 +3,9 @@
 #define VK_NO_PROTOTYPES
 #include <optional>
 #include <robin_hood.h>
-#include <vector>
+#include <util/Vector.hpp>
 #include <vulkan/vulkan.h>
-#include <helper/Slotmap.hpp>
+#include <util/Slotmap.hpp>
 
 namespace vanadium::graphics {
 	class FramegraphContext;
@@ -20,7 +20,7 @@ namespace vanadium::graphics {
 	};
 
 	struct NodeImageAccess {
-		std::vector<NodeImageSubresourceAccess> subresourceAccesses;
+		SimpleVector<NodeImageSubresourceAccess> subresourceAccesses;
 		bool preserveAcrossFrames;
 		VkImageLayout initialLayout;
 		SlotmapHandle image;
@@ -37,8 +37,8 @@ namespace vanadium::graphics {
 	};
 
 	struct ImageAccessInfo {
-		std::vector<ImageSubresourceAccess> reads;
-		std::vector<ImageSubresourceAccess> modifications;
+		SimpleVector<ImageSubresourceAccess> reads;
+		SimpleVector<ImageSubresourceAccess> modifications;
 		bool preserveAcrossFrames = false;
 		VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		bool isNew;
@@ -67,7 +67,7 @@ namespace vanadium::graphics {
 	};
 
 	struct NodeBufferAccess {
-		std::vector<NodeBufferSubresourceAccess> subresourceAccesses;
+		SimpleVector<NodeBufferSubresourceAccess> subresourceAccesses;
 		SlotmapHandle buffer;
 	};
 
@@ -81,8 +81,8 @@ namespace vanadium::graphics {
 	};
 
 	struct BufferAccessInfo {
-		std::vector<BufferSubresourceAccess> reads;
-		std::vector<BufferSubresourceAccess> modifications;
+		SimpleVector<BufferSubresourceAccess> reads;
+		SimpleVector<BufferSubresourceAccess> modifications;
 	};
 
 	struct BufferFramegraphBarrier {
@@ -98,11 +98,11 @@ namespace vanadium::graphics {
 	};
 
 	struct NodeBarrierInfo {
-		std::vector<ImageFramegraphBarrier> imageBarriers;
-		std::vector<BufferFramegraphBarrier> bufferBarriers;
+		SimpleVector<ImageFramegraphBarrier> imageBarriers;
+		SimpleVector<BufferFramegraphBarrier> bufferBarriers;
 
-		std::vector<VkImageMemoryBarrier> vulkanImageBarriers;
-		std::vector<VkBufferMemoryBarrier> vulkanBufferBarriers;
+		SimpleVector<VkImageMemoryBarrier> vulkanImageBarriers;
+		SimpleVector<VkBufferMemoryBarrier> vulkanBufferBarriers;
 		VkPipelineStageFlags srcStages;
 		VkPipelineStageFlags dstStages;
 	};
@@ -136,8 +136,8 @@ namespace vanadium::graphics {
 		void insertNodeBeforeIndex(size_t nodeIndex);
 		void removeNodeIndex(size_t nodeIndex);
 
-		std::vector<SlotmapHandle> unusedBuffers() const;
-		std::vector<SlotmapHandle> unusedImages() const;
+		SimpleVector<SlotmapHandle> unusedBuffers() const;
+		SimpleVector<SlotmapHandle> unusedImages() const;
 
 		void generateDependencyInfo();
 
@@ -146,14 +146,14 @@ namespace vanadium::graphics {
 								 VkImage currentTargetImageHandle);
 
 		size_t bufferBarrierCount(size_t nodeIndex) const;
-		const std::vector<VkBufferMemoryBarrier>& bufferBarriers(size_t nodeIndex) const;
+		const SimpleVector<VkBufferMemoryBarrier>& bufferBarriers(size_t nodeIndex) const;
 		size_t imageBarrierCount(size_t nodeIndex) const;
-		const std::vector<VkImageMemoryBarrier>& imageBarriers(size_t nodeIndex) const;
+		const SimpleVector<VkImageMemoryBarrier>& imageBarriers(size_t nodeIndex) const;
 		VkPipelineStageFlags srcStages(size_t nodeIndex) const;
 		VkPipelineStageFlags dstStages(size_t nodeIndex) const;
 
 		size_t frameStartBarrierCount() const { return m_frameStartImageBarriers.size(); }
-		const std::vector<VkImageMemoryBarrier>& frameStartBarriers() const { return m_vulkanFrameStartImageBarriers; }
+		const SimpleVector<VkImageMemoryBarrier>& frameStartBarriers() const { return m_vulkanFrameStartImageBarriers; }
 
 		VkImageLayout lastTargetImageLayout() const;
 		VkImageSubresourceRange lastTargetAccessRange() const;
@@ -164,9 +164,9 @@ namespace vanadium::graphics {
 		void emitBarriersForRead(size_t nodeIndex, std::optional<SlotmapHandle> image,
 								 const ImageAccessInfo& info, const ImageSubresourceAccess& read);
 
-		std::optional<BufferAccessMatch> findLastModification(const std::vector<BufferSubresourceAccess>& modifications,
+		std::optional<BufferAccessMatch> findLastModification(const SimpleVector<BufferSubresourceAccess>& modifications,
 															  const BufferSubresourceAccess& read);
-		std::optional<ImageAccessMatch> findLastModification(const std::vector<ImageSubresourceAccess>& modifications,
+		std::optional<ImageAccessMatch> findLastModification(const SimpleVector<ImageSubresourceAccess>& modifications,
 															 const ImageSubresourceAccess& read);
 
 		void emitBarrier(SlotmapHandle buffer, const BufferAccessMatch& match,
@@ -179,10 +179,10 @@ namespace vanadium::graphics {
 		robin_hood::unordered_map<SlotmapHandle, ImageAccessInfo> m_imageAccessInfos;
 		ImageAccessInfo m_targetAccessInfo;
 
-		std::vector<NodeBarrierInfo> m_nodeBarrierInfos;
+		SimpleVector<NodeBarrierInfo> m_nodeBarrierInfos;
 
-		std::vector<ImageFramegraphBarrier> m_frameStartImageBarriers;
-		std::vector<VkImageMemoryBarrier> m_vulkanFrameStartImageBarriers;
+		SimpleVector<ImageFramegraphBarrier> m_frameStartImageBarriers;
+		SimpleVector<VkImageMemoryBarrier> m_vulkanFrameStartImageBarriers;
 	};
 
 } // namespace vanadium::graphics

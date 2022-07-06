@@ -1,6 +1,6 @@
 #pragma once
 #include <filesystem>
-#include <vector>
+#include <util/Vector.hpp>
 #include <fstream>
 
 #include <Log.hpp>
@@ -54,8 +54,8 @@ namespace vanadium::graphics {
 		std::string m_libraryFileName;
 		void* m_libraryData;
 
-		std::vector<LibraryImage> m_images;
-		std::vector<LibraryMesh> m_meshes;
+		SimpleVector<LibraryImage> m_images;
+		SimpleVector<LibraryMesh> m_meshes;
 	};
 
 	template <typename T> T AssetLibrary::readFromFile(std::ifstream& stream, bool expectEOF) {

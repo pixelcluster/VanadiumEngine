@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include <helper/SplitString.hpp>
+#include <util/SplitString.hpp>
 #include <json/json.h>
 
 inline void* offsetVoidPtr(void* old, size_t byteCount) {

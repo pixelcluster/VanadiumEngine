@@ -1,7 +1,7 @@
 #pragma once
 
 #include <graphics/DeviceContext.hpp>
-#include <helper/Slotmap.hpp>
+#include <util/Slotmap.hpp>
 #include <shared_mutex>
 
 namespace vanadium::graphics {
@@ -28,7 +28,7 @@ namespace vanadium::graphics {
 	using DescriptorSizeClassHandle = SlotmapHandle;
 
 	struct DescriptorSetAllocationInfo {
-		std::vector<DescriptorTypeInfo> typeInfos;
+		SimpleVector<DescriptorTypeInfo> typeInfos;
 		VkDescriptorSetLayout layout;
 	};
 
@@ -44,8 +44,8 @@ namespace vanadium::graphics {
 
 		void create(DeviceContext* context);
 
-		std::vector<DescriptorSetAllocation> allocateDescriptorSets(
-			const std::vector<DescriptorSetAllocationInfo>& infos);
+		SimpleVector<DescriptorSetAllocation> allocateDescriptorSets(
+			const SimpleVector<DescriptorSetAllocationInfo>& infos);
 		void freeDescriptorSet(const DescriptorSetAllocation& allocation, const DescriptorSetAllocationInfo& info);
 
 		void setCurrentFrameIndex(uint32_t newFrameIndex);
@@ -68,7 +68,7 @@ namespace vanadium::graphics {
 
 		Slotmap<DescriptorSetSizeClass> m_sizeClasses;
 
-		std::vector<std::vector<VkDescriptorPool>> m_poolFreeLists;
+		SimpleVector<SimpleVector<VkDescriptorPool>> m_poolFreeLists;
 
 		std::shared_mutex m_accessMutex;
 	};

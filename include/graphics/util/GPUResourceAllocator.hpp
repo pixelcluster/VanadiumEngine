@@ -3,8 +3,8 @@
 #include <array>
 #include <graphics/DeviceContext.hpp>
 #include <graphics/util/RangeAllocator.hpp>
-#include <helper/MemoryLiterals.hpp>
-#include <helper/Slotmap.hpp>
+#include <util/MemoryLiterals.hpp>
+#include <util/Slotmap.hpp>
 #include <shared_mutex>
 
 namespace vanadium::graphics {
@@ -16,8 +16,8 @@ namespace vanadium::graphics {
 	};
 
 	struct MemoryBlock {
-		std::vector<MemoryRange> freeBlocksSizeSorted;
-		std::vector<MemoryRange> freeBlocksOffsetSorted;
+		SimpleVector<MemoryRange> freeBlocksSizeSorted;
+		SimpleVector<MemoryRange> freeBlocksOffsetSorted;
 
 		MemoryCapabilities capabilities;
 
@@ -192,8 +192,8 @@ namespace vanadium::graphics {
 
 		VkDeviceSize m_bufferImageGranularity;
 
-		std::vector<MemoryType> m_memoryTypes;
-		std::vector<size_t> m_heapBudgets;
+		SimpleVector<MemoryType> m_memoryTypes;
+		SimpleVector<size_t> m_heapBudgets;
 
 		Slotmap<MemoryBlock> m_customBufferBlocks;
 		Slotmap<MemoryBlock> m_customImageBlocks;
@@ -201,9 +201,9 @@ namespace vanadium::graphics {
 		Slotmap<BufferAllocation> m_buffers;
 		Slotmap<ImageAllocation> m_images;
 
-		std::vector<std::vector<BufferAllocation>> m_bufferFreeList;
-		std::vector<std::vector<ImageAllocation>> m_imageFreeList;
-		std::vector<std::vector<MemoryBlock>> m_blockFreeList;
+		SimpleVector<SimpleVector<BufferAllocation>> m_bufferFreeList;
+		SimpleVector<SimpleVector<ImageAllocation>> m_imageFreeList;
+		SimpleVector<SimpleVector<MemoryBlock>> m_blockFreeList;
 
 		std::shared_mutex m_accessMutex;
 	};

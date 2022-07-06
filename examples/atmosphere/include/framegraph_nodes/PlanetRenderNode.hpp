@@ -39,5 +39,5 @@ class PlanetRenderNode : public vanadium::graphics::FramegraphNode {
 	VkRenderPass m_renderPass;
 
 	uint32_t m_width, m_height;
-	std::vector<VkFramebuffer> m_framebuffers;
+	vanadium::SimpleVector<VkFramebuffer> m_framebuffers;
 };

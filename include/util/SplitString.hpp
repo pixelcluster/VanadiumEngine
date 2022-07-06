@@ -1,11 +1,12 @@
 #include <sstream>
 #include <string>
-#include <vector>
+#include <util/Vector.hpp>
 
-inline std::vector<std::string> splitString(const std::string& list, char separator = '|', bool eraseSpaces = true) {
+inline vanadium::SimpleVector<std::string> splitString(const std::string& list, char separator = '|',
+													   bool eraseSpaces = true) {
 	std::stringstream listStream = std::stringstream(list);
 	std::string listEntry;
-	std::vector<std::string> splitList;
+	vanadium::SimpleVector<std::string> splitList;
 
 	while (std::getline(listStream, listEntry, '|')) {
 		if (eraseSpaces) {

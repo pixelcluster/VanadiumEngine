@@ -6,12 +6,12 @@
 #include <string>
 #include <ui/ShapeRegistry.hpp>
 #include <ui/UISubsystem.hpp>
-#include <vector>
+#include <util/Vector.hpp>
 
 #include <ft2build.h>
 #include <hb-ft.h>
 #include <hb.h>
-#include <helper/UTF8.hpp>
+#include <util/UTF8.hpp>
 
 namespace vanadium::ui::shapes {
 	class TextShape;
@@ -67,15 +67,15 @@ namespace vanadium::ui::shapes {
 		graphics::ImageResourceHandle fontAtlasImage = ~0U;
 
 		robin_hood::unordered_map<uint32_t, GlyphAtlasCoords> fontAtlasPositions;
-		std::vector<ShapeGlyphData> shapeGlyphData;
-		std::vector<RenderedGlyphData> glyphData;
-		std::vector<RenderedLayer> layers;
+		SimpleVector<ShapeGlyphData> shapeGlyphData;
+		SimpleVector<RenderedGlyphData> glyphData;
+		SimpleVector<RenderedLayer> layers;
 		Vector2 atlasSize;
 		// max. glyph height *above baseline*
 		uint32_t maxGlyphHeight;
 
 		graphics::DescriptorSetAllocation setAllocations[graphics::frameInFlightCount] = {};
-		std::vector<TextShape*> referencingShapes;
+		SimpleVector<TextShape*> referencingShapes;
 	};
 } // namespace vanadium::ui::shapes
 
@@ -124,8 +124,8 @@ namespace vanadium::ui::shapes {
 		graphics::ImageResourceViewInfo m_atlasViewInfo;
 
 		robin_hood::unordered_map<FontAtlasIdentifier, FontAtlas> m_fontAtlases;
-		std::vector<FontData> m_fonts;
-		std::vector<TextShape*> m_shapes;
+		SimpleVector<FontData> m_fonts;
+		SimpleVector<TextShape*> m_shapes;
 
 		graphics::RenderContext m_renderContext;
 		UISubsystem* m_uiSubsystem;
@@ -162,12 +162,12 @@ namespace vanadium::ui::shapes {
 
 		void addLinebreak(uint32_t index) { m_linebreakGlyphIndices.push_back(index); }
 		// Glyph indices (not text indices!) of each linebreak
-		const std::vector<uint32_t>& linebreakGlyphIndices() const { return m_linebreakGlyphIndices; }
+		const SimpleVector<uint32_t>& linebreakGlyphIndices() const { return m_linebreakGlyphIndices; }
 		hb_buffer_t* internalTextBuffer() { return m_textBuffer; }
 
 		uint32_t glyphCount() { return m_glyphInfos.size(); }
 
-		void setGlyphInfos(std::vector<GlyphInfo>&& glyphInfos);
+		void setGlyphInfos(SimpleVector<GlyphInfo>&& glyphInfos);
 		void setBaselineOffset(float baselineOffset) { m_baselineOffset = baselineOffset; }
 
 		Vector2 glyphPosition(uint32_t index) const { return m_glyphInfos[index].position; }
@@ -191,8 +191,8 @@ namespace vanadium::ui::shapes {
 		Vector4 m_color;
 
 		hb_buffer_t* m_textBuffer;
-		std::vector<uint32_t> m_linebreakGlyphIndices;
-		std::vector<GlyphInfo> m_glyphInfos;
+		SimpleVector<uint32_t> m_linebreakGlyphIndices;
+		SimpleVector<GlyphInfo> m_glyphInfos;
 		float m_baselineOffset;
 		std::string m_text;
 	};

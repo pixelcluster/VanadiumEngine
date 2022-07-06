@@ -1,6 +1,6 @@
 #pragma once
 #include <math/Vector.hpp>
-#include <helper/CompilerSpecific.hpp>
+#include <util/CompilerSpecific.hpp>
 
 namespace vanadium::ui {
 	enum class PositionOffsetType {

@@ -3,8 +3,8 @@
 
 namespace vanadium::graphics
 {
-    inline std::vector<DescriptorSetAllocationInfo> allocationInfosForPipeline(PipelineLibrary* library, PipelineType type, uint32_t pipelineID) {
-        std::vector<DescriptorSetLayoutInfo> layoutInfos;
+    inline SimpleVector<DescriptorSetAllocationInfo> allocationInfosForPipeline(PipelineLibrary* library, PipelineType type, uint32_t pipelineID) {
+        SimpleVector<DescriptorSetLayoutInfo> layoutInfos;
         switch (type)
         {
         case PipelineType::Graphics:
@@ -14,10 +14,10 @@ namespace vanadium::graphics
             layoutInfos = library->computePipelineSets(pipelineID);
             break;
         }
-        std::vector<DescriptorSetAllocationInfo> result;
+        SimpleVector<DescriptorSetAllocationInfo> result;
         result.reserve(layoutInfos.size());
         for(auto& info : layoutInfos) {
-            std::vector<DescriptorTypeInfo> typeInfos;
+            SimpleVector<DescriptorTypeInfo> typeInfos;
             typeInfos.reserve(info.bindingInfos.size());
             for(auto& binding : info.bindingInfos) {
                 typeInfos.push_back({

@@ -91,7 +91,7 @@ namespace vanadium::ui::functionalities {
 		return { .stateMask = static_cast<windowing::KeyStateFlags>(windowing::KeyState::Pressed),
 				 .modifierMask = static_cast<windowing::KeyModifierFlags>(~0U) };
 	}
-	std::vector<uint32_t> TextBoxFunctionality::keyCodes() const { return { GLFW_KEY_BACKSPACE, GLFW_KEY_DELETE, GLFW_KEY_LEFT, GLFW_KEY_RIGHT }; }
+	SimpleVector<uint32_t> TextBoxFunctionality::keyCodes() const { return { GLFW_KEY_BACKSPACE, GLFW_KEY_DELETE, GLFW_KEY_LEFT, GLFW_KEY_RIGHT }; }
 
 	void TextBoxFunctionality::inputFocusGained(UISubsystem* subsystem, Control* triggeringControl) {
 		m_timer = m_engine->timerManager().addTimer(0.5f, timerCallback, timers::emptyTimerDestroyCallback,

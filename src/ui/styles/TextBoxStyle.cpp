@@ -6,7 +6,6 @@ namespace vanadium::ui::styles {
 		Vector2 foregroundOrigin = position + Vector2(1.0f);
 		m_contentOrigin = foregroundOrigin + Vector2(0.1) * Vector2(std::min(size.x, size.y));
 		m_contentSize = size - Vector2(2.0f) * (Vector2(0.1) * Vector2(std::min(size.x, size.y)) + Vector2(1.0f));
-		Vector2 fontBaselineOrigin = Vector2(m_contentOrigin.x, m_contentOrigin.y + 0.8 * m_contentSize.y);
 
 		m_cursorShape = subsystem->addShape<shapes::RectShape>(m_contentOrigin, layerID + 2,
 															   Vector2(0.1f, m_contentSize.y), 0.0f, Vector4(0.0f));

@@ -11,9 +11,9 @@ struct Argument
 	std::string additionalData;
 };
 
-std::vector<Argument> parseArguments(int argc, char** argv) {
+vanadium::SimpleVector<Argument> parseArguments(int argc, char** argv) {
 	Argument currentArgument;
-	std::vector<Argument> arguments;
+	vanadium::SimpleVector<Argument> arguments;
 	bool hasWrittenArguments = false;
 
 	for (int i = 1; i < argc; ++i) {

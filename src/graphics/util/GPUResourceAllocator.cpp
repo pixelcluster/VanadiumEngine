@@ -1,7 +1,7 @@
 #include <bit>
 #include <graphics/helper/ErrorHelper.hpp>
 #include <graphics/util/GPUResourceAllocator.hpp>
-#include <helper/SharedLockGuard.hpp>
+#include <util/SharedLockGuard.hpp>
 #include <volk.h>
 
 namespace vanadium::graphics {

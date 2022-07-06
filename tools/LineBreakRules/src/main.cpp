@@ -1,8 +1,8 @@
 #include <cmath>
 #include <fstream>
-#include <helper/UTF8.hpp>
+#include <util/UTF8.hpp>
 #include <iostream>
-#include <vector>
+#include <util/Vector.hpp>
 
 using namespace std::string_literals;
 
@@ -156,9 +156,9 @@ int main() {
 		return 1;
 	}
 
-	std::vector<CodepointRange> breakClassRanges;
-	std::vector<EastAsianWidthCodepointRange> eastAsianRanges;
-	std::vector<ExtendedPictographicCodepointRange> extendedPictographicRanges;
+	vanadium::SimpleVector<CodepointRange> breakClassRanges;
+	vanadium::SimpleVector<EastAsianWidthCodepointRange> eastAsianRanges;
+	vanadium::SimpleVector<ExtendedPictographicCodepointRange> extendedPictographicRanges;
 
 	std::string currentLine;
 	while (std::getline(inFile, currentLine).good()) {
@@ -289,7 +289,7 @@ int main() {
 	std::ofstream outStream = std::ofstream("./generated_include/CharacterGroup.hpp", std::ios::trunc);
 
 	writeLine(outStream, "#pragma once\n");
-	writeLine(outStream, "#include <helper/UTF8.hpp>\n");
+	writeLine(outStream, "#include <util/UTF8.hpp>\n");
 	writeLine(outStream, "inline BreakClass codepointBreakClass(uint32_t value) {");
 	++indentationLevel;
 	for (auto& range : breakClassRanges) {

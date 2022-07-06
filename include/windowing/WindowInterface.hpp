@@ -6,11 +6,11 @@
 #include <GLFW/glfw3.h>
 #include <optional>
 #include <robin_hood.h>
-#include <vector>
+#include <util/Vector.hpp>
 
 #include <math/Vector.hpp>
 
-#include <helper/HashCombine.hpp>
+#include <util/HashCombine.hpp>
 
 namespace vanadium::windowing {
 
@@ -250,12 +250,12 @@ namespace vanadium::windowing {
 		uint32_t m_contentScaleDPIX;
 		uint32_t m_contentScaleDPIY;
 
-		robin_hood::unordered_map<KeyListenerData, std::vector<KeyListenerParams>> m_keyListeners;
-		robin_hood::unordered_map<KeyListenerData, std::vector<KeyListenerParams>> m_mouseKeyListeners;
-		std::vector<CharacterListenerParams> m_characterListeners;
-		std::vector<SizeListenerParams> m_sizeListeners;
-		std::vector<MouseListenerParams> m_mouseMoveListeners;
-		std::vector<MouseListenerParams> m_scrollListeners;
+		robin_hood::unordered_map<KeyListenerData, SimpleVector<KeyListenerParams>> m_keyListeners;
+		robin_hood::unordered_map<KeyListenerData, SimpleVector<KeyListenerParams>> m_mouseKeyListeners;
+		SimpleVector<CharacterListenerParams> m_characterListeners;
+		SimpleVector<SizeListenerParams> m_sizeListeners;
+		SimpleVector<MouseListenerParams> m_mouseMoveListeners;
+		SimpleVector<MouseListenerParams> m_scrollListeners;
 
 		static uint32_t m_glfwWindowCount;
 	};

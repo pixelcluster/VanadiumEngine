@@ -4,7 +4,7 @@
 #include <graphics/util/GPUTransferManager.hpp>
 #include <robin_hood.h>
 
-#include <helper/MemoryLiterals.hpp>
+#include <util/MemoryLiterals.hpp>
 #include <shared_mutex>
 
 namespace vanadium::graphics {

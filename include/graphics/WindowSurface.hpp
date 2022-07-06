@@ -20,7 +20,7 @@ namespace vanadium::graphics {
 		bool swapchainDirtyFlag() const { return m_swapchainDirtyFlag; }
 		bool canRender() const { return m_canRender; }
 
-		std::vector<VkImage> swapchainImages(VkDevice device);
+		SimpleVector<VkImage> swapchainImages(VkDevice device);
 		VkFormat swapchainImageFormat() { return VK_FORMAT_B8G8R8A8_SRGB; }
 
 		uint32_t imageWidth() const { return m_actualWidth; }
@@ -49,8 +49,8 @@ namespace vanadium::graphics {
 		uint32_t m_actualWidth = 0, m_actualHeight = 0;
 
 		size_t m_frameInFlightCount;
-		std::vector<VkSemaphore> m_acquireSemaphores;
-		std::vector<VkSemaphore> m_presentSemaphores;
+		SimpleVector<VkSemaphore> m_acquireSemaphores;
+		SimpleVector<VkSemaphore> m_presentSemaphores;
 
 		VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 		VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;

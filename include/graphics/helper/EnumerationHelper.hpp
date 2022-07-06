@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector>
+#include <util/Vector.hpp>
 #define VK_NO_PROTOTYPES
 #include <graphics/helper/ErrorHelper.hpp>
 #include <vulkan/vulkan.h>
@@ -12,10 +12,10 @@ template <typename HandleType, typename Enumerant>
 using EnumerationPFN = VkResult(VKAPI_PTR*)(HandleType type, uint32_t* count, Enumerant* pEnumerants);
 
 template <typename HandleType, typename Enumerant, typename... AdditionalParams>
-std::vector<Enumerant> enumerate(
+vanadium::SimpleVector<Enumerant> enumerate(
 	HandleType handle, AdditionalParams... params,
 	AdditionalParameterEnumerationPFN<HandleType, Enumerant, AdditionalParams...> pfnEnumerator) {
-	std::vector<Enumerant> values;
+	vanadium::SimpleVector<Enumerant> values;
 	uint32_t valueCount;
 	VkResult enumerationResult;
 
@@ -30,14 +30,14 @@ std::vector<Enumerant> enumerate(
 }
 
 template <typename HandleType, typename Enumerant>
-std::vector<Enumerant> enumerate(HandleType handle, EnumerationPFN<HandleType, Enumerant> pfnEnumerator) {
-	std::vector<Enumerant> values;
+vanadium::SimpleVector<Enumerant> enumerate(HandleType handle, EnumerationPFN<HandleType, Enumerant> pfnEnumerator) {
+	vanadium::SimpleVector<Enumerant> values;
 	uint32_t valueCount;
 	VkResult enumerationResult;
 
 	do {
 		verifyResult(pfnEnumerator(handle, &valueCount, nullptr));
-		values = std::vector<Enumerant>(valueCount);
+		values = vanadium::SimpleVector<Enumerant>(valueCount);
 		enumerationResult = pfnEnumerator(handle, &valueCount, values.data());
 	} while (enumerationResult == VK_INCOMPLETE);
 

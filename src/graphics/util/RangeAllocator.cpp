@@ -14,8 +14,8 @@ namespace vanadium::graphics {
 		return 0;
 	}
 
-	std::optional<RangeAllocationResult> allocateFromRanges(std::vector<MemoryRange>& gapsOffsetSorted,
-															std::vector<MemoryRange>& gapsSizeSorted,
+	std::optional<RangeAllocationResult> allocateFromRanges(SimpleVector<MemoryRange>& gapsOffsetSorted,
+															SimpleVector<MemoryRange>& gapsSizeSorted,
 															VkDeviceSize alignment, VkDeviceSize size) {
 		auto offsetComparator = [](const MemoryRange& one, const MemoryRange& other) {
 			return one.offset < other.offset;
@@ -61,7 +61,7 @@ namespace vanadium::graphics {
 		return result;
 	}
 
-	void freeToRanges(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted,
+	void freeToRanges(SimpleVector<MemoryRange>& gapsOffsetSorted, SimpleVector<MemoryRange>& gapsSizeSorted,
 					  VkDeviceSize offset, VkDeviceSize size) {
 		auto offsetComparator = [](const MemoryRange& one, const MemoryRange& other) {
 			return one.offset < other.offset;
@@ -95,7 +95,7 @@ namespace vanadium::graphics {
 		mergeFreeAreas(gapsOffsetSorted, gapsSizeSorted);
 	}
 
-	void mergeFreeAreas(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted) {
+	void mergeFreeAreas(SimpleVector<MemoryRange>& gapsOffsetSorted, SimpleVector<MemoryRange>& gapsSizeSorted) {
 		auto sizeComparator = [](const MemoryRange& one, const MemoryRange& other) { return one.size < other.size; };
 		
 		if (gapsOffsetSorted.empty())

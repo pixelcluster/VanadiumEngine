@@ -11,7 +11,7 @@
 #include <ParsingUtils.hpp>
 #include <filesystem>
 #include <string>
-#include <vector>
+#include <util/Vector.hpp>
 
 #include <SysUtils.hpp>
 #include <spirv_reflect.h>
@@ -31,16 +31,17 @@ struct ReflectedShader {
 class PipelineArchetypeRecord {
   public:
 	PipelineArchetypeRecord(const std::string_view& srcPath, const std::string& projectDir,
-							std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
+							vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
 							const Json::Value& archetypeRoot);
 
 	void compileShaders(const std::string& tempDir, const std::string& compilerCommand,
-						const std::vector<std::string>& additionalArgs);
-	std::vector<ReflectedShader> retrieveCompileResults(const std::string_view& srcPath, const std::string& tempDir);
+						const vanadium::SimpleVector<std::string>& additionalArgs);
+	vanadium::SimpleVector<ReflectedShader> retrieveCompileResults(const std::string_view& srcPath,
+																   const std::string& tempDir);
 
 	void verifyArchetype(const std::string_view& srcPath,
-						 std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
-						 const std::vector<ReflectedShader>& shaders);
+						 vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
+						 const vanadium::SimpleVector<ReflectedShader>& shaders);
 
 	size_t serializedSize() const;
 	void serialize(void* data);
@@ -56,10 +57,10 @@ class PipelineArchetypeRecord {
 
 	PipelineType m_pipelineType;
 
-	std::vector<ShaderSourceFile> m_files;
-	std::vector<SubprocessID> m_compilerSubprocessIDs;
-	std::vector<CompiledShader> m_compiledShaders;
+	vanadium::SimpleVector<ShaderSourceFile> m_files;
+	vanadium::SimpleVector<SubprocessID> m_compilerSubprocessIDs;
+	vanadium::SimpleVector<CompiledShader> m_compiledShaders;
 
-	std::vector<uint32_t> m_setLayoutIndices;
-	std::vector<VkPushConstantRange> m_pushConstantRanges;
+	vanadium::SimpleVector<uint32_t> m_setLayoutIndices;
+	vanadium::SimpleVector<VkPushConstantRange> m_pushConstantRanges;
 };

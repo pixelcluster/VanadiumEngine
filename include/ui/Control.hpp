@@ -1,7 +1,7 @@
 #pragma once
 #include <ui/Shape.hpp>
 #include <ui/util/ControlPosition.hpp>
-#include <vector>
+#include <util/Vector.hpp>
 #include <windowing/WindowInterface.hpp>
 namespace vanadium::ui {
 
@@ -24,7 +24,7 @@ namespace vanadium::ui {
 	class Layout {
 	  public:
 		virtual ~Layout() {}
-		virtual void regenerateLayout(const std::vector<Control*>& children, const Vector2& controlPosition,
+		virtual void regenerateLayout(const SimpleVector<Control*>& children, const Vector2& controlPosition,
 									  const Vector2& controlSize) {}
 	};
 
@@ -45,7 +45,7 @@ namespace vanadium::ui {
 		virtual void charInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t codepoint) {}
 
 		virtual KeyMask keyInputMask() const { return { 0, 0 }; }
-		virtual std::vector<uint32_t> keyCodes() const { return {}; }
+		virtual SimpleVector<uint32_t> keyCodes() const { return {}; }
 
 		virtual void inputFocusGained(UISubsystem* subsystem, Control* triggeringControl) {}
 		virtual void inputFocusLost(UISubsystem* subsystem, Control* triggeringControl) {}
@@ -114,7 +114,7 @@ namespace vanadium::ui {
 		void reposition();
 
 		Control* m_parent;
-		std::vector<Control*> m_children;
+		SimpleVector<Control*> m_children;
 		uint32_t m_layerID;
 
 		UISubsystem* m_subsystem;

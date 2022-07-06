@@ -1,6 +1,6 @@
 #pragma once 
 
-#include <vector>
+#include <util/Vector.hpp>
 #include <variant>
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
@@ -22,7 +22,7 @@ class PipelineInstanceRecord {
 	size_t serializedSize() const;
 	void serialize(void* data);
 
-	void verifyInstance(const std::string_view& srcPath, const std::vector<ReflectedShader>& shaderModules);
+	void verifyInstance(const std::string_view& srcPath, const vanadium::SimpleVector<ReflectedShader>& shaderModules);
 
 	bool isValid() const { return m_isValid; }
 
@@ -57,7 +57,7 @@ class PipelineInstanceRecord {
 	InstanceDepthStencilConfig m_instanceDepthStencilConfig;
 	InstanceColorBlendConfig m_instanceColorBlendConfig;
 	InstanceDynamicStateConfig m_instanceDynamicStateConfig;
-	std::vector<InstanceColorAttachmentBlendConfig> m_instanceColorAttachmentBlendConfigs;
+	vanadium::SimpleVector<InstanceColorAttachmentBlendConfig> m_instanceColorAttachmentBlendConfigs;
 
-	std::vector<InstanceStageSpecializationConfig> m_instanceSpecializationConfigs;
+	vanadium::SimpleVector<InstanceStageSpecializationConfig> m_instanceSpecializationConfigs;
 };

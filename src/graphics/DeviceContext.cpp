@@ -6,10 +6,10 @@
 #include <graphics/helper/ErrorHelper.hpp>
 #include <iostream>
 #include <optional>
-#include <vector>
+#include <util/Vector.hpp>
 #include <volk.h>
 
-const char* platformSurfaceExtensionName(const std::vector<VkExtensionProperties>& instanceExtensions) {
+const char* platformSurfaceExtensionName(const vanadium::SimpleVector<VkExtensionProperties>& instanceExtensions) {
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 	vanadium::logInfo("Using Win32.");
 	return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
@@ -47,10 +47,10 @@ namespace vanadium::graphics {
 									  .engineVersion = 1,
 									  .apiVersion = VK_API_VERSION_1_0 };
 
-		std::vector<const char*> instanceExtensionNames;
+		SimpleVector<const char*> instanceExtensionNames;
 		instanceExtensionNames.reserve(4);
 
-		std::vector<VkExtensionProperties> availableInstanceExtensions =
+		SimpleVector<VkExtensionProperties> availableInstanceExtensions =
 			enumerate<const char*, VkExtensionProperties>(nullptr, vkEnumerateInstanceExtensionProperties);
 
 		instanceExtensionNames.push_back(platformSurfaceExtensionName(availableInstanceExtensions));
@@ -90,7 +90,7 @@ namespace vanadium::graphics {
 
 		windowSurface.create(m_instance, frameInFlightCount);
 
-		std::vector<VkPhysicalDevice> physicalDevices =
+		SimpleVector<VkPhysicalDevice> physicalDevices =
 			enumerate<VkInstance, VkPhysicalDevice>(m_instance, vkEnumeratePhysicalDevices);
 
 		std::optional<VkPhysicalDevice> chosenDevice = std::nullopt;
@@ -100,7 +100,7 @@ namespace vanadium::graphics {
 		for (auto& device : physicalDevices) {
 			uint32_t propertyCount = 0;
 			vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, nullptr);
-			auto queueFamilyProperties = std::vector<VkQueueFamilyProperties>(propertyCount);
+			auto queueFamilyProperties = SimpleVector<VkQueueFamilyProperties>(propertyCount);
 			vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, queueFamilyProperties.data());
 
 			uint32_t unrelatedGraphicsFlags = -1U;
@@ -130,8 +130,7 @@ namespace vanadium::graphics {
 			if (chosenGraphicsQueueFamilyIndex != -1U && chosenTransferQueueFamilyIndex != -1U) {
 				if (queueFamilyProperties[chosenTransferQueueFamilyIndex].queueFlags &
 					(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
-					logWarning(
-						"DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.");
+					logWarning("DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.");
 				}
 
 				chosenDevice = device;
@@ -145,9 +144,9 @@ namespace vanadium::graphics {
 
 		m_physicalDevice = chosenDevice.value();
 
-		std::vector<const char*> deviceExtensionNames = { "VK_KHR_swapchain" };
+		SimpleVector<const char*> deviceExtensionNames = { "VK_KHR_swapchain" };
 
-		std::vector<VkExtensionProperties> availableDeviceExtensions =
+		SimpleVector<VkExtensionProperties> availableDeviceExtensions =
 			enumerate<VkPhysicalDevice, VkExtensionProperties, const char*>(m_physicalDevice, nullptr,
 																			vkEnumerateDeviceExtensionProperties);
 

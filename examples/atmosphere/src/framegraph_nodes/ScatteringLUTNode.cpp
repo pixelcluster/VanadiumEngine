@@ -1,7 +1,7 @@
 #include <framegraph_nodes/ScatteringLUTNode.hpp>
 #include <graphics/helper/DescriptorSetAllocateInfoGenerator.hpp>
 #include <graphics/helper/ErrorHelper.hpp>
-#include <helper/WholeFileReader.hpp>
+#include <util/WholeFileReader.hpp>
 #include <volk.h>
 
 using namespace vanadium::graphics;

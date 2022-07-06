@@ -26,5 +26,5 @@ class HelloTriangleNode : public vanadium::graphics::FramegraphNode {
 	vanadium::graphics::ImageResourceViewInfo m_swapchainViewInfo;
 
 	uint32_t m_width, m_height;
-	std::vector<VkFramebuffer> m_framebuffers;
+	vanadium::SimpleVector<VkFramebuffer> m_framebuffers;
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <helper/Slotmap.hpp>
+#include <util/Slotmap.hpp>
 
 namespace vanadium::timers {
 	using TimerHandle = SlotmapHandle;
