@@ -1,6 +1,6 @@
 #pragma once
 
-#include <util/Vector.hpp>
+#include <vector>
 #include <unordered_map>
 #include <string>
 #include <ostream>
@@ -44,17 +44,17 @@ public:
 		}
 	}
 
-	const vanadium::SimpleVector<VulkanEnumValue>& values() const {
+	const std::vector<VulkanEnumValue>& values() const {
 		return m_values;
 	}
 
-	const vanadium::SimpleVector<VulkanEnumValue>& aliasValues() const {
+	const std::vector<VulkanEnumValue>& aliasValues() const {
 		return m_aliasValues;
 	}
 private:
-	vanadium::SimpleVector<VulkanEnumValue> m_values;
+	std::vector<VulkanEnumValue> m_values;
 	//Alias values need to be put last in order to ensure the aliases are already defined
-	vanadium::SimpleVector<VulkanEnumValue> m_aliasValues;
+	std::vector<VulkanEnumValue> m_aliasValues;
 	std::unordered_set<std::string> m_originalValueNames;
 };
 

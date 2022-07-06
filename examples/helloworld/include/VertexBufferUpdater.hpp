@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Engine.hpp>
+#include <graphics/GraphicsSubsystem.hpp>
 
 class VertexBufferUpdater {
   public:

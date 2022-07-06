@@ -14,7 +14,7 @@ namespace vanadium::ui::functionalities {
 		virtual void charInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t codepoint) override;
 
 		virtual KeyMask keyInputMask() const override;
-		SimpleVector<uint32_t> keyCodes() const override;
+		std::vector<uint32_t> keyCodes() const override;
 
 		virtual void inputFocusGained(UISubsystem* subsystem, Control* triggeringControl) override;
 		virtual void inputFocusLost(UISubsystem* subsystem, Control* triggeringControl) override;

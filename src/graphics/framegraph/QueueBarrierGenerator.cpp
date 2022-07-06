@@ -211,8 +211,8 @@ namespace vanadium::graphics {
 		}
 	}
 
-	SimpleVector<SlotmapHandle> QueueBarrierGenerator::unusedBuffers() const {
-		SimpleVector<SlotmapHandle> result;
+	std::vector<SlotmapHandle> QueueBarrierGenerator::unusedBuffers() const {
+		std::vector<SlotmapHandle> result;
 		for (auto& [handle, info] : m_bufferAccessInfos) {
 			if(info.modifications.empty() && info.reads.empty()) {
 				result.push_back(handle);
@@ -221,8 +221,8 @@ namespace vanadium::graphics {
 		return result;
 	}
 
-	SimpleVector<SlotmapHandle> QueueBarrierGenerator::unusedImages() const {
-		SimpleVector<SlotmapHandle> result;
+	std::vector<SlotmapHandle> QueueBarrierGenerator::unusedImages() const {
+		std::vector<SlotmapHandle> result;
 		for (auto& [handle, info] : m_imageAccessInfos) {
 			if(info.modifications.empty() && info.reads.empty()) {
 				result.push_back(handle);
@@ -369,7 +369,7 @@ namespace vanadium::graphics {
 		return m_nodeBarrierInfos[nodeIndex].vulkanBufferBarriers.size();
 	}
 
-	const SimpleVector<VkBufferMemoryBarrier>& QueueBarrierGenerator::bufferBarriers(size_t nodeIndex) const {
+	const std::vector<VkBufferMemoryBarrier>& QueueBarrierGenerator::bufferBarriers(size_t nodeIndex) const {
 		return m_nodeBarrierInfos[nodeIndex].vulkanBufferBarriers;
 	}
 
@@ -377,7 +377,7 @@ namespace vanadium::graphics {
 		return m_nodeBarrierInfos[nodeIndex].vulkanImageBarriers.size();
 	}
 
-	const SimpleVector<VkImageMemoryBarrier>& QueueBarrierGenerator::imageBarriers(size_t nodeIndex) const {
+	const std::vector<VkImageMemoryBarrier>& QueueBarrierGenerator::imageBarriers(size_t nodeIndex) const {
 		return m_nodeBarrierInfos[nodeIndex].vulkanImageBarriers;
 	}
 
@@ -535,7 +535,7 @@ namespace vanadium::graphics {
 	}
 
 	std::optional<BufferAccessMatch> QueueBarrierGenerator::findLastModification(
-		const SimpleVector<BufferSubresourceAccess>& modifications, const BufferSubresourceAccess& read) {
+		const std::vector<BufferSubresourceAccess>& modifications, const BufferSubresourceAccess& read) {
 		if (modifications.empty())
 			return std::nullopt;
 		auto nextModificationIterator = std::lower_bound(modifications.begin(), modifications.end(), read);
@@ -586,7 +586,7 @@ namespace vanadium::graphics {
 		return std::nullopt;
 	}
 	std::optional<ImageAccessMatch> QueueBarrierGenerator::findLastModification(
-		const SimpleVector<ImageSubresourceAccess>& modifications, const ImageSubresourceAccess& read) {
+		const std::vector<ImageSubresourceAccess>& modifications, const ImageSubresourceAccess& read) {
 		if (modifications.empty())
 			return std::nullopt;
 		auto nextModificationIterator = std::lower_bound(modifications.begin(), modifications.end(), read);

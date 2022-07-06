@@ -2,14 +2,14 @@
 
 // This header doesn't ship its includes, so that it can also be #include-d inside a namespace.
 // This header needs:
-// #include <util/Vector.hpp>
+// #include <vector>
 // #include <variant>
 // #define VK_NO_PROTOTYPES
 // #include <vulkan/vulkan.h>
 
 struct InstanceVertexInputConfig {
-	vanadium::SimpleVector<VkVertexInputAttributeDescription> attributes;
-	vanadium::SimpleVector<VkVertexInputBindingDescription> bindings;
+	std::vector<VkVertexInputAttributeDescription> attributes;
+	std::vector<VkVertexInputBindingDescription> bindings;
 };
 
 struct InstanceInputAssemblyConfig {
@@ -33,8 +33,8 @@ struct InstanceRasterizationConfig {
 using InstanceMultisampleConfig = VkSampleCountFlags;
 
 struct InstanceViewportScissorConfig {
-	vanadium::SimpleVector<VkViewport> viewports;
-	vanadium::SimpleVector<VkRect2D> scissorRects;
+	std::vector<VkViewport> viewports;
+	std::vector<VkRect2D> scissorRects;
 };
 
 struct InstanceDepthStencilConfig {
@@ -50,7 +50,7 @@ struct InstanceDepthStencilConfig {
 };
 
 struct InstanceDynamicStateConfig {
-	vanadium::SimpleVector<VkDynamicState> dynamicStates;
+	std::vector<VkDynamicState> dynamicStates;
 };
 
 struct InstanceColorBlendConfig {
@@ -66,7 +66,7 @@ struct InstanceSpecializationConfig {
 
 struct InstanceStageSpecializationConfig {
 	VkShaderStageFlagBits stage;
-	vanadium::SimpleVector<InstanceSpecializationConfig> configs;
+	std::vector<InstanceSpecializationConfig> configs;
 	size_t specializationDataSize;
 };
 
@@ -103,7 +103,7 @@ struct SamplerInfo {
 struct DescriptorBindingLayoutInfo {
 	VkDescriptorSetLayoutBinding binding;
 	bool usesImmutableSamplers;
-	vanadium::SimpleVector<SamplerInfo> immutableSamplerInfos;
+	std::vector<SamplerInfo> immutableSamplerInfos;
 
 	bool operator==(const DescriptorBindingLayoutInfo& other) const {
 		return binding.binding == other.binding.binding && binding.descriptorCount == other.binding.descriptorCount &&

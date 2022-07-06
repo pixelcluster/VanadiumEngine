@@ -2,7 +2,7 @@
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
-#include <util/Vector.hpp>
+#include <vector>
 #include <optional>
 
 namespace vanadium::graphics {
@@ -19,11 +19,11 @@ namespace vanadium::graphics {
 	VkDeviceSize roundUpAligned(VkDeviceSize n, VkDeviceSize alignment);
 	VkDeviceSize alignmentMargin(VkDeviceSize n, VkDeviceSize alignment);
 
-	std::optional<RangeAllocationResult> allocateFromRanges(SimpleVector<MemoryRange>& gapsOffsetSorted,
-															SimpleVector<MemoryRange>& gapsSizeSorted,
+	std::optional<RangeAllocationResult> allocateFromRanges(std::vector<MemoryRange>& gapsOffsetSorted,
+															std::vector<MemoryRange>& gapsSizeSorted,
 															VkDeviceSize alignment, VkDeviceSize size);
 
-	void freeToRanges(SimpleVector<MemoryRange>& gapsOffsetSorted, SimpleVector<MemoryRange>& gapsSizeSorted,
+	void freeToRanges(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted,
 					  VkDeviceSize offset, VkDeviceSize size);
-	void mergeFreeAreas(SimpleVector<MemoryRange>& gapsOffsetSorted, SimpleVector<MemoryRange>& gapsSizeSorted);
+	void mergeFreeAreas(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted);
 } // namespace vanadium::graphics

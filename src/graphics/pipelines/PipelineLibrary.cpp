@@ -68,7 +68,7 @@ namespace vanadium::graphics {
 		uint32_t pipelineCount = readBuffer<uint32_t>(headerReadOffset);
 		uint32_t setLayoutCount = readBuffer<uint32_t>(headerReadOffset);
 
-		SimpleVector<uint64_t> setLayoutOffsets;
+		std::vector<uint64_t> setLayoutOffsets;
 		setLayoutOffsets.reserve(setLayoutCount);
 		for (uint32_t i = 0; i < setLayoutCount; ++i) {
 			setLayoutOffsets.push_back(readBuffer<uint64_t>(headerReadOffset));
@@ -76,7 +76,7 @@ namespace vanadium::graphics {
 
 		for (auto& offset : setLayoutOffsets) {
 			uint32_t bindingCount = readBuffer<uint32_t>(offset);
-			SimpleVector<VkDescriptorSetLayoutBinding> bindings;
+			std::vector<VkDescriptorSetLayoutBinding> bindings;
 			bindings.reserve(bindingCount);
 
 			size_t immutableSamplerOffset = m_immutableSamplers.size();
@@ -133,7 +133,7 @@ namespace vanadium::graphics {
 
 		headerReadOffset = setLayoutOffsets.back();
 
-		SimpleVector<uint64_t> pipelineDataOffsets;
+		std::vector<uint64_t> pipelineDataOffsets;
 		pipelineDataOffsets.reserve(pipelineCount);
 		for (size_t i = 0; i < pipelineCount; ++i) {
 			pipelineDataOffsets.push_back(readBuffer<uint64_t>(headerReadOffset));
@@ -154,7 +154,7 @@ namespace vanadium::graphics {
 	}
 
 	void PipelineLibrary::createForPass(const RenderPassSignature& signature, VkRenderPass pass,
-										const SimpleVector<uint32_t>& pipelineIDs) {
+										const std::vector<uint32_t>& pipelineIDs) {
 		std::for_each(std::execution::par_unseq, pipelineIDs.begin(), pipelineIDs.end(),
 					  [this, &signature, pass](const auto& id) {
 						  m_graphicsInstances[id].pipelineCreateInfo.renderPass = pass;
@@ -177,8 +177,8 @@ namespace vanadium::graphics {
 
 	void PipelineLibrary::createGraphicsPipeline(uint64_t& bufferOffset) {
 		uint32_t shaderCount = readBuffer<uint32_t>(bufferOffset);
-		SimpleVector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
-		SimpleVector<VkShaderModule> shaderModules;
+		std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
+		std::vector<VkShaderModule> shaderModules;
 		stageCreateInfos.reserve(shaderCount);
 		shaderModules.reserve(shaderCount);
 
@@ -203,8 +203,8 @@ namespace vanadium::graphics {
 		}
 
 		uint32_t setLayoutCount = readBuffer<uint32_t>(bufferOffset);
-		SimpleVector<VkDescriptorSetLayout> setLayouts;
-		SimpleVector<uint32_t> setLayoutIndices;
+		std::vector<VkDescriptorSetLayout> setLayouts;
+		std::vector<uint32_t> setLayoutIndices;
 		setLayouts.reserve(setLayoutCount);
 		setLayoutIndices.reserve(setLayoutCount);
 
@@ -214,7 +214,7 @@ namespace vanadium::graphics {
 		}
 
 		uint32_t pushConstantRangeCount = readBuffer<uint32_t>(bufferOffset);
-		SimpleVector<VkPushConstantRange> pushConstantRanges;
+		std::vector<VkPushConstantRange> pushConstantRanges;
 		pushConstantRanges.reserve(pushConstantRangeCount);
 
 		for (uint32_t i = 0; i < pushConstantRangeCount; ++i) {
@@ -237,9 +237,9 @@ namespace vanadium::graphics {
 								 .pushConstantRanges = std::move(pushConstantRanges) });
 
 		uint32_t instanceCount = readBuffer<uint32_t>(bufferOffset);
-		SimpleVector<uint64_t> instanceOffsets;
-		SimpleVector<std::string> instanceNames;
-		SimpleVector<PipelineLibraryGraphicsInstance> instances;
+		std::vector<uint64_t> instanceOffsets;
+		std::vector<std::string> instanceNames;
+		std::vector<PipelineLibraryGraphicsInstance> instances;
 		instanceOffsets.reserve(instanceCount);
 
 		for (uint32_t i = 0; i < instanceCount; ++i) {
@@ -445,8 +445,8 @@ namespace vanadium::graphics {
 													  .pName = "main" };
 
 		uint32_t setLayoutCount = readBuffer<uint32_t>(bufferOffset);
-		SimpleVector<VkDescriptorSetLayout> setLayouts;
-		SimpleVector<uint32_t> setLayoutIndices;
+		std::vector<VkDescriptorSetLayout> setLayouts;
+		std::vector<uint32_t> setLayoutIndices;
 		setLayouts.reserve(setLayoutCount);
 		setLayoutIndices.reserve(setLayoutCount);
 
@@ -456,7 +456,7 @@ namespace vanadium::graphics {
 		}
 
 		uint32_t pushConstantRangeCount = readBuffer<uint32_t>(bufferOffset);
-		SimpleVector<VkPushConstantRange> pushConstantRanges;
+		std::vector<VkPushConstantRange> pushConstantRanges;
 		pushConstantRanges.reserve(pushConstantRangeCount);
 
 		for (uint32_t i = 0; i < pushConstantRangeCount; ++i) {
@@ -479,9 +479,9 @@ namespace vanadium::graphics {
 								 .pushConstantRanges = std::move(pushConstantRanges) });
 
 		uint32_t instanceCount = readBuffer<uint32_t>(bufferOffset);
-		SimpleVector<uint64_t> instanceOffsets;
-		SimpleVector<std::string> instanceNames;
-		SimpleVector<PipelineLibraryGraphicsInstance> instances;
+		std::vector<uint64_t> instanceOffsets;
+		std::vector<std::string> instanceNames;
+		std::vector<PipelineLibraryGraphicsInstance> instances;
 		instanceOffsets.reserve(instanceCount);
 
 		for (uint32_t i = 0; i < instanceCount; ++i) {
@@ -489,7 +489,7 @@ namespace vanadium::graphics {
 		}
 
 		VkSpecializationInfo specializationInfo;
-		SimpleVector<VkSpecializationMapEntry> mapEntries;
+		std::vector<VkSpecializationMapEntry> mapEntries;
 		char* specializationData = nullptr;
 
 		for (auto& offset : instanceOffsets) {
@@ -558,8 +558,8 @@ namespace vanadium::graphics {
 				 .reference = readBuffer<uint32_t>(offset) };
 	}
 
-	SimpleVector<DescriptorSetLayoutInfo> PipelineLibrary::graphicsPipelineSets(uint32_t id) {
-		SimpleVector<DescriptorSetLayoutInfo> result;
+	std::vector<DescriptorSetLayoutInfo> PipelineLibrary::graphicsPipelineSets(uint32_t id) {
+		std::vector<DescriptorSetLayoutInfo> result;
 		result.reserve(m_archetypes[m_graphicsInstances[id].archetypeID].setLayoutIndices.size());
 		for (auto& index : m_archetypes[m_graphicsInstances[id].archetypeID].setLayoutIndices) {
 			result.push_back(m_descriptorSetLayouts[index]);
@@ -567,8 +567,8 @@ namespace vanadium::graphics {
 		return result;
 	}
 
-	SimpleVector<DescriptorSetLayoutInfo> PipelineLibrary::computePipelineSets(uint32_t id) {
-		SimpleVector<DescriptorSetLayoutInfo> result;
+	std::vector<DescriptorSetLayoutInfo> PipelineLibrary::computePipelineSets(uint32_t id) {
+		std::vector<DescriptorSetLayoutInfo> result;
 		result.reserve(m_archetypes[m_computeInstances[id].archetypeID].setLayoutIndices.size());
 		for (auto& index : m_archetypes[m_computeInstances[id].archetypeID].setLayoutIndices) {
 			result.push_back(m_descriptorSetLayouts[index]);

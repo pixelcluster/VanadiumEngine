@@ -2,13 +2,13 @@
 #include <ui/util/BreakClassRule.hpp>
 
 namespace vanadium::ui {
-	void executeRule(const SimpleVector<BreakClassRuleTraits>& classString, SimpleVector<LinebreakStatus>& statusArray,
+	void executeRule(const std::vector<BreakClassRuleTraits>& classString, std::vector<LinebreakStatus>& statusArray,
 					 const std::string_view& ruleString) {
 		BreakClassRule rule = parseRule(ruleString);
 		if (!rule.isValid)
 			return;
 
-		SimpleVector<uint32_t> matchIndices;
+		std::vector<uint32_t> matchIndices;
 		if (rule.tokens.empty()) {
 			matchIndices.reserve(classString.size());
 			for (unsigned int i = 0; i < classString.size(); ++i) {
@@ -65,7 +65,7 @@ namespace vanadium::ui {
 			statusArray[statusArray.size() - 1] = LinebreakStatus::DoNotBreak;
 	}
 
-	bool tryMatchToken(const SimpleVector<BreakClassRuleTraits>& classString, uint32_t& prevMatchCount, uint32_t& index,
+	bool tryMatchToken(const std::vector<BreakClassRuleTraits>& classString, uint32_t& prevMatchCount, uint32_t& index,
 					   const BreakClassRuleToken& token) {
 		if (prevMatchCount == token.modifier.quantifier.maxCount) {
 			return false;

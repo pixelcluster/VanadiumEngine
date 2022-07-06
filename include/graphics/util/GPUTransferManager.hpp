@@ -14,8 +14,8 @@ namespace vanadium::graphics {
 		VkDeviceSize maxAllocatableSize;
 		VkDeviceSize originalSize;
 
-		SimpleVector<MemoryRange> freeRangesOffsetSorted;
-		SimpleVector<MemoryRange> freeRangesSizeSorted;
+		std::vector<MemoryRange> freeRangesOffsetSorted;
+		std::vector<MemoryRange> freeRangesSizeSorted;
 	};
 
 	using StagingBufferHandle = SlotmapHandle;
@@ -27,8 +27,8 @@ namespace vanadium::graphics {
 
 	struct GPUTransfer {
 		BufferResourceHandle dstBuffer;
-		SimpleVector<StagingBufferAllocation> stagingBuffers;
-		SimpleVector<bool> hasNewData;
+		std::vector<StagingBufferAllocation> stagingBuffers;
+		std::vector<bool> hasNewData;
 		bool needsStagingBuffer;
 		VkDeviceSize bufferSize;
 
@@ -144,7 +144,7 @@ namespace vanadium::graphics {
 		GPUResourceAllocator* m_resourceAllocator;
 
 		Slotmap<AsyncTransferCommandPool> m_asyncTransferCommandPools;
-		SimpleVector<AsyncTransferCommandPool> m_freeAsyncTransferCommandPools;
+		std::vector<AsyncTransferCommandPool> m_freeAsyncTransferCommandPools;
 
 		VkDeviceSize m_nonCoherentAtomSize;
 
@@ -152,28 +152,28 @@ namespace vanadium::graphics {
 		VkCommandPool m_transferCommandPools[frameInFlightCount];
 
 		Slotmap<GPUTransfer> m_continuousTransfers;
-		SimpleVector<GPUTransfer> m_oneTimeTransfers;
-		SimpleVector<GPUImageTransfer> m_imageTransfers;
+		std::vector<GPUTransfer> m_oneTimeTransfers;
+		std::vector<GPUImageTransfer> m_imageTransfers;
 
 		Slotmap<AsyncBufferTransfer> m_asyncBufferTransfers;
 		Slotmap<AsyncImageTransfer> m_asyncImageTransfers;
 
 		// Handles of async buffer transfers whose commands need to be submitted to the async transfer queue.
-		SimpleVector<AsyncBufferTransferHandle> m_bufferHandlesToBegin;
+		std::vector<AsyncBufferTransferHandle> m_bufferHandlesToBegin;
 		// Handles of async image transfers whose commands need to be submitted to the async transfer queue.
-		SimpleVector<AsyncImageTransferHandle> m_imageHandlesToBegin;
+		std::vector<AsyncImageTransferHandle> m_imageHandlesToBegin;
 
 		// Barriers performing Queue Family Ownership Transfers from the asynchronous copy queue to the destination
 		// queue.
-		SimpleVector<VkBufferMemoryBarrier> m_bufferFinalizationBarriers;
+		std::vector<VkBufferMemoryBarrier> m_bufferFinalizationBarriers;
 		// Barriers performing Queue Family Ownership Transfers from the asynchronous copy queue to the destination
 		// queue.
-		SimpleVector<VkImageMemoryBarrier> m_imageFinalizationBarriers;
+		std::vector<VkImageMemoryBarrier> m_imageFinalizationBarriers;
 
 		Slotmap<StagingBuffer> m_stagingBuffers;
 
 		// An array of free staging buffers for each frame in flight.
-		SimpleVector<SimpleVector<StagingBufferAllocation>> m_stagingBufferAllocationFreeList;
+		std::vector<std::vector<StagingBufferAllocation>> m_stagingBufferAllocationFreeList;
 
 		std::shared_mutex m_accessMutex;
 	};

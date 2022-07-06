@@ -24,7 +24,7 @@ PipelineInstanceRecord::PipelineInstanceRecord(PipelineType type, const std::str
 }
 
 void PipelineInstanceRecord::verifyInstance(const std::string_view& srcPath,
-											const vanadium::SimpleVector<ReflectedShader>& shaderModules) {
+											const std::vector<ReflectedShader>& shaderModules) {
 	for (auto& shader : shaderModules) {
 		if (shader.stage == VK_SHADER_STAGE_VERTEX_BIT) {
 			verifyVertexShader(srcPath, shader.shader);
@@ -44,7 +44,7 @@ void PipelineInstanceRecord::verifyVertexShader(const std::string_view& srcPath,
 		return;
 	}
 
-	auto inputVariables = vanadium::SimpleVector<SpvReflectInterfaceVariable*>(inputVariableCount);
+	auto inputVariables = std::vector<SpvReflectInterfaceVariable*>(inputVariableCount);
 
 	result = spvReflectEnumerateInputVariables(&shader, &inputVariableCount, inputVariables.data());
 	if (result != SPV_REFLECT_RESULT_SUCCESS) {
@@ -74,7 +74,7 @@ void PipelineInstanceRecord::verifyFragmentShader(const std::string_view& srcPat
 		return;
 	}
 
-	auto outputVariables = vanadium::SimpleVector<SpvReflectInterfaceVariable*>(outputVariableCount);
+	auto outputVariables = std::vector<SpvReflectInterfaceVariable*>(outputVariableCount);
 
 	result = spvReflectEnumerateOutputVariables(&shader, &outputVariableCount, outputVariables.data());
 	if (result != SPV_REFLECT_RESULT_SUCCESS) {

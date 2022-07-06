@@ -2,6 +2,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <numbers>
 
+#include <graphics/GraphicsSubsystem.hpp>
 #include <graphics/helper/DescriptorSetAllocateInfoGenerator.hpp>
 #include <graphics/helper/ErrorHelper.hpp>
 #include <graphics/helper/TextureImageLoader.hpp>

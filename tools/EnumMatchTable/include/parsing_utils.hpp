@@ -1,5 +1,5 @@
 #pragma once
-#include <util/Vector.hpp>
+#include <vector>
 #include <string>
 #include <ostream>
 #include <sstream>
@@ -7,10 +7,10 @@
 //defined in generate.cpp
 extern unsigned int indentationLevel;
 
-inline vanadium::SimpleVector<std::string> splitList(const std::string& list, char separator = ' ') {
+inline std::vector<std::string> splitList(const std::string& list, char separator = ' ') {
 	std::stringstream listStream = std::stringstream(list);
 	std::string listEntry;
-	vanadium::SimpleVector<std::string> splitList;
+	std::vector<std::string> splitList;
 
 	while (std::getline(listStream, listEntry, separator))
 	{

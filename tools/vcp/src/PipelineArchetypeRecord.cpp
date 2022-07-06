@@ -13,7 +13,7 @@ bool isFullyInRange(uint32_t offset1, uint32_t size1, uint32_t offset2, uint32_t
 
 PipelineArchetypeRecord::PipelineArchetypeRecord(
 	const std::string_view& srcPath, const std::string& projectDir,
-	vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
+	std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
 	const Json::Value& archetypeRoot) {
 	if (!archetypeRoot.isObject()) {
 		std::cout << srcPath << ": Error: Archetype node is invalid." << std::endl;
@@ -71,7 +71,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 	uint32_t setIndex = 0;
 
 	auto bindingLayoutInfos =
-		vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>(archetypeRoot["sets"].size());
+		std::vector<std::vector<DescriptorBindingLayoutInfo>>(archetypeRoot["sets"].size());
 	m_setLayoutIndices.reserve(archetypeRoot["sets"].size());
 
 	for (auto& set : archetypeRoot["sets"]) {
@@ -118,7 +118,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 				}
 
 				bool usesImmutableSamplers = false;
-				vanadium::SimpleVector<SamplerInfo> samplerInfos;
+				std::vector<SamplerInfo> samplerInfos;
 				if (bindingNode["immutable-samplers"].isArray()) {
 					usesImmutableSamplers = !bindingNode["immutable-samplers"].empty();
 					samplerInfos.reserve(bindingNode["immutable-samplers"].size());
@@ -298,7 +298,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 }
 
 void PipelineArchetypeRecord::compileShaders(const std::string& tempDir, const std::string& compilerCommand,
-											 const vanadium::SimpleVector<std::string>& additionalArgs) {
+											 const std::vector<std::string>& additionalArgs) {
 	m_compilerSubprocessIDs.clear();
 	m_compilerSubprocessIDs.reserve(m_files.size());
 	for (auto& file : m_files) {
@@ -317,7 +317,7 @@ void PipelineArchetypeRecord::compileShaders(const std::string& tempDir, const s
 				break;
 		}
 
-		vanadium::SimpleVector<const char*> args = { file.path.c_str(), "-o", dstFile.c_str() };
+		std::vector<const char*> args = { file.path.c_str(), "-o", dstFile.c_str() };
 		// source file, -o, dst file + command + additional args
 		args.reserve(3 + additionalArgs.size());
 		for (auto& arg : additionalArgs) {
@@ -328,11 +328,11 @@ void PipelineArchetypeRecord::compileShaders(const std::string& tempDir, const s
 	}
 }
 
-vanadium::SimpleVector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(const std::string_view& srcPath,
+std::vector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(const std::string_view& srcPath,
 																						const std::string& tempDir) {
 	size_t subprocessIDIndex = 0;
 
-	vanadium::SimpleVector<ReflectedShader> shaderModules;
+	std::vector<ReflectedShader> shaderModules;
 	shaderModules.reserve(m_files.size());
 
 	for (auto& file : m_files) {
@@ -373,13 +373,13 @@ vanadium::SimpleVector<ReflectedShader> PipelineArchetypeRecord::retrieveCompile
 
 void PipelineArchetypeRecord::verifyArchetype(
 	const std::string_view& srcPath,
-	vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
-	const vanadium::SimpleVector<ReflectedShader>& shaders) {
+	std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
+	const std::vector<ReflectedShader>& shaders) {
 	for (auto& shader : shaders) {
 		uint32_t pushConstantCount;
 		spvReflectEnumeratePushConstantBlocks(&shader.shader, &pushConstantCount, nullptr);
 
-		auto pushConstants = vanadium::SimpleVector<SpvReflectBlockVariable*>(pushConstantCount);
+		auto pushConstants = std::vector<SpvReflectBlockVariable*>(pushConstantCount);
 		spvReflectEnumeratePushConstantBlocks(&shader.shader, &pushConstantCount, pushConstants.data());
 
 		for (auto& constant : pushConstants) {
@@ -402,7 +402,7 @@ void PipelineArchetypeRecord::verifyArchetype(
 		uint32_t descriptorSetCount;
 		spvReflectEnumerateDescriptorSets(&shader.shader, &descriptorSetCount, nullptr);
 
-		auto descriptorSets = vanadium::SimpleVector<SpvReflectDescriptorSet*>(descriptorSetCount);
+		auto descriptorSets = std::vector<SpvReflectDescriptorSet*>(descriptorSetCount);
 		spvReflectEnumerateDescriptorSets(&shader.shader, &descriptorSetCount, descriptorSets.data());
 
 		for (auto& set : descriptorSets) {

@@ -44,7 +44,7 @@ namespace vanadium::ui {
 		VkRenderPass m_uiRenderPass;
 
 		graphics::ImageResourceViewInfo m_attachmentResourceViewInfo;
-		SimpleVector<VkFramebuffer> m_imageFramebuffers;
+		std::vector<VkFramebuffer> m_imageFramebuffers;
 
 		robin_hood::unordered_map<size_t, ShapeRegistry*> m_shapeRegistries;
 

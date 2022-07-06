@@ -6,10 +6,10 @@
 #include <graphics/helper/ErrorHelper.hpp>
 #include <iostream>
 #include <optional>
-#include <util/Vector.hpp>
+#include <vector>
 #include <volk.h>
 
-const char* platformSurfaceExtensionName(const vanadium::SimpleVector<VkExtensionProperties>& instanceExtensions) {
+const char* platformSurfaceExtensionName(const std::vector<VkExtensionProperties>& instanceExtensions) {
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 	vanadium::logInfo("Using Win32.");
 	return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
@@ -47,10 +47,10 @@ namespace vanadium::graphics {
 									  .engineVersion = 1,
 									  .apiVersion = VK_API_VERSION_1_0 };
 
-		SimpleVector<const char*> instanceExtensionNames;
+		std::vector<const char*> instanceExtensionNames;
 		instanceExtensionNames.reserve(4);
 
-		SimpleVector<VkExtensionProperties> availableInstanceExtensions =
+		std::vector<VkExtensionProperties> availableInstanceExtensions =
 			enumerate<const char*, VkExtensionProperties>(nullptr, vkEnumerateInstanceExtensionProperties);
 
 		instanceExtensionNames.push_back(platformSurfaceExtensionName(availableInstanceExtensions));
@@ -90,7 +90,7 @@ namespace vanadium::graphics {
 
 		windowSurface.create(m_instance, frameInFlightCount);
 
-		SimpleVector<VkPhysicalDevice> physicalDevices =
+		std::vector<VkPhysicalDevice> physicalDevices =
 			enumerate<VkInstance, VkPhysicalDevice>(m_instance, vkEnumeratePhysicalDevices);
 
 		std::optional<VkPhysicalDevice> chosenDevice = std::nullopt;
@@ -100,7 +100,7 @@ namespace vanadium::graphics {
 		for (auto& device : physicalDevices) {
 			uint32_t propertyCount = 0;
 			vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, nullptr);
-			auto queueFamilyProperties = SimpleVector<VkQueueFamilyProperties>(propertyCount);
+			auto queueFamilyProperties = std::vector<VkQueueFamilyProperties>(propertyCount);
 			vkGetPhysicalDeviceQueueFamilyProperties(device, &propertyCount, queueFamilyProperties.data());
 
 			uint32_t unrelatedGraphicsFlags = -1U;
@@ -144,9 +144,9 @@ namespace vanadium::graphics {
 
 		m_physicalDevice = chosenDevice.value();
 
-		SimpleVector<const char*> deviceExtensionNames = { "VK_KHR_swapchain" };
+		std::vector<const char*> deviceExtensionNames = { "VK_KHR_swapchain" };
 
-		SimpleVector<VkExtensionProperties> availableDeviceExtensions =
+		std::vector<VkExtensionProperties> availableDeviceExtensions =
 			enumerate<VkPhysicalDevice, VkExtensionProperties, const char*>(m_physicalDevice, nullptr,
 																			vkEnumerateDeviceExtensionProperties);
 

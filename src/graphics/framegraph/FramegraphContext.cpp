@@ -159,7 +159,7 @@ namespace vanadium::graphics {
 			NodeImageAccess{ .subresourceAccesses = usage.subresourceAccesses, .image = handle });
 		if (!usage.viewInfos.empty()) {
 			nodeIterator->resourceViewInfos.insert(
-				robin_hood::pair<const FramegraphImageHandle, SimpleVector<ImageResourceViewInfo>>(handle, usage.viewInfos));
+				robin_hood::pair<FramegraphImageHandle, std::vector<ImageResourceViewInfo>>(handle, usage.viewInfos));
 		}
 		return handle;
 	}
@@ -208,7 +208,7 @@ namespace vanadium::graphics {
 			NodeImageAccess{ .subresourceAccesses = usage.subresourceAccesses, .image = handle });
 		if (!usage.viewInfos.empty()) {
 			nodeIterator->resourceViewInfos.insert(
-				robin_hood::pair<const FramegraphImageHandle, SimpleVector<ImageResourceViewInfo>>(imageHandle,
+				robin_hood::pair<FramegraphImageHandle, std::vector<ImageResourceViewInfo>>(imageHandle,
 																								   usage.viewInfos));
 		}
 		return imageHandle;
@@ -271,7 +271,7 @@ namespace vanadium::graphics {
 				return;
 			}
 			nodeIterator->resourceViewInfos.insert(
-				robin_hood::pair<const FramegraphImageHandle, SimpleVector<ImageResourceViewInfo>>(handle, usage.viewInfos));
+				robin_hood::pair<FramegraphImageHandle, std::vector<ImageResourceViewInfo>>(handle, usage.viewInfos));
 		}
 	}
 
@@ -437,14 +437,14 @@ namespace vanadium::graphics {
 			nodeContext.resourceImageViews.clear();
 			nodeContext.targetImageViews.clear();
 			for (auto& viewInfos : node.resourceViewInfos) {
-				SimpleVector<VkImageView> views;
+				std::vector<VkImageView> views;
 				views.reserve(viewInfos.second.size());
 				for (auto& info : viewInfos.second) {
 					views.push_back(
 						m_context.resourceAllocator->requestImageView(m_images[viewInfos.first].resourceHandle, info));
 				}
 				nodeContext.resourceImageViews.insert(
-					robin_hood::pair<const FramegraphImageHandle, SimpleVector<VkImageView>>(viewInfos.first, views));
+					robin_hood::pair<FramegraphImageHandle, std::vector<VkImageView>>(viewInfos.first, views));
 			}
 
 			if (!node.swapchainResourceViewInfos.empty()) {

@@ -2,7 +2,7 @@
 #include <fstream>
 #include <util/UTF8.hpp>
 #include <iostream>
-#include <util/Vector.hpp>
+#include <vector>
 
 using namespace std::string_literals;
 
@@ -156,9 +156,9 @@ int main() {
 		return 1;
 	}
 
-	vanadium::SimpleVector<CodepointRange> breakClassRanges;
-	vanadium::SimpleVector<EastAsianWidthCodepointRange> eastAsianRanges;
-	vanadium::SimpleVector<ExtendedPictographicCodepointRange> extendedPictographicRanges;
+	std::vector<CodepointRange> breakClassRanges;
+	std::vector<EastAsianWidthCodepointRange> eastAsianRanges;
+	std::vector<ExtendedPictographicCodepointRange> extendedPictographicRanges;
 
 	std::string currentLine;
 	while (std::getline(inFile, currentLine).good()) {

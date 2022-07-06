@@ -1,6 +1,6 @@
 #pragma once
 
-#include <util/Vector.hpp>
+#include <vector>
 #ifdef __linux__
 #include <unistd.h>
 
@@ -18,5 +18,5 @@ struct SubprocessID {
 };
 #endif
 
-SubprocessID startSubprocess(const char* processName, const vanadium::SimpleVector<const char*>& arguments);
+SubprocessID startSubprocess(const char* processName, const std::vector<const char*>& arguments);
 void waitForSubprocess(const SubprocessID& id);

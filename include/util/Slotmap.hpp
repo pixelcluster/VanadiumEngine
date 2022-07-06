@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iterator>
-#include <util/Vector.hpp>
+#include <vector>
 
 namespace vanadium {
 
@@ -240,9 +240,9 @@ namespace vanadium {
 
 	  private:
 		// All elements.
-		SimpleVector<T> elements;
-		SimpleVector<size_t> keys;
-		SimpleVector<size_t> eraseMap;
+		std::vector<T> elements;
+		std::vector<size_t> keys;
+		std::vector<size_t> eraseMap;
 		size_t freeKeyHead = 0;
 		size_t freeKeyTail = 0;
 	};
@@ -317,7 +317,7 @@ namespace vanadium {
 		// Update key index of what was the last element
 		keys[eraseMap[eraseElementIndex]] = eraseElementIndex;
 
-		// Update erase table/element SimpleVector sizes
+		// Update erase table/element std::vector sizes
 		elements.erase(elements.begin() + (elements.size() - 1));
 		eraseMap.erase(eraseMap.begin() + (eraseMap.size() - 1));
 

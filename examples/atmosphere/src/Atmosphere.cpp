@@ -3,6 +3,7 @@
 #include <DataGeneratorModule.hpp>
 #include <framegraph_nodes/PlanetRenderNode.hpp>
 #include <framegraph_nodes/ScatteringLUTNode.hpp>
+#include <graphics/GraphicsSubsystem.hpp>
 
 void configureEngine(vanadium::EngineConfig& config) { config.setAppName("Vanadium Atmosphere"); }
 

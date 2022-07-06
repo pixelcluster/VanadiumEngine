@@ -53,7 +53,7 @@ namespace vanadium::graphics {
 			}
 		}
 
-		transfer.hasNewData = SimpleVector<bool>(graphics::frameInFlightCount, true);
+		transfer.hasNewData = std::vector<bool>(graphics::frameInFlightCount, true);
 
 		return m_continuousTransfers.addElement(transfer);
 	}
@@ -287,7 +287,7 @@ namespace vanadium::graphics {
 												   .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
 			vkBeginCommandBuffer(m_asyncTransferCommandPools[poolHandle].buffer, &beginInfo);
 
-			SimpleVector<VkImageMemoryBarrier> imageLayoutTransitionBarriers;
+			std::vector<VkImageMemoryBarrier> imageLayoutTransitionBarriers;
 			imageLayoutTransitionBarriers.reserve(m_imageHandlesToBegin.size());
 
 			for (auto& handle : m_imageHandlesToBegin) {
@@ -298,7 +298,7 @@ namespace vanadium::graphics {
 								 0, nullptr, 0, nullptr, static_cast<uint32_t>(imageLayoutTransitionBarriers.size()),
 								 imageLayoutTransitionBarriers.data());
 
-			SimpleVector<VkBufferMemoryBarrier> releaseBarriers;
+			std::vector<VkBufferMemoryBarrier> releaseBarriers;
 			releaseBarriers.reserve(m_bufferHandlesToBegin.size());
 			for (auto& handle : m_bufferHandlesToBegin) {
 				auto& transfer = m_asyncBufferTransfers[handle];
@@ -311,7 +311,7 @@ namespace vanadium::graphics {
 				releaseBarriers.push_back(transfer.transferBarrier);
 			}
 
-			SimpleVector<VkImageMemoryBarrier> imageReleaseBarriers;
+			std::vector<VkImageMemoryBarrier> imageReleaseBarriers;
 			imageReleaseBarriers.reserve(m_imageHandlesToBegin.size());
 			for (auto& handle : m_imageHandlesToBegin) {
 				auto& transfer = m_asyncImageTransfers[handle];
@@ -349,8 +349,8 @@ namespace vanadium::graphics {
 										  .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
 		verifyResult(vkBeginCommandBuffer(commandBuffer, &info));
 
-		SimpleVector<VkBufferMemoryBarrier> bufferBarriers;
-		SimpleVector<VkImageMemoryBarrier> imageBarriers;
+		std::vector<VkBufferMemoryBarrier> bufferBarriers;
+		std::vector<VkImageMemoryBarrier> imageBarriers;
 		bufferBarriers.reserve(m_continuousTransfers.size());
 		imageBarriers.reserve(m_imageTransfers.size());
 

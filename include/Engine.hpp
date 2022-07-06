@@ -1,13 +1,22 @@
 #pragma once
 #include <cstdint>
-#include <graphics/GraphicsSubsystem.hpp>
 #include <optional>
+#include <math/Vector.hpp>
 #include <timer/TimerManager.hpp>
-#include <ui/UISubsystem.hpp>
-#include <windowing/WindowInterface.hpp>
+#include <windowing/WindowSettingsOverride.hpp>
 
 namespace vanadium {
 	enum class EngineStartupFlag {};
+
+	namespace graphics {
+		class GraphicsSubsystem;
+	}
+	namespace ui {
+		class UISubsystem;
+	}
+	namespace windowing {
+		class WindowInterface;
+	}
 
 	class EngineConfig {
 	  public:
@@ -52,12 +61,12 @@ namespace vanadium {
 
 		bool tickFrame();
 
-		float deltaTime() const { return m_windowInterface.deltaTime(); }
-		float elapsedTime() const { return m_windowInterface.elapsedTime(); }
+		float deltaTime() const;
+		float elapsedTime() const;
 
-		graphics::GraphicsSubsystem& graphicsSubsystem() { return m_graphicsSubsystem; }
-		windowing::WindowInterface& windowInterface() { return m_windowInterface; }
-		ui::UISubsystem& uiSubsystem() { return m_uiSubsystem; }
+		graphics::GraphicsSubsystem& graphicsSubsystem() { return *m_graphicsSubsystem; }
+		windowing::WindowInterface& windowInterface() { return *m_windowInterface; }
+		ui::UISubsystem& uiSubsystem() { return *m_uiSubsystem; }
 		timers::TimerManager& timerManager() { return m_timerManager; }
 
 		void* userPointer() const { return m_userPointer; }
@@ -68,9 +77,9 @@ namespace vanadium {
 		bool m_lastRenderSuccessful = true;
 		void* m_userPointer;
 
-		windowing::WindowInterface m_windowInterface;
-		graphics::GraphicsSubsystem m_graphicsSubsystem;
-		ui::UISubsystem m_uiSubsystem;
+		windowing::WindowInterface* m_windowInterface;
+		graphics::GraphicsSubsystem* m_graphicsSubsystem;
+		ui::UISubsystem* m_uiSubsystem;
 		timers::TimerManager m_timerManager;
 	};
 } // namespace vanadium

@@ -37,7 +37,7 @@ EnumMap parseBasicEnums(const XMLElement* registry) {
 		if (nameC) {
 			name = nameC;
 		}
-		vanadium::SimpleVector<std::string> blocklist = { "VkPipelineLayoutCreateFlagBits", "VkSemaphoreCreateFlagBits",
+		std::vector<std::string> blocklist = { "VkPipelineLayoutCreateFlagBits", "VkSemaphoreCreateFlagBits",
 														  "VkImageFormatConstraintsFlagBitsFUCHSIA",
 														  "VkShaderModuleCreateFlagBits", "VkPrivateDataSlotCreateFlagBits" };
 

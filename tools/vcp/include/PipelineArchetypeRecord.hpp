@@ -11,7 +11,7 @@
 #include <ParsingUtils.hpp>
 #include <filesystem>
 #include <string>
-#include <util/Vector.hpp>
+#include <vector>
 
 #include <SysUtils.hpp>
 #include <spirv_reflect.h>
@@ -31,17 +31,17 @@ struct ReflectedShader {
 class PipelineArchetypeRecord {
   public:
 	PipelineArchetypeRecord(const std::string_view& srcPath, const std::string& projectDir,
-							vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
+							std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
 							const Json::Value& archetypeRoot);
 
 	void compileShaders(const std::string& tempDir, const std::string& compilerCommand,
-						const vanadium::SimpleVector<std::string>& additionalArgs);
-	vanadium::SimpleVector<ReflectedShader> retrieveCompileResults(const std::string_view& srcPath,
+						const std::vector<std::string>& additionalArgs);
+	std::vector<ReflectedShader> retrieveCompileResults(const std::string_view& srcPath,
 																   const std::string& tempDir);
 
 	void verifyArchetype(const std::string_view& srcPath,
-						 vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
-						 const vanadium::SimpleVector<ReflectedShader>& shaders);
+						 std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
+						 const std::vector<ReflectedShader>& shaders);
 
 	size_t serializedSize() const;
 	void serialize(void* data);
@@ -57,10 +57,10 @@ class PipelineArchetypeRecord {
 
 	PipelineType m_pipelineType;
 
-	vanadium::SimpleVector<ShaderSourceFile> m_files;
-	vanadium::SimpleVector<SubprocessID> m_compilerSubprocessIDs;
-	vanadium::SimpleVector<CompiledShader> m_compiledShaders;
+	std::vector<ShaderSourceFile> m_files;
+	std::vector<SubprocessID> m_compilerSubprocessIDs;
+	std::vector<CompiledShader> m_compiledShaders;
 
-	vanadium::SimpleVector<uint32_t> m_setLayoutIndices;
-	vanadium::SimpleVector<VkPushConstantRange> m_pushConstantRanges;
+	std::vector<uint32_t> m_setLayoutIndices;
+	std::vector<VkPushConstantRange> m_pushConstantRanges;
 };

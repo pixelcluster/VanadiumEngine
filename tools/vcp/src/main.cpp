@@ -2,7 +2,7 @@
 #include <iostream>
 #include <limits>
 #include <string_view>
-#include <util/Vector.hpp>
+#include <vector>
 
 #include <filesystem>
 
@@ -17,9 +17,9 @@
 
 struct Options {
 	std::string outFile;
-	vanadium::SimpleVector<std::string> fileNames;
+	std::vector<std::string> fileNames;
 	std::string compilerCommand = "glslc";
-	vanadium::SimpleVector<std::string> additionalCommandArgs;
+	std::vector<std::string> additionalCommandArgs;
 };
 
 bool checkOption(int argc, char** argv, size_t index, const std::string_view& argName) {
@@ -69,7 +69,7 @@ Options parseArguments(int argc, char** argv) {
 
 struct PipelineRecord {
 	PipelineArchetypeRecord archetypeRecord;
-	vanadium::SimpleVector<PipelineInstanceRecord> instanceRecords;
+	std::vector<PipelineInstanceRecord> instanceRecords;
 	uint64_t totalRecordSize;
 	uint64_t instanceOffset;
 };
@@ -107,9 +107,9 @@ int main(int argc, char** argv) {
 	uint32_t pipelineCount = static_cast<uint32_t>(options.fileNames.size());
 	outStream.write(reinterpret_cast<char*>(&pipelineCount), sizeof(uint32_t));
 
-	auto records = vanadium::SimpleVector<PipelineRecord>();
-	vanadium::SimpleVector<path> localRecordPaths;
-	vanadium::SimpleVector<vanadium::SimpleVector<DescriptorBindingLayoutInfo>> setLayoutInfos;
+	auto records = std::vector<PipelineRecord>();
+	std::vector<path> localRecordPaths;
+	std::vector<std::vector<DescriptorBindingLayoutInfo>> setLayoutInfos;
 
 	records.reserve(options.fileNames.size());
 	localRecordPaths.reserve(options.fileNames.size());
@@ -170,7 +170,7 @@ int main(int argc, char** argv) {
 		records[recordIndex].archetypeRecord.compileShaders(localRecordPath.string(), options.compilerCommand,
 															options.additionalCommandArgs);
 
-		vanadium::SimpleVector<PipelineInstanceRecord> instanceRecords;
+		std::vector<PipelineInstanceRecord> instanceRecords;
 		instanceRecords.reserve(rootValue["instances"].size());
 		for (auto& instance : rootValue["instances"]) {
 			instanceRecords.push_back(

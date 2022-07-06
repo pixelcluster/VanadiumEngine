@@ -5,6 +5,8 @@ project ("VanadiumEngine")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+add_compile_options("-ftime-trace")
+
 option(USE_TESTS "Build and run tests" ON)
 
 if(UNIX AND NOT APPLE)

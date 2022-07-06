@@ -60,7 +60,7 @@ namespace vanadium::ui {
 		m_rootControl.setSize(Vector2(windowWidth, windowHeight));
 	}
 
-	void UISubsystem::acquireInputFocus(Control* newInputFocusControl, const SimpleVector<uint32_t>& keyCodes,
+	void UISubsystem::acquireInputFocus(Control* newInputFocusControl, const std::vector<uint32_t>& keyCodes,
 										windowing::KeyModifierFlags modifierMask, windowing::KeyStateFlags stateMask) {
 		if (m_inputFocusControl) {
 			for (auto& keyCode : m_inputFocusKeyCodes) {

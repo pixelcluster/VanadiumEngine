@@ -52,6 +52,6 @@ namespace vanadium::graphics {
 
 		DeviceCapabilities m_capabilities;
 
-		SimpleVector<VkFence> m_frameCompletionFences;
+		std::vector<VkFence> m_frameCompletionFences;
 	};
 } // namespace vanadium::graphics

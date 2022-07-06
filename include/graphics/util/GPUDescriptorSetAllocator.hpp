@@ -28,7 +28,7 @@ namespace vanadium::graphics {
 	using DescriptorSizeClassHandle = SlotmapHandle;
 
 	struct DescriptorSetAllocationInfo {
-		SimpleVector<DescriptorTypeInfo> typeInfos;
+		std::vector<DescriptorTypeInfo> typeInfos;
 		VkDescriptorSetLayout layout;
 	};
 
@@ -44,8 +44,8 @@ namespace vanadium::graphics {
 
 		void create(DeviceContext* context);
 
-		SimpleVector<DescriptorSetAllocation> allocateDescriptorSets(
-			const SimpleVector<DescriptorSetAllocationInfo>& infos);
+		std::vector<DescriptorSetAllocation> allocateDescriptorSets(
+			const std::vector<DescriptorSetAllocationInfo>& infos);
 		void freeDescriptorSet(const DescriptorSetAllocation& allocation, const DescriptorSetAllocationInfo& info);
 
 		void setCurrentFrameIndex(uint32_t newFrameIndex);
@@ -68,7 +68,7 @@ namespace vanadium::graphics {
 
 		Slotmap<DescriptorSetSizeClass> m_sizeClasses;
 
-		SimpleVector<SimpleVector<VkDescriptorPool>> m_poolFreeLists;
+		std::vector<std::vector<VkDescriptorPool>> m_poolFreeLists;
 
 		std::shared_mutex m_accessMutex;
 	};

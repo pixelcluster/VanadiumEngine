@@ -6,12 +6,12 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <string_view>
-#include <util/Vector.hpp>
+#include <vector>
 
 namespace vanadium::ui {
 
 	struct LibraryFontData {
-		SimpleVector<std::string> names;
+		std::vector<std::string> names;
 		FT_Face fontFace = nullptr;
 	};
 
@@ -46,8 +46,8 @@ namespace vanadium::ui {
 
 		FT_Face tryCreateFace(const std::filesystem::path& searchPath, const std::string& name);
 
-		SimpleVector<std::filesystem::path> m_fontSearchPaths;
-		SimpleVector<LibraryFontData> m_fonts;
+		std::vector<std::filesystem::path> m_fontSearchPaths;
+		std::vector<LibraryFontData> m_fonts;
 
 		FT_Face m_fallbackFace = nullptr;
 

@@ -10,7 +10,7 @@ namespace vanadium::graphics {
 		};
 	}
 
-	void RenderTargetSurface::create(const SimpleVector<VkImage>& swapchainImages,
+	void RenderTargetSurface::create(const std::vector<VkImage>& swapchainImages,
 									 const RenderTargetSurfaceProperties& properties) {
 		m_properties = properties;
 		m_images = swapchainImages;

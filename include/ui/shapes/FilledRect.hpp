@@ -3,7 +3,7 @@
 #include <graphics/RenderContext.hpp>
 #include <ui/ShapeRegistry.hpp>
 #include <ui/SimpleShapeDataManager.hpp>
-#include <util/Vector.hpp>
+#include <vector>
 
 namespace vanadium::ui {
 	class UISubsystem;
@@ -42,7 +42,7 @@ namespace vanadium::ui::shapes {
 		SimpleShapeDataManager<ShapeData> m_dataManager;
 
 		graphics::RenderContext m_context;
-		SimpleVector<FilledRectShape*> m_shapes;
+		std::vector<FilledRectShape*> m_shapes;
 		UISubsystem* m_subsystem;
 	};
 

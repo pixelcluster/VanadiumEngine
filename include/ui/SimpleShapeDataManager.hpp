@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <graphics/RenderContext.hpp>
 #include <ui/ShapeRegistry.hpp>
-#include <util/Vector.hpp>
+#include <vector>
 #include <volk.h>
 
 namespace vanadium::ui {
@@ -49,12 +49,12 @@ namespace vanadium::ui {
 
 		size_t m_maxShapeDataCapacity;
 		graphics::GPUTransferHandle m_shapeDataTransfer;
-		SimpleVector<ShapeMetadata> m_shapeData;
+		std::vector<ShapeMetadata> m_shapeData;
 
 		// Cache for the most recent result of rebuilding the data buffer, since there is one GPU buffer for each frame
 		// in flight and all of them need to be updated
-		SimpleVector<T> m_shapeDataBuffer;
-		SimpleVector<RenderedLayer> m_renderedLayers;
+		std::vector<T> m_shapeDataBuffer;
+		std::vector<RenderedLayer> m_renderedLayers;
 
 		uint32_t m_lastDataUpdateFrameIndex;
 
@@ -65,7 +65,7 @@ namespace vanadium::ui {
 		bool m_dataUpdatedThisFrame = false;
 
 		VkDescriptorSet m_shapeDataSets[graphics::frameInFlightCount];
-		SimpleVector<graphics::DescriptorSetAllocation> m_shapeDataSetAllocations;
+		std::vector<graphics::DescriptorSetAllocation> m_shapeDataSetAllocations;
 		graphics::DescriptorSetAllocationInfo m_setAllocationInfo;
 	};
 
@@ -74,7 +74,7 @@ namespace vanadium::ui {
 		m_setAllocationInfo = { .typeInfos = { { .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .count = 1 } },
 								.layout = context.pipelineLibrary->graphicsPipelineSet(pipelineID, 0).layout };
 		m_shapeDataSetAllocations = context.descriptorSetAllocator->allocateDescriptorSets(
-			SimpleVector<graphics::DescriptorSetAllocationInfo>(graphics::frameInFlightCount, m_setAllocationInfo));
+			std::vector<graphics::DescriptorSetAllocationInfo>(graphics::frameInFlightCount, m_setAllocationInfo));
 		for (uint32_t i = 0; i < graphics::frameInFlightCount; ++i) {
 			m_shapeDataSets[i] = m_shapeDataSetAllocations[i].set;
 			m_descriptorSetRevisionCount[i] = 0;
@@ -114,7 +114,7 @@ namespace vanadium::ui {
 		// Here, we sort the shape data by its layer indices and then copy their data entries into the array to be
 		// sent to the GPU.
 
-		SimpleVector<ShapeMetadata> sortedShapeData = m_shapeData;
+		std::vector<ShapeMetadata> sortedShapeData = m_shapeData;
 		std::sort(sortedShapeData.begin(), sortedShapeData.end(),
 				  [](const auto& one, const auto& other) { return one.layerIndex < other.layerIndex; });
 

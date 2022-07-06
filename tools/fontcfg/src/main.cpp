@@ -3,7 +3,7 @@
 #include <util/WholeFileReader.hpp>
 #include <iostream>
 #include <json/json.h>
-#include <util/Vector.hpp>
+#include <vector>
 
 struct Options {
 	std::string outFile;
@@ -11,7 +11,7 @@ struct Options {
 };
 
 struct Font {
-	vanadium::SimpleVector<std::string> fontNames;
+	std::vector<std::string> fontNames;
 };
 
 bool checkOption(int argc, char** argv, size_t index, const std::string_view& argName) {
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
 	tableSize += 2 * sizeof(uint32_t);
 	std::string fallbackPath = rootValue["fallback-path"].asString();
 
-	vanadium::SimpleVector<std::string> customFontPaths;
+	std::vector<std::string> customFontPaths;
 	customFontPaths.reserve(rootValue["custom-font-paths"].size());
 	// font path count
 	tableSize += sizeof(uint32_t);
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
 
 	// font count
 	tableSize += sizeof(uint32_t);
-	vanadium::SimpleVector<Font> fonts;
+	std::vector<Font> fonts;
 	for (auto& name : rootValue["fonts"]) {
 		// name count
 		tableSize += sizeof(uint32_t);

@@ -11,16 +11,16 @@ namespace vanadium::graphics {
 	class FramegraphNode;
 
 	struct FramegraphNodeBufferUsage {
-		SimpleVector<NodeBufferSubresourceAccess> subresourceAccesses;
+		std::vector<NodeBufferSubresourceAccess> subresourceAccesses;
 		bool writes;
 		VkBufferUsageFlags usageFlags;
 	};
 
 	struct FramegraphNodeImageUsage {
-		SimpleVector<NodeImageSubresourceAccess> subresourceAccesses;
+		std::vector<NodeImageSubresourceAccess> subresourceAccesses;
 		VkImageUsageFlags usageFlags;
 		bool writes;
-		SimpleVector<ImageResourceViewInfo> viewInfos;
+		std::vector<ImageResourceViewInfo> viewInfos;
 	};
 
 	struct FramegraphBufferCreationParameters {
@@ -62,17 +62,17 @@ namespace vanadium::graphics {
 	struct FramegraphNodeInfo {
 		FramegraphNode* node;
 
-		robin_hood::unordered_map<FramegraphImageHandle, SimpleVector<ImageResourceViewInfo>> resourceViewInfos;
-		SimpleVector<ImageResourceViewInfo> swapchainResourceViewInfos;
+		robin_hood::unordered_map<FramegraphImageHandle, std::vector<ImageResourceViewInfo>> resourceViewInfos;
+		std::vector<ImageResourceViewInfo> swapchainResourceViewInfos;
 	};
 
 	struct FramegraphNodeContext {
 		uint32_t frameIndex;
 
 		RenderTargetSurface* targetSurface;
-		SimpleVector<VkImageView> targetImageViews;
+		std::vector<VkImageView> targetImageViews;
 
-		robin_hood::unordered_map<FramegraphImageHandle, SimpleVector<VkImageView>> resourceImageViews;
+		robin_hood::unordered_map<FramegraphImageHandle, std::vector<VkImageView>> resourceImageViews;
 	};
 
 	class FramegraphContext {
@@ -156,13 +156,13 @@ namespace vanadium::graphics {
 		VkCommandPool m_frameCommandPools[frameInFlightCount];
 		VkCommandBuffer m_frameCommandBuffers[frameInFlightCount];
 
-		SimpleVector<FramegraphNodeInfo> m_nodes;
+		std::vector<FramegraphNodeInfo> m_nodes;
 
 		Slotmap<FramegraphBufferResource> m_buffers;
 		Slotmap<FramegraphImageResource> m_images;
 
-		SimpleVector<FramegraphBufferHandle> m_transientBuffers;
-		SimpleVector<FramegraphImageHandle> m_transientImages;
+		std::vector<FramegraphBufferHandle> m_transientBuffers;
+		std::vector<FramegraphImageHandle> m_transientImages;
 
 		bool m_resourceDirtyFlag = false;
 		bool m_swapchainDirtyFlag = false;

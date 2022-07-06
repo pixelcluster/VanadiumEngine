@@ -17,10 +17,10 @@ namespace vanadium::graphics {
 	};
 
 	struct SubpassSignature {
-		vanadium::SimpleVector<AttachmentPassSignature> outputAttachments;
-		vanadium::SimpleVector<AttachmentPassSignature> inputAttachments;
-		vanadium::SimpleVector<AttachmentPassSignature> resolveAttachments;
-		vanadium::SimpleVector<AttachmentPassSignature> preserveAttachments;
+		std::vector<AttachmentPassSignature> outputAttachments;
+		std::vector<AttachmentPassSignature> inputAttachments;
+		std::vector<AttachmentPassSignature> resolveAttachments;
+		std::vector<AttachmentPassSignature> preserveAttachments;
 		AttachmentPassSignature depthStencilAttachment;
 		bool operator==(const SubpassSignature& other) const {
 			return outputAttachments == other.outputAttachments && inputAttachments == other.inputAttachments &&
@@ -30,9 +30,9 @@ namespace vanadium::graphics {
 	};
 
 	struct RenderPassSignature {
-		vanadium::SimpleVector<SubpassSignature> subpassSignatures;
-		vanadium::SimpleVector<AttachmentPassSignature> attachmentDescriptionSignatures;
-		vanadium::SimpleVector<VkSubpassDependency> subpassDependencies;
+		std::vector<SubpassSignature> subpassSignatures;
+		std::vector<AttachmentPassSignature> attachmentDescriptionSignatures;
+		std::vector<VkSubpassDependency> subpassDependencies;
 
 		bool operator==(const RenderPassSignature& other) const {
 			for (auto& dependency : subpassDependencies) {
@@ -64,8 +64,8 @@ namespace robin_hood {
 		}
 	};
 
-	template <> struct hash<vanadium::SimpleVector<vanadium::graphics::AttachmentPassSignature>> {
-		size_t operator()(const vanadium::SimpleVector<vanadium::graphics::AttachmentPassSignature>& object) const {
+	template <> struct hash<std::vector<vanadium::graphics::AttachmentPassSignature>> {
+		size_t operator()(const std::vector<vanadium::graphics::AttachmentPassSignature>& object) const {
 			size_t value = 0;
 			for (const auto& signature : object) {
 				value = hashCombine(value, hash<vanadium::graphics::AttachmentPassSignature>()(signature));
@@ -104,7 +104,7 @@ namespace robin_hood {
 					subpassHash = hashCombine(subpassHash, hash<vanadium::graphics::SubpassSignature>()(signature));
 				}
 			}
-			size_t descriptionHash = hash<vanadium::SimpleVector<vanadium::graphics::AttachmentPassSignature>>()(
+			size_t descriptionHash = hash<std::vector<vanadium::graphics::AttachmentPassSignature>>()(
 				object.attachmentDescriptionSignatures);
 			size_t dependencyHash = 0;
 			for (auto& dependency : object.subpassDependencies) {
