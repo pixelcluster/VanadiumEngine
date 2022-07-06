@@ -3,6 +3,7 @@
 #include <util/UTF8.hpp>
 #include <iostream>
 #include <vector>
+#include <string>
 
 using namespace std::string_literals;
 
