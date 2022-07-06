@@ -76,7 +76,9 @@ target_precompile_headers(VanadiumEngine PUBLIC include/PCH.hpp)
 
 set_source_files_properties(${CHARACTERGROUP_FILE} PROPERTIES GENERATED TRUE)
 
-target_compile_options(VanadiumEngine PRIVATE "-Wall")
+if(NOT MSVC)
+	target_compile_options(VanadiumEngine PRIVATE "-Wall")
+endif()
 
 target_include_directories(VanadiumEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/tools/generated_include" "include" ${Vulkan_INCLUDE_DIRS} "dependencies/stb" "dependencies/harfbuzz/src")
 target_link_libraries(VanadiumEngine volk::volk fmt::fmt glfw robin_hood freetype EnTT::EnTT)
