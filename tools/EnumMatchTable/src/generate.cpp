@@ -81,7 +81,7 @@ void writeEnums(const EnumMap& enumMap, std::ostream& outStream) {
 		++indentationLevel;
 		size_t valueIndex = 0;
 		for (const auto& value : enumValue.values()) {
-			addLine(outStream, (valueIndex != 0 ? "else if "s : "if "s) + "(name == \""s + value.name + "\") {");
+			addLine(outStream, "if (name == \""s + value.name + "\") {");
 			++indentationLevel;
 			addLine(outStream, "return " + value.name + ";");
 			--indentationLevel;
