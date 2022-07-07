@@ -294,14 +294,14 @@ template <> inline void serialize<CompiledShader>(const CompiledShader& data, st
 #endif
 	serialize(data.stage, outStream);
 	serialize(data.dataSize, outStream);
-	outStream.write(reinterpret_cast<char*>(data.data), data.dataSize);
+	outStream.write(static_cast<char*>(data.data), data.dataSize);
 }
 
 template <> inline CompiledShader deserialize<CompiledShader>(std::ifstream& inStream) {
 	CompiledShader result = { .stage = deserialize<VkShaderStageFlagBits>(inStream),
 							  .dataSize = deserialize<size_t>(inStream) };
 	result.data = new char[result.dataSize];
-	inStream.read(reinterpret_cast<char*>(result.data), result.dataSize);
+	inStream.read(static_cast<char*>(result.data), result.dataSize);
 	return result;
 }
 

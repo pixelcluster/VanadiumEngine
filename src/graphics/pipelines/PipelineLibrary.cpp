@@ -57,7 +57,7 @@ namespace vanadium::graphics {
 	void PipelineLibrary::create(const std::string_view& libraryFileName, DeviceContext* context) {
 		m_deviceContext = context;
 
-		m_fileStream = std::ifstream(std::string(libraryFileName));
+		m_fileStream = std::ifstream(std::string(libraryFileName), std::ios::binary);
 		assertFatal(m_fileStream.is_open(), "PipelineLibrary: Could not open pipeline file!");
 
 		VCPFileHeader header = deserialize<VCPFileHeader>(m_fileStream);

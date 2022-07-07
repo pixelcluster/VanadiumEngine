@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
 		return EXIT_FAILURE;
 	}
 
-	std::ofstream outStream = std::ofstream(options.outFile, std::ios::trunc);
+	std::ofstream outStream = std::ofstream(options.outFile, std::ios::trunc | std::ios::binary);
 	if (!outStream.is_open()) {
 		std::cout << "Error: Output file could not be opened for writing." << std::endl;
 		remove_all(tempDirPath);
