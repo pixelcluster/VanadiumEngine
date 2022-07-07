@@ -151,7 +151,6 @@ int main(int argc, char** argv) {
 			remove_all(tempDirPath);
 			return EXIT_FAILURE;
 		}
-		vanadium::logInfo("new archetype");
 
 		std::string parentPathString = filePath.parent_path().string();
 		records.push_back(

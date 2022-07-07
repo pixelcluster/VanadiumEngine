@@ -99,22 +99,25 @@ namespace vanadium::graphics {
 					// dummy value to mark this binding as using immutable samplers
 					binding.binding.pImmutableSamplers = m_immutableSamplers.data();
 				}
-				bindings.push_back(binding.binding);
-				for (auto& binding : bindings) {
-					if (binding.pImmutableSamplers) {
-						binding.pImmutableSamplers = m_immutableSamplers.data() + immutableSamplerOffset;
-						immutableSamplerOffset += binding.descriptorCount;
-					}
+				else {
+					binding.binding.pImmutableSamplers = nullptr;
 				}
-
-				VkDescriptorSetLayoutCreateInfo createInfo = { .sType =
-																   VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-															   .bindingCount = static_cast<uint32_t>(bindings.size()),
-															   .pBindings = bindings.data() };
-				VkDescriptorSetLayout layout;
-				verifyResult(vkCreateDescriptorSetLayout(m_deviceContext->device(), &createInfo, nullptr, &layout));
-				m_descriptorSetLayouts.push_back({ .layout = layout, .bindingInfos = std::move(bindings) });
+				bindings.push_back(binding.binding);
 			}
+
+			for (auto& binding : bindings) {
+				if (binding.pImmutableSamplers) {
+					binding.pImmutableSamplers = m_immutableSamplers.data() + immutableSamplerOffset;
+					immutableSamplerOffset += binding.descriptorCount;
+				}
+			}
+
+			VkDescriptorSetLayoutCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+														   .bindingCount = static_cast<uint32_t>(bindings.size()),
+														   .pBindings = bindings.data() };
+			VkDescriptorSetLayout layout;
+			verifyResult(vkCreateDescriptorSetLayout(m_deviceContext->device(), &createInfo, nullptr, &layout));
+			m_descriptorSetLayouts.push_back({ .layout = layout, .bindingInfos = std::move(bindings) });
 		}
 
 		while (true) {

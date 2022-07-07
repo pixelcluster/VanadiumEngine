@@ -247,16 +247,12 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 			++currentIndex;
 		}
 
-		//if (matchingCandidateIndex.has_value()) {
-		//	m_setLayoutIndices.push_back(matchingCandidateIndex.value());
-		//} else {
-			if(set.size() > 0)
-			vanadium::logInfo("Adding index {} with binding[0].stage = {}", setLayoutInfos.size(), set[0].binding.stageFlags);
-			else
-			vanadium::logInfo("empty set");
+		if (matchingCandidateIndex.has_value()) {
+			m_setLayoutIndices.push_back(matchingCandidateIndex.value());
+		} else {
 			m_setLayoutIndices.push_back(setLayoutInfos.size());
 			setLayoutInfos.push_back(std::move(set));
-		//}
+		}
 	}
 
 	if (!archetypeRoot["push-constants"].isNull() && !archetypeRoot["push-constants"].isArray()) {
