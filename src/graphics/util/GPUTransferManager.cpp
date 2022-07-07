@@ -43,9 +43,8 @@ namespace vanadium::graphics {
 		transfer.stagingBuffers.reserve(frameInFlightCount);
 		if (dstBuffer == ~0U) {
 			// Nothing has used the buffer yet, no need for it to hang around in free lists
-			m_resourceAllocator->destroyBufferImmediately(dstBuffer);
 			dstBuffer = m_resourceAllocator->createBuffer(transferBufferCreateInfo, {},
-														  { .deviceLocal = true, .hostVisible = true }, true);
+														  { .deviceLocal = true, .hostVisible = true }, false);
 			transfer.dstBuffer = dstBuffer;
 			transfer.needsStagingBuffer = true;
 			for (size_t i = 0; i < frameInFlightCount; ++i) {
