@@ -247,12 +247,16 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 			++currentIndex;
 		}
 
-		if (matchingCandidateIndex.has_value()) {
-			m_setLayoutIndices.push_back(matchingCandidateIndex.value());
-		} else {
+		//if (matchingCandidateIndex.has_value()) {
+		//	m_setLayoutIndices.push_back(matchingCandidateIndex.value());
+		//} else {
+			if(set.size() > 0)
+			vanadium::logInfo("Adding index {} with binding[0].stage = {}", setLayoutInfos.size(), set[0].binding.stageFlags);
+			else
+			vanadium::logInfo("empty set");
 			m_setLayoutIndices.push_back(setLayoutInfos.size());
 			setLayoutInfos.push_back(std::move(set));
-		}
+		//}
 	}
 
 	if (!archetypeRoot["push-constants"].isNull() && !archetypeRoot["push-constants"].isArray()) {
@@ -357,7 +361,7 @@ std::vector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(con
 		void* data = readFile(srcFile.c_str(), &fileSize);
 
 		if (data) {
-			m_compiledShaders.push_back({ .stage = file.stage, .data = data, .dataSize = fileSize });
+			m_compiledShaders.push_back({ .stage = file.stage, .dataSize = fileSize, .data = data });
 
 			SpvReflectShaderModule shaderModule;
 			spvReflectCreateShaderModule(fileSize, data, &shaderModule);
@@ -455,70 +459,11 @@ void PipelineArchetypeRecord::verifyArchetype(
 	}
 }
 
-size_t PipelineArchetypeRecord::serializedSize() const {
-	size_t totalSize = 0;
-
-	totalSize += sizeof(uint32_t);
-
-	if (m_pipelineType != PipelineType::Compute) {
-		totalSize += sizeof(uint32_t);
-	}
-	for (auto& shader : m_compiledShaders) {
-		totalSize += sizeof(uint32_t) * 2 + shader.dataSize;
-	}
-
-	totalSize += sizeof(uint32_t);
-	totalSize += sizeof(uint32_t) * m_setLayoutIndices.size();
-
-	totalSize += sizeof(uint32_t);
-	totalSize += sizeof(uint32_t) * 3 * m_pushConstantRanges.size();
-	return totalSize;
-}
-
-void PipelineArchetypeRecord::serialize(void* data) {
-	uint32_t pipelineType = static_cast<uint32_t>(m_pipelineType);
-	std::memcpy(data, &pipelineType, sizeof(uint32_t));
-	data = offsetVoidPtr(data, sizeof(uint32_t));
-
-	if (m_pipelineType != PipelineType::Compute) {
-		uint32_t shaderCount = static_cast<uint32_t>(m_compiledShaders.size());
-		std::memcpy(data, &shaderCount, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-	}
-
-	for (auto& compiledShader : m_compiledShaders) {
-		std::memcpy(data, &compiledShader.stage, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-
-		uint32_t shaderSize = static_cast<uint32_t>(compiledShader.dataSize);
-		std::memcpy(data, &shaderSize, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-
-		std::memcpy(data, compiledShader.data, compiledShader.dataSize);
-		data = offsetVoidPtr(data, compiledShader.dataSize);
-	}
-
-	uint32_t setLayoutIndexCount = static_cast<uint32_t>(m_setLayoutIndices.size());
-	std::memcpy(data, &setLayoutIndexCount, sizeof(uint32_t));
-	data = offsetVoidPtr(data, sizeof(uint32_t));
-
-	for (auto index : m_setLayoutIndices) {
-		std::memcpy(data, &index, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-	}
-
-	uint32_t constantRangeCount = static_cast<uint32_t>(m_pushConstantRanges.size());
-	std::memcpy(data, &constantRangeCount, sizeof(uint32_t));
-	data = offsetVoidPtr(data, sizeof(uint32_t));
-
-	for (auto& range : m_pushConstantRanges) {
-		std::memcpy(data, &range.stageFlags, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-		std::memcpy(data, &range.offset, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-		std::memcpy(data, &range.size, sizeof(uint32_t));
-		data = offsetVoidPtr(data, sizeof(uint32_t));
-	}
+void PipelineArchetypeRecord::serialize(std::ofstream& outStream) {
+	::serialize(m_pipelineType, outStream);
+	serializeVector(m_compiledShaders, outStream);
+	serializeVector(m_setLayoutIndices, outStream);
+	serializeVector(m_pushConstantRanges, outStream);
 }
 
 void PipelineArchetypeRecord::freeShaders() {

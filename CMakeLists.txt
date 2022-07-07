@@ -90,8 +90,3 @@ if(UNIX AND NOT APPLE AND TBB_FOUND)
 endif()
 
 add_subdirectory(examples)
-
-# test
-vanadium_init_vcp_project()
-vanadium_add_vcp_shader("examples/helloworld/shaders/project.json")
-vanadium_compile_vcp_shaders(VanadiumEngine)

@@ -66,6 +66,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatc
 				   DEPENDS EnumMatchTable)
 
 add_executable(vcp ${CPP_SOURCES} "${CMAKE_SOURCE_DIR}/dependencies/spirv-reflect/spirv_reflect.c" ${CMAKE_CURRENT_BINARY_DIR}/generated_include/EnumMatchTable.hpp)
+#target_compile_definitions(vcp PRIVATE "VCP_EXPORTER_DIAGNOSTICS")
 
 if(NOT MSVC)
 	target_compile_options(vcp PRIVATE "-Wall")
@@ -84,7 +85,7 @@ target_include_directories(vcp PUBLIC
 if(MSVC)
 	target_compile_options(vcp PUBLIC "/bigobj")
 endif()
-target_link_libraries(vcp jsoncpp_static)
+target_link_libraries(vcp jsoncpp_static fmt)
 
 function(vanadium_init_vcp)
 	set(VANADIUM_STD_VCP_SHADERS "" PARENT_SCOPE)

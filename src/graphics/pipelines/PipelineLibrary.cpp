@@ -57,100 +57,86 @@ namespace vanadium::graphics {
 	void PipelineLibrary::create(const std::string_view& libraryFileName, DeviceContext* context) {
 		m_deviceContext = context;
 
-		m_fileSize = 5;
-		m_buffer = readFile(libraryFileName.data(), &m_fileSize);
-		assertFatal(m_fileSize > 0, "PipelineLibrary: Could not open pipeline file!");
-		uint64_t headerReadOffset = 0;
-		uint32_t version = readBuffer<uint32_t>(headerReadOffset);
+		m_fileStream = std::ifstream(std::string(libraryFileName));
+		assertFatal(m_fileStream.is_open(), "PipelineLibrary: Could not open pipeline file!");
 
-		assertFatal(version == pipelineFileVersion, "PipelineLibrary: Invalid pipeline file version!");
+		VCPFileHeader header = deserialize<VCPFileHeader>(m_fileStream);
+		assertFatal(header.magic == vcpMagicNumber, "PipelineLibrary: Invalid pipeline file!");
+		assertFatal(header.version == vcpFileVersion, "PipelineLibrary: Invalid pipeline file version!");
 
-		uint32_t pipelineCount = readBuffer<uint32_t>(headerReadOffset);
-		uint32_t setLayoutCount = readBuffer<uint32_t>(headerReadOffset);
+		std::vector<std::vector<DescriptorBindingLayoutInfo>> setLayoutInfos;
+		setLayoutInfos = deserializeVector<std::vector<DescriptorBindingLayoutInfo>>(m_fileStream);
+		m_descriptorSetLayouts.reserve(setLayoutInfos.size());
 
-		std::vector<uint64_t> setLayoutOffsets;
-		setLayoutOffsets.reserve(setLayoutCount);
-		for (uint32_t i = 0; i < setLayoutCount; ++i) {
-			setLayoutOffsets.push_back(readBuffer<uint64_t>(headerReadOffset));
-		}
-
-		for (auto& offset : setLayoutOffsets) {
-			uint32_t bindingCount = readBuffer<uint32_t>(offset);
+		uint32_t immutableSamplerOffset = 0;
+		for (auto& set : setLayoutInfos) {
 			std::vector<VkDescriptorSetLayoutBinding> bindings;
-			bindings.reserve(bindingCount);
-
-			size_t immutableSamplerOffset = m_immutableSamplers.size();
-
-			for (uint32_t i = 0; i < bindingCount; ++i) {
-				VkDescriptorSetLayoutBinding binding = { .binding = readBuffer<uint32_t>(offset),
-														 .descriptorType = readBuffer<VkDescriptorType>(offset),
-														 .descriptorCount = readBuffer<uint32_t>(offset),
-														 .stageFlags = readBuffer<VkShaderStageFlags>(offset) };
-				bool usesImmutableSamplers = readBuffer<bool>(offset);
-				uint32_t immutableSamplerCount = readBuffer<uint32_t>(offset);
-				if (usesImmutableSamplers) {
-					for (uint32_t j = 0; j < immutableSamplerCount; ++j) {
+			bindings.reserve(set.size());
+			for (auto& binding : set) {
+				if (binding.usesImmutableSamplers) {
+					for (auto& info : binding.immutableSamplerInfos) {
 						VkSamplerCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-														   .magFilter = readBuffer<VkFilter>(offset),
-														   .minFilter = readBuffer<VkFilter>(offset),
-														   .mipmapMode = readBuffer<VkSamplerMipmapMode>(offset),
-														   .addressModeU = readBuffer<VkSamplerAddressMode>(offset),
-														   .addressModeV = readBuffer<VkSamplerAddressMode>(offset),
-														   .addressModeW = readBuffer<VkSamplerAddressMode>(offset),
-														   .mipLodBias = readBuffer<float>(offset),
-														   .anisotropyEnable = readBuffer<bool>(offset),
-														   .maxAnisotropy = readBuffer<float>(offset),
-														   .compareEnable = readBuffer<bool>(offset),
-														   .compareOp = readBuffer<VkCompareOp>(offset),
-														   .minLod = readBuffer<float>(offset),
-														   .maxLod = readBuffer<float>(offset),
-														   .borderColor = readBuffer<VkBorderColor>(offset),
-														   .unnormalizedCoordinates = readBuffer<bool>(offset) };
-						VkSampler sampler;
-						verifyResult(vkCreateSampler(m_deviceContext->device(), &createInfo, nullptr, &sampler));
-						m_immutableSamplers.push_back(sampler);
+														   .magFilter = info.magFilter,
+														   .minFilter = info.minFilter,
+														   .mipmapMode = info.mipmapMode,
+														   .addressModeU = info.addressModeU,
+														   .addressModeV = info.addressModeV,
+														   .addressModeW = info.addressModeW,
+														   .mipLodBias = info.mipLodBias,
+														   .anisotropyEnable = info.anisotropyEnable,
+														   .maxAnisotropy = info.maxAnisotropy,
+														   .compareEnable = info.compareEnable,
+														   .compareOp = info.compareOp,
+														   .minLod = info.minLod,
+														   .maxLod = info.maxLod,
+														   .borderColor = info.borderColor,
+														   .unnormalizedCoordinates = info.unnormalizedCoordinates };
+						VkSampler immutableSampler;
+						verifyResult(
+							vkCreateSampler(m_deviceContext->device(), &createInfo, nullptr, &immutableSampler));
+						m_immutableSamplers.push_back(immutableSampler);
 					}
-					// dummy value, for later, data() might get invalidated
-					binding.pImmutableSamplers = m_immutableSamplers.data();
+					// dummy value to mark this binding as using immutable samplers
+					binding.binding.pImmutableSamplers = m_immutableSamplers.data();
 				}
-				bindings.push_back(binding);
-			}
-
-			for (auto& binding : bindings) {
-				if (binding.pImmutableSamplers != nullptr) {
-					binding.pImmutableSamplers = m_immutableSamplers.data() + immutableSamplerOffset;
-					immutableSamplerOffset += binding.descriptorCount;
+				bindings.push_back(binding.binding);
+				for (auto& binding : bindings) {
+					if (binding.pImmutableSamplers) {
+						binding.pImmutableSamplers = m_immutableSamplers.data() + immutableSamplerOffset;
+						immutableSamplerOffset += binding.descriptorCount;
+					}
 				}
-			}
 
-			VkDescriptorSetLayoutCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-														   .bindingCount = bindingCount,
-														   .pBindings = bindings.data() };
-			VkDescriptorSetLayout layout;
-			verifyResult(vkCreateDescriptorSetLayout(m_deviceContext->device(), &createInfo, nullptr, &layout));
-			m_descriptorSetLayouts.push_back({ .layout = layout, .bindingInfos = std::move(bindings) });
+				VkDescriptorSetLayoutCreateInfo createInfo = { .sType =
+																   VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+															   .bindingCount = static_cast<uint32_t>(bindings.size()),
+															   .pBindings = bindings.data() };
+				VkDescriptorSetLayout layout;
+				verifyResult(vkCreateDescriptorSetLayout(m_deviceContext->device(), &createInfo, nullptr, &layout));
+				m_descriptorSetLayouts.push_back({ .layout = layout, .bindingInfos = std::move(bindings) });
+			}
 		}
 
-		headerReadOffset = setLayoutOffsets.back();
+		while (true) {
+			PipelineType pipelineType = deserialize<PipelineType>(m_fileStream);
 
-		std::vector<uint64_t> pipelineDataOffsets;
-		pipelineDataOffsets.reserve(pipelineCount);
-		for (size_t i = 0; i < pipelineCount; ++i) {
-			pipelineDataOffsets.push_back(readBuffer<uint64_t>(headerReadOffset));
-		}
+			if (m_fileStream.eof())
+				break;
 
-		for (auto& pipelineOffset : pipelineDataOffsets) {
-			PipelineType pipelineType = readBuffer<PipelineType>(pipelineOffset);
+			assertFatal(m_fileStream.good(), "PipelineLibrary: Error reading pipeline file!");
+
 			switch (pipelineType) {
 				case PipelineType::Graphics:
-					createGraphicsPipeline(pipelineOffset);
+					createGraphicsPipeline();
 					break;
 				case PipelineType::Compute:
-					createComputePipeline(pipelineOffset);
+					createComputePipeline();
 					break;
+				default:
+					logFatal("PipelineLibrary: Invalid pipeline file!");
 			}
 		}
-		delete[] reinterpret_cast<char*>(m_buffer);
+		m_fileStream.close();
 	}
 
 	void PipelineLibrary::createForPass(const RenderPassSignature& signature, VkRenderPass pass,
@@ -175,58 +161,42 @@ namespace vanadium::graphics {
 					  });
 	}
 
-	void PipelineLibrary::createGraphicsPipeline(uint64_t& bufferOffset) {
-		uint32_t shaderCount = readBuffer<uint32_t>(bufferOffset);
+	void PipelineLibrary::createGraphicsPipeline() {
+		std::vector<CompiledShader> shaders = deserializeVector<CompiledShader>(m_fileStream);
 		std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
 		std::vector<VkShaderModule> shaderModules;
-		stageCreateInfos.reserve(shaderCount);
-		shaderModules.reserve(shaderCount);
+		stageCreateInfos.reserve(shaders.size());
+		shaderModules.reserve(shaders.size());
 
-		for (uint32_t i = 0; i < shaderCount; ++i) {
-			VkShaderStageFlagBits stageFlags = readBuffer<VkShaderStageFlagBits>(bufferOffset);
-			uint32_t shaderSize = readBuffer<uint32_t>(bufferOffset);
-			assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
+		for (auto& shader : shaders) {
 			VkShaderModuleCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-													.codeSize = shaderSize,
-													.pCode = reinterpret_cast<uint32_t*>(
-														reinterpret_cast<uintptr_t>(m_buffer) + bufferOffset) };
+													.codeSize = shader.dataSize,
+													.pCode = reinterpret_cast<uint32_t*>(shader.data) };
 			VkShaderModule shaderModule;
 			verifyResult(vkCreateShaderModule(m_deviceContext->device(), &createInfo, nullptr, &shaderModule));
-
-			bufferOffset += shaderSize;
-
 			shaderModules.push_back(shaderModule);
 			stageCreateInfos.push_back({ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-										 .stage = stageFlags,
+										 .stage = shader.stage,
 										 .module = shaderModule,
 										 .pName = "main" });
 		}
 
-		uint32_t setLayoutCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<VkDescriptorSetLayout> setLayouts;
-		std::vector<uint32_t> setLayoutIndices;
-		setLayouts.reserve(setLayoutCount);
-		setLayoutIndices.reserve(setLayoutCount);
+		std::vector<uint32_t> setLayoutIndices = deserializeVector<uint32_t>(m_fileStream);
+		setLayouts.reserve(setLayoutIndices.size());
 
-		for (uint32_t i = 0; i < setLayoutCount; ++i) {
-			setLayoutIndices.push_back(readBuffer<uint32_t>(bufferOffset));
-			setLayouts.push_back(m_descriptorSetLayouts[setLayoutIndices.back()].layout);
+		for (auto& index : setLayoutIndices) {
+			setLayouts.push_back(m_descriptorSetLayouts[index].layout);
 		}
 
-		uint32_t pushConstantRangeCount = readBuffer<uint32_t>(bufferOffset);
-		std::vector<VkPushConstantRange> pushConstantRanges;
-		pushConstantRanges.reserve(pushConstantRangeCount);
-
-		for (uint32_t i = 0; i < pushConstantRangeCount; ++i) {
-			pushConstantRanges.push_back({ .stageFlags = readBuffer<VkShaderStageFlags>(bufferOffset),
-										   .offset = readBuffer<uint32_t>(bufferOffset),
-										   .size = readBuffer<uint32_t>(bufferOffset) });
-		}
+		std::vector<VkPushConstantRange> pushConstantRanges = deserializeVector<VkPushConstantRange>(m_fileStream);
 
 		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-																.setLayoutCount = setLayoutCount,
+																.setLayoutCount =
+																	static_cast<uint32_t>(setLayouts.size()),
 																.pSetLayouts = setLayouts.data(),
-																.pushConstantRangeCount = pushConstantRangeCount,
+																.pushConstantRangeCount =
+																	static_cast<uint32_t>(pushConstantRanges.size()),
 																.pPushConstantRanges = pushConstantRanges.data() };
 		VkPipelineLayout layout;
 		verifyResult(vkCreatePipelineLayout(m_deviceContext->device(), &pipelineLayoutCreateInfo, nullptr, &layout));
@@ -236,149 +206,98 @@ namespace vanadium::graphics {
 								 .setLayoutIndices = std::move(setLayoutIndices),
 								 .pushConstantRanges = std::move(pushConstantRanges) });
 
-		uint32_t instanceCount = readBuffer<uint32_t>(bufferOffset);
-		std::vector<uint64_t> instanceOffsets;
-		std::vector<std::string> instanceNames;
+		std::vector<PipelineInstanceData> fileInstances = deserializeVector<PipelineInstanceData>(m_fileStream);
 		std::vector<PipelineLibraryGraphicsInstance> instances;
-		instanceOffsets.reserve(instanceCount);
+		instances.reserve(fileInstances.size());
 
-		for (uint32_t i = 0; i < instanceCount; ++i) {
-			instanceOffsets.push_back(readBuffer<uint32_t>(bufferOffset));
-		}
-
-		for (auto& offset : instanceOffsets) {
+		for (auto& fileInstance : fileInstances) {
 			PipelineLibraryGraphicsInstance instance;
 			instance.archetypeID = m_archetypes.size() - 1ULL;
-
-			uint32_t nameSize = readBuffer<uint32_t>(offset);
-			std::string name = std::string(nameSize, ' ');
-			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
-			std::memcpy(name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset), nameSize);
-			offset += nameSize;
-
-			instance.name = std::move(name);
-
-			uint32_t attributeCount = readBuffer<uint32_t>(offset);
-			instance.attribDescriptions.reserve(attributeCount);
-			for (uint32_t i = 0; i < attributeCount; ++i) {
-				instance.attribDescriptions.push_back({ .location = readBuffer<uint32_t>(offset),
-														.binding = readBuffer<uint32_t>(offset),
-														.format = readBuffer<VkFormat>(offset),
-														.offset = readBuffer<uint32_t>(offset) });
-			}
-
-			uint32_t bindingCount = readBuffer<uint32_t>(offset);
-			instance.bindingDescriptions.reserve(bindingCount);
-			for (uint32_t i = 0; i < bindingCount; ++i) {
-				instance.bindingDescriptions.push_back(
-					VkVertexInputBindingDescription{ .binding = readBuffer<uint32_t>(offset),
-													 .stride = readBuffer<uint32_t>(offset),
-													 .inputRate = readBuffer<VkVertexInputRate>(offset) });
-			}
+			instance.name = fileInstance.name;
+			instance.attribDescriptions = fileInstance.instanceVertexInputConfig.attributes;
+			instance.bindingDescriptions = fileInstance.instanceVertexInputConfig.bindings;
 
 			instance.vertexInputConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-										   .vertexBindingDescriptionCount = bindingCount,
+										   .vertexBindingDescriptionCount =
+											   static_cast<uint32_t>(instance.bindingDescriptions.size()),
 										   .pVertexBindingDescriptions = instance.bindingDescriptions.data(),
-										   .vertexAttributeDescriptionCount = attributeCount,
+										   .vertexAttributeDescriptionCount =
+											   static_cast<uint32_t>(instance.attribDescriptions.size()),
 										   .pVertexAttributeDescriptions = instance.attribDescriptions.data() };
 
 			instance.inputAssemblyConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-											 .topology = readBuffer<VkPrimitiveTopology>(offset),
-											 .primitiveRestartEnable = readBuffer<bool>(offset) };
+											 .topology = fileInstance.instanceInputAssemblyConfig.topology,
+											 .primitiveRestartEnable =
+												 fileInstance.instanceInputAssemblyConfig.primitiveRestart };
 
-			instance.rasterizationConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-											 .depthClampEnable = readBuffer<bool>(offset),
-											 .rasterizerDiscardEnable = readBuffer<bool>(offset),
-											 .polygonMode = readBuffer<VkPolygonMode>(offset),
-											 .cullMode = readBuffer<uint32_t>(offset),
-											 .frontFace = readBuffer<VkFrontFace>(offset),
-											 .depthBiasEnable = readBuffer<bool>(offset),
-											 .depthBiasConstantFactor = readBuffer<float>(offset),
-											 .depthBiasClamp = readBuffer<float>(offset),
-											 .depthBiasSlopeFactor = readBuffer<float>(offset),
-											 .lineWidth = readBuffer<float>(offset) };
+			instance.rasterizationConfig = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+				.depthClampEnable = fileInstance.instanceRasterizationConfig.depthClampEnable,
+				.rasterizerDiscardEnable = fileInstance.instanceRasterizationConfig.rasterizerDiscardEnable,
+				.polygonMode = fileInstance.instanceRasterizationConfig.polygonMode,
+				.cullMode = fileInstance.instanceRasterizationConfig.cullMode,
+				.frontFace = fileInstance.instanceRasterizationConfig.frontFace,
+				.depthBiasEnable = fileInstance.instanceRasterizationConfig.depthBiasEnable,
+				.depthBiasConstantFactor = fileInstance.instanceRasterizationConfig.depthBiasConstantFactor,
+				.depthBiasClamp = fileInstance.instanceRasterizationConfig.depthBiasClamp,
+				.depthBiasSlopeFactor = fileInstance.instanceRasterizationConfig.depthBiasSlopeFactor,
+				.lineWidth = fileInstance.instanceRasterizationConfig.lineWidth
+			};
 
-			uint32_t viewportCount = readBuffer<uint32_t>(offset);
-			instance.viewports.reserve(viewportCount);
-			for (uint32_t i = 0; i < viewportCount; ++i) {
-				instance.viewports.push_back({ .x = readBuffer<float>(offset),
-											   .y = readBuffer<float>(offset),
-											   .width = readBuffer<float>(offset),
-											   .height = readBuffer<float>(offset),
-											   .minDepth = readBuffer<float>(offset),
-											   .maxDepth = readBuffer<float>(offset) });
-			}
-
-			uint32_t scissorRectCount = readBuffer<uint32_t>(offset);
-			instance.scissorRects.reserve(scissorRectCount);
-			for (uint32_t i = 0; i < viewportCount; ++i) {
-				instance.scissorRects.push_back(
-					{ .offset = { .x = readBuffer<int32_t>(offset), .y = readBuffer<int32_t>(offset) },
-					  .extent = { .width = readBuffer<uint32_t>(offset), .height = readBuffer<uint32_t>(offset) } });
-			}
+			instance.viewports = fileInstance.instanceViewportScissorConfig.viewports;
+			instance.scissorRects = fileInstance.instanceViewportScissorConfig.scissorRects;
 
 			instance.multisampleConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-										   .rasterizationSamples = readBuffer<VkSampleCountFlagBits>(offset) };
+										   .rasterizationSamples = fileInstance.instanceMultisampleConfig };
 
-			instance.depthStencilConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-											.depthTestEnable = readBuffer<bool>(offset),
-											.depthWriteEnable = readBuffer<bool>(offset),
-											.depthCompareOp = readBuffer<VkCompareOp>(offset),
-											.depthBoundsTestEnable = readBuffer<bool>(offset),
-											.stencilTestEnable = readBuffer<bool>(offset),
-											.front = readStencilState(offset),
-											.back = readStencilState(offset),
-											.minDepthBounds = readBuffer<float>(offset),
-											.maxDepthBounds = readBuffer<float>(offset) };
+			instance.depthStencilConfig = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+				.depthTestEnable = fileInstance.instanceDepthStencilConfig.depthTestEnable,
+				.depthWriteEnable = fileInstance.instanceDepthStencilConfig.depthWriteEnable,
+				.depthCompareOp = fileInstance.instanceDepthStencilConfig.depthCompareOp,
+				.depthBoundsTestEnable = fileInstance.instanceDepthStencilConfig.depthBoundsTestEnable,
+				.stencilTestEnable = fileInstance.instanceDepthStencilConfig.stencilTestEnable,
+				.front = fileInstance.instanceDepthStencilConfig.front,
+				.back = fileInstance.instanceDepthStencilConfig.back,
+				.minDepthBounds = fileInstance.instanceDepthStencilConfig.minDepthBounds,
+				.maxDepthBounds = fileInstance.instanceDepthStencilConfig.maxDepthBounds
+			};
 
-			uint32_t dynamicStateCount = readBuffer<uint32_t>(offset);
-			instance.dynamicStates.reserve(dynamicStateCount);
-			for(uint32_t i = 0; i < dynamicStateCount; ++i) {
-				instance.dynamicStates.push_back(readBuffer<VkDynamicState>(offset));
-			}
+			instance.dynamicStates = fileInstance.instanceDynamicStateConfig.dynamicStates;
 
 			instance.colorBlendConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-										  .logicOpEnable = readBuffer<bool>(offset),
-										  .logicOp = readBuffer<VkLogicOp>(offset),
-										  .blendConstants = { readBuffer<float>(offset), readBuffer<float>(offset),
-															  readBuffer<float>(offset), readBuffer<float>(offset) } };
+										  .logicOpEnable = fileInstance.instanceColorBlendConfig.logicOpEnable,
+										  .logicOp = fileInstance.instanceColorBlendConfig.logicOp,
+										  .blendConstants = {
+											  fileInstance.instanceColorBlendConfig.blendConstants[0],
+											  fileInstance.instanceColorBlendConfig.blendConstants[1],
+											  fileInstance.instanceColorBlendConfig.blendConstants[2],
+											  fileInstance.instanceColorBlendConfig.blendConstants[3] } };
 
-			uint32_t attachmentCount = readBuffer<uint32_t>(offset);
-			instance.colorAttachmentBlendConfigs.reserve(attachmentCount);
-
-			for (uint32_t i = 0; i < attachmentCount; ++i) {
-				instance.colorAttachmentBlendConfigs.push_back(
-					{ .blendEnable = readBuffer<bool>(offset),
-					  .srcColorBlendFactor = readBuffer<VkBlendFactor>(offset),
-					  .dstColorBlendFactor = readBuffer<VkBlendFactor>(offset),
-					  .colorBlendOp = readBuffer<VkBlendOp>(offset),
-					  .srcAlphaBlendFactor = readBuffer<VkBlendFactor>(offset),
-					  .dstAlphaBlendFactor = readBuffer<VkBlendFactor>(offset),
-					  .alphaBlendOp = readBuffer<VkBlendOp>(offset),
-					  .colorWriteMask = readBuffer<VkColorComponentFlags>(offset) });
-			}
-			instance.colorBlendConfig.attachmentCount = attachmentCount;
+			instance.colorAttachmentBlendConfigs = fileInstance.instanceColorAttachmentBlendConfigs;
+			instance.colorBlendConfig.attachmentCount =
+				static_cast<uint32_t>(instance.colorAttachmentBlendConfigs.size());
 			instance.colorBlendConfig.pAttachments = instance.colorAttachmentBlendConfigs.data();
 
-			uint32_t specializationStageCount = readBuffer<uint32_t>(offset);
-			for (uint32_t i = 0; i < specializationStageCount; ++i) {
+			for (auto& specialization : fileInstance.instanceSpecializationConfigs) {
 				PipelineLibraryStageSpecialization stageSpecialization;
-				stageSpecialization.stage = readBuffer<VkShaderStageFlagBits>(offset);
-				uint32_t specializationMapEntryCount = readBuffer<uint32_t>(offset);
-				stageSpecialization.mapEntries.reserve(specializationMapEntryCount);
-				for (uint32_t i = 0; i < specializationMapEntryCount; ++i) {
-					stageSpecialization.mapEntries.push_back({ .constantID = readBuffer<uint32_t>(offset),
-															   .offset = readBuffer<uint32_t>(offset),
-															   .size = readBuffer<uint32_t>(offset) });
+				stageSpecialization.stage = specialization.stage;
+				stageSpecialization.mapEntries.reserve(specialization.configs.size());
+				size_t dataSize = 0;
+				for (auto& config : specialization.configs) {
+					stageSpecialization.mapEntries.push_back(config.mapEntry);
+					dataSize = std::max(dataSize, config.mapEntry.offset + config.mapEntry.size);
+					assertFatal(config.mapEntry.size <= sizeof(float), "PipelineLibrary: Invalid pipeline file!");
 				}
-				uint32_t specializationDataSize = readBuffer<uint32_t>(offset);
-				assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!");
+				uint32_t specializationDataSize = dataSize;
 				stageSpecialization.specializationData = new char[specializationDataSize];
-				std::memcpy(stageSpecialization.specializationData,
-							reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
-							specializationDataSize);
+				for (auto& config : specialization.configs) {
+					std::memcpy(stageSpecialization.specializationData + config.mapEntry.offset, &config.dataUint32,
+								config.mapEntry.size);
+				}
 
-				stageSpecialization.specializationInfo = { .mapEntryCount = specializationMapEntryCount,
+				stageSpecialization.specializationInfo = { .mapEntryCount = static_cast<uint32_t>(
+															   stageSpecialization.mapEntries.size()),
 														   .pMapEntries = stageSpecialization.mapEntries.data(),
 														   .dataSize = specializationDataSize,
 														   .pData = stageSpecialization.specializationData };
@@ -393,9 +312,9 @@ namespace vanadium::graphics {
 			instance.shaderStageCreateInfos = stageCreateInfos;
 
 			instance.viewportConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-										.viewportCount = viewportCount,
+										.viewportCount = static_cast<uint32_t>(instance.viewports.size()),
 										.pViewports = instance.viewports.data(),
-										.scissorCount = scissorRectCount,
+										.scissorCount = static_cast<uint32_t>(instance.scissorRects.size()),
 										.pScissors = instance.scissorRects.data() };
 
 			instance.dynamicStateConfig = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
@@ -404,7 +323,8 @@ namespace vanadium::graphics {
 
 			instance.pipelineCreateInfo =
 				VkGraphicsPipelineCreateInfo{ .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-											  .stageCount = shaderCount,
+											  .stageCount =
+												  static_cast<uint32_t>(instance.shaderStageCreateInfos.size()),
 											  .pStages = instance.shaderStageCreateInfos.data(),
 											  .pVertexInputState = &instance.vertexInputConfig,
 											  .pInputAssemblyState = &instance.inputAssemblyConfig,
@@ -417,58 +337,51 @@ namespace vanadium::graphics {
 											  .layout = layout };
 
 			if constexpr (vanadiumGPUDebug) {
-				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE_LAYOUT, instance.pipelineCreateInfo.layout,
-							  instance.name + " Pipeline Layout");
+				setObjectName(m_deviceContext->device(), VK_OBJECT_TYPE_PIPELINE_LAYOUT,
+							  instance.pipelineCreateInfo.layout, instance.name + " Pipeline Layout");
 			}
 
 			m_graphicsInstances.push_back(std::move(instance));
 		}
 	}
 
-	void PipelineLibrary::createComputePipeline(uint64_t& bufferOffset) {
-		VkShaderStageFlagBits stage = readBuffer<VkShaderStageFlagBits>(bufferOffset);
-		assertFatal(stage == VK_SHADER_STAGE_COMPUTE_BIT, "PipelineLibrary: Invalid pipeline library file!");
-		uint32_t shaderSize = readBuffer<uint32_t>(bufferOffset);
-		assertFatal(bufferOffset + shaderSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
-		VkShaderModuleCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-												.codeSize = shaderSize,
-												.pCode = reinterpret_cast<uint32_t*>(
-													reinterpret_cast<uintptr_t>(m_buffer) + bufferOffset) };
-		VkShaderModule shaderModule;
-		verifyResult(vkCreateShaderModule(m_deviceContext->device(), &createInfo, nullptr, &shaderModule));
+	void PipelineLibrary::createComputePipeline() {
+		std::vector<CompiledShader> shaders = deserializeVector<CompiledShader>(m_fileStream);
+		std::vector<VkShaderModule> shaderModules;
+		shaderModules.reserve(shaders.size());
 
-		bufferOffset += shaderSize;
+		for (auto& shader : shaders) {
+			VkShaderModuleCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+													.codeSize = shader.dataSize,
+													.pCode = reinterpret_cast<uint32_t*>(shader.data) };
+			VkShaderModule shaderModule;
+			verifyResult(vkCreateShaderModule(m_deviceContext->device(), &createInfo, nullptr, &shaderModule));
+			shaderModules.push_back(shaderModule);
+		}
+
+		assertFatal(shaders.size() == 1, "PipelineLibrary: Invalid pipeline file!");
 
 		VkPipelineShaderStageCreateInfo stageInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-													  .stage = stage,
-													  .module = shaderModule,
+													  .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+													  .module = shaderModules[0],
 													  .pName = "main" };
 
-		uint32_t setLayoutCount = readBuffer<uint32_t>(bufferOffset);
 		std::vector<VkDescriptorSetLayout> setLayouts;
-		std::vector<uint32_t> setLayoutIndices;
-		setLayouts.reserve(setLayoutCount);
-		setLayoutIndices.reserve(setLayoutCount);
+		std::vector<uint32_t> setLayoutIndices = deserializeVector<uint32_t>(m_fileStream);
+		setLayouts.reserve(setLayoutIndices.size());
 
-		for (uint32_t i = 0; i < setLayoutCount; ++i) {
-			setLayoutIndices.push_back(readBuffer<uint32_t>(bufferOffset));
-			setLayouts.push_back(m_descriptorSetLayouts[setLayoutIndices.back()].layout);
+		for (auto& index : setLayoutIndices) {
+			setLayouts.push_back(m_descriptorSetLayouts[index].layout);
 		}
 
-		uint32_t pushConstantRangeCount = readBuffer<uint32_t>(bufferOffset);
-		std::vector<VkPushConstantRange> pushConstantRanges;
-		pushConstantRanges.reserve(pushConstantRangeCount);
-
-		for (uint32_t i = 0; i < pushConstantRangeCount; ++i) {
-			pushConstantRanges.push_back({ .stageFlags = readBuffer<VkShaderStageFlags>(bufferOffset),
-										   .offset = readBuffer<uint32_t>(bufferOffset),
-										   .size = readBuffer<uint32_t>(bufferOffset) });
-		}
+		std::vector<VkPushConstantRange> pushConstantRanges = deserializeVector<VkPushConstantRange>(m_fileStream);
 
 		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-																.setLayoutCount = setLayoutCount,
+																.setLayoutCount =
+																	static_cast<uint32_t>(setLayouts.size()),
 																.pSetLayouts = setLayouts.data(),
-																.pushConstantRangeCount = pushConstantRangeCount,
+																.pushConstantRangeCount =
+																	static_cast<uint32_t>(pushConstantRanges.size()),
 																.pPushConstantRanges = pushConstantRanges.data() };
 		VkPipelineLayout layout;
 		verifyResult(vkCreatePipelineLayout(m_deviceContext->device(), &pipelineLayoutCreateInfo, nullptr, &layout));
@@ -478,54 +391,39 @@ namespace vanadium::graphics {
 								 .setLayoutIndices = std::move(setLayoutIndices),
 								 .pushConstantRanges = std::move(pushConstantRanges) });
 
-		uint32_t instanceCount = readBuffer<uint32_t>(bufferOffset);
-		std::vector<uint64_t> instanceOffsets;
-		std::vector<std::string> instanceNames;
+		std::vector<PipelineInstanceData> fileInstances = deserializeVector<PipelineInstanceData>(m_fileStream);
 		std::vector<PipelineLibraryGraphicsInstance> instances;
-		instanceOffsets.reserve(instanceCount);
+		instances.reserve(fileInstances.size());
+		PipelineLibraryStageSpecialization stageSpecialization = {};
 
-		for (uint32_t i = 0; i < instanceCount; ++i) {
-			instanceOffsets.push_back(readBuffer<uint32_t>(bufferOffset));
-		}
-
-		VkSpecializationInfo specializationInfo;
-		std::vector<VkSpecializationMapEntry> mapEntries;
-		char* specializationData = nullptr;
-
-		for (auto& offset : instanceOffsets) {
+		for (auto& fileInstance : fileInstances) {
 			PipelineLibraryComputeInstance instance = { .archetypeID =
-															static_cast<uint32_t>(m_archetypes.size() - 1ULL) };
+															static_cast<uint32_t>(m_archetypes.size() - 1ULL),
+														.name = fileInstance.name };
 
-			uint32_t nameSize = readBuffer<uint32_t>(offset);
-			instance.name = std::string(nameSize, ' ');
-			assertFatal(offset + nameSize < m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
-			std::memcpy(instance.name.data(), reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
-						nameSize);
-			offset += nameSize;
-
-			uint32_t specializationStageCount = readBuffer<uint32_t>(offset);
-			for (uint32_t i = 0; i < specializationStageCount; ++i) {
-				assertFatal(readBuffer<VkShaderStageFlagBits>(offset) == VK_SHADER_STAGE_COMPUTE_BIT,
-							"PipelineLibrary: Invalid pipeline library file!");
-				uint32_t specializationMapEntryCount = readBuffer<uint32_t>(offset);
-				mapEntries.reserve(specializationMapEntryCount);
-				for (uint32_t i = 0; i < specializationMapEntryCount; ++i) {
-					mapEntries.push_back({ .constantID = readBuffer<uint32_t>(offset),
-										   .offset = readBuffer<uint32_t>(offset),
-										   .size = readBuffer<uint32_t>(offset) });
+			for (auto& specialization : fileInstance.instanceSpecializationConfigs) {
+				stageSpecialization.stage = specialization.stage;
+				stageSpecialization.mapEntries.reserve(specialization.configs.size());
+				size_t dataSize = 0;
+				for (auto& config : specialization.configs) {
+					stageSpecialization.mapEntries.push_back(config.mapEntry);
+					dataSize = std::max(dataSize, config.mapEntry.offset + config.mapEntry.size);
+					assertFatal(config.mapEntry.size <= sizeof(float), "PipelineLibrary: Invalid pipeline file!");
 				}
-				uint32_t specializationDataSize = readBuffer<uint32_t>(offset);
-				assertFatal(offset + specializationDataSize <= m_fileSize, "Invalid pipeline library file!");
-				specializationData = new char[specializationDataSize];
-				std::memcpy(specializationData, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + offset),
-							specializationDataSize);
+				uint32_t specializationDataSize = dataSize;
+				stageSpecialization.specializationData = new char[specializationDataSize];
+				for (auto& config : specialization.configs) {
+					std::memcpy(stageSpecialization.specializationData + config.mapEntry.offset, &config.dataUint32,
+								config.mapEntry.size);
+				}
 
-				specializationInfo = { .mapEntryCount = specializationMapEntryCount,
-									   .pMapEntries = mapEntries.data(),
-									   .dataSize = specializationDataSize,
-									   .pData = specializationData };
+				stageSpecialization.specializationInfo = { .mapEntryCount = static_cast<uint32_t>(
+															   stageSpecialization.mapEntries.size()),
+														   .pMapEntries = stageSpecialization.mapEntries.data(),
+														   .dataSize = specializationDataSize,
+														   .pData = stageSpecialization.specializationData };
 
-				stageInfo.pSpecializationInfo = &specializationInfo;
+				stageInfo.pSpecializationInfo = &stageSpecialization.specializationInfo;
 			}
 
 			VkComputePipelineCreateInfo computeCreateInfo = { .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
@@ -543,19 +441,8 @@ namespace vanadium::graphics {
 
 			m_computeInstances.push_back(std::move(instance));
 
-			vkDestroyShaderModule(m_deviceContext->device(), shaderModule, nullptr);
-			delete[] specializationData;
+			vkDestroyShaderModule(m_deviceContext->device(), shaderModules[0], nullptr);
 		}
-	}
-
-	VkStencilOpState PipelineLibrary::readStencilState(uint64_t& offset) {
-		return { .failOp = readBuffer<VkStencilOp>(offset),
-				 .passOp = readBuffer<VkStencilOp>(offset),
-				 .depthFailOp = readBuffer<VkStencilOp>(offset),
-				 .compareOp = readBuffer<VkCompareOp>(offset),
-				 .compareMask = readBuffer<uint32_t>(offset),
-				 .writeMask = readBuffer<uint32_t>(offset),
-				 .reference = readBuffer<uint32_t>(offset) };
 	}
 
 	std::vector<DescriptorSetLayoutInfo> PipelineLibrary::graphicsPipelineSets(uint32_t id) {

@@ -1,13 +1,14 @@
 #pragma once 
 
 #include <vector>
-#include <variant>
+#include <fstream>
+#include <Log.hpp>
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 #include <spirv_reflect.h>
 
 #include <json/json.h>
-#include <PipelineStructs.hpp>
+#include <VCPFormat.hpp>
 
 #include <ParsingUtils.hpp>
 #include <spirv_reflect.h>
@@ -16,11 +17,10 @@
 
 class PipelineInstanceRecord {
   public:
-  PipelineInstanceRecord();
+  	PipelineInstanceRecord();
 	PipelineInstanceRecord(PipelineType type, const std::string_view& srcPath, const Json::Value& instanceNode);
 
-	size_t serializedSize() const;
-	void serialize(void* data);
+	void serialize(std::ofstream& outStream) const;
 
 	void verifyInstance(const std::string_view& srcPath, const std::vector<ReflectedShader>& shaderModules);
 
@@ -41,23 +41,13 @@ class PipelineInstanceRecord {
 	void deserializeColorAttachmentBlend(const std::string_view& srcPath, const Json::Value& node);
 	void deserializeSpecializationConfigs(const std::string_view& srcPath, const Json::Value& node);
 
-	void* serializeStencilState(const VkStencilOpState& state, void* data);
-
 	void verifyVertexShader(const std::string_view& srcPath, const SpvReflectShaderModule& shader);
 	void verifyFragmentShader(const std::string_view& srcPath, const SpvReflectShaderModule& shader);
-
-	std::string m_name;
+	
 	PipelineType m_type;
-
-	InstanceVertexInputConfig m_instanceVertexInputConfig;
-	InstanceInputAssemblyConfig m_instanceInputAssemblyConfig;
-	InstanceRasterizationConfig m_instanceRasterizationConfig;
-	InstanceViewportScissorConfig m_instanceViewportScissorConfig;
-	InstanceMultisampleConfig m_instanceMultisampleConfig;
-	InstanceDepthStencilConfig m_instanceDepthStencilConfig;
-	InstanceColorBlendConfig m_instanceColorBlendConfig;
-	InstanceDynamicStateConfig m_instanceDynamicStateConfig;
-	std::vector<InstanceColorAttachmentBlendConfig> m_instanceColorAttachmentBlendConfigs;
-
-	std::vector<InstanceStageSpecializationConfig> m_instanceSpecializationConfigs;
+	PipelineInstanceData m_data;
 };
+
+template<> inline void serialize(const PipelineInstanceRecord& record, std::ofstream& outStream) {
+	record.serialize(outStream);
+}

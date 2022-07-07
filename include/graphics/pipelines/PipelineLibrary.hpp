@@ -2,13 +2,13 @@
 
 #include <Log.hpp>
 #include <graphics/DeviceContext.hpp>
-#include <variant>
+#include <fstream>
 #include <vector>
 #include <graphics/RenderPassSignature.hpp>
 
 namespace vanadium::graphics {
 
-#include <tools/vcp/include/PipelineStructs.hpp>
+#include <tools/vcp/include/VCPFormat.hpp>
 
 	constexpr uint32_t pipelineFileVersion = 5;
 
@@ -31,13 +31,14 @@ namespace vanadium::graphics {
 		PipelineLibraryStageSpecialization(PipelineLibraryStageSpecialization&& other) = default;
 		PipelineLibraryStageSpecialization& operator=(PipelineLibraryStageSpecialization&& other) = delete;
 		~PipelineLibraryStageSpecialization() {
-			delete[] specializationData;
+			if(specializationData)
+				delete[] specializationData;
 		}
 
 		VkShaderStageFlagBits stage;
 		VkSpecializationInfo specializationInfo;
 		std::vector<VkSpecializationMapEntry> mapEntries;
-		char* specializationData;
+		char* specializationData = nullptr;
 	};
 
 
@@ -124,15 +125,10 @@ namespace vanadium::graphics {
 
 	  private:
 		DeviceContext* m_deviceContext;
-		void* m_buffer;
-		size_t m_fileSize;
+		std::ifstream m_fileStream;
 
-		template <typename T> T readBuffer(uint64_t& currentOffset);
-
-		VkStencilOpState readStencilState(uint64_t& offset);
-
-		void createGraphicsPipeline(uint64_t& bufferOffset);
-		void createComputePipeline(uint64_t& bufferOffset);
+		void createGraphicsPipeline();
+		void createComputePipeline();
 
 		std::vector<PipelineLibraryArchetype> m_archetypes;
 		std::vector<PipelineLibraryGraphicsInstance> m_graphicsInstances;
@@ -141,13 +137,5 @@ namespace vanadium::graphics {
 		std::vector<DescriptorSetLayoutInfo> m_descriptorSetLayouts;
 		std::vector<VkSampler> m_immutableSamplers;
 	};
-
-	template <typename T> T PipelineLibrary::readBuffer(uint64_t& currentOffset) {
-		assertFatal(currentOffset + sizeof(T) <= m_fileSize, "PipelineLibrary: Invalid pipeline library file!");
-		T value;
-		std::memcpy(&value, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_buffer) + currentOffset), sizeof(T));
-		currentOffset += sizeof(T);
-		return value;
-	}
 
 } // namespace vanadium::graphics

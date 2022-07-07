@@ -1,12 +1,13 @@
 #pragma once
 
 #include <string_view>
-#include <variant>
+#include <fstream>
+#include <Log.hpp>
 #define VK_NO_PROTOTYPES
 #include <spirv_reflect.h>
 #include <vulkan/vulkan.h>
 
-#include <PipelineStructs.hpp>
+#include <VCPFormat.hpp>
 
 #include <ParsingUtils.hpp>
 #include <filesystem>
@@ -43,8 +44,7 @@ class PipelineArchetypeRecord {
 						 std::vector<std::vector<DescriptorBindingLayoutInfo>>& setLayoutInfos,
 						 const std::vector<ReflectedShader>& shaders);
 
-	size_t serializedSize() const;
-	void serialize(void* data);
+	void serialize(std::ofstream& outStream);
 
 	bool isValid() const { return m_isValid; }
 

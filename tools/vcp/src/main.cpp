@@ -3,6 +3,7 @@
 #include <limits>
 #include <string_view>
 #include <vector>
+#include <ctime>
 
 #include <filesystem>
 
@@ -70,8 +71,6 @@ Options parseArguments(int argc, char** argv) {
 struct PipelineRecord {
 	PipelineArchetypeRecord archetypeRecord;
 	std::vector<PipelineInstanceRecord> instanceRecords;
-	uint64_t totalRecordSize;
-	uint64_t instanceOffset;
 };
 
 using namespace std::filesystem;
@@ -84,7 +83,8 @@ int main(int argc, char** argv) {
 		return EXIT_FAILURE;
 	}
 
-	path tempDirPath = path("./temp");
+	std::srand(std::clock());
+	path tempDirPath = path("./vcptemp-" + std::to_string(std::rand()));
 	std::error_code error;
 	if (exists(tempDirPath)) {
 		remove_all(tempDirPath);
@@ -101,11 +101,6 @@ int main(int argc, char** argv) {
 		remove_all(tempDirPath);
 		return EXIT_FAILURE;
 	}
-
-	uint32_t version = 5;
-	outStream.write(reinterpret_cast<char*>(&version), sizeof(uint32_t));
-	uint32_t pipelineCount = static_cast<uint32_t>(options.fileNames.size());
-	outStream.write(reinterpret_cast<char*>(&pipelineCount), sizeof(uint32_t));
 
 	auto records = std::vector<PipelineRecord>();
 	std::vector<path> localRecordPaths;
@@ -156,6 +151,7 @@ int main(int argc, char** argv) {
 			remove_all(tempDirPath);
 			return EXIT_FAILURE;
 		}
+		vanadium::logInfo("new archetype");
 
 		std::string parentPathString = filePath.parent_path().string();
 		records.push_back(
@@ -182,73 +178,12 @@ int main(int argc, char** argv) {
 		++recordIndex;
 	}
 
-	uint32_t setCount = static_cast<uint32_t>(setLayoutInfos.size());
-	outStream.write(reinterpret_cast<char*>(&setCount), sizeof(uint32_t));
-	uint64_t currentFileOffset = 3 * sizeof(uint32_t) + setLayoutInfos.size() * sizeof(uint64_t);
-	for (auto& set : setLayoutInfos) {
-		outStream.write(reinterpret_cast<char*>(&currentFileOffset), sizeof(uint64_t));
-		uint64_t bindingSize = 0;
-		for (auto& binding : set) {
-			uint64_t samplerInfoSize = 8ULL * sizeof(uint32_t) + 4ULL * sizeof(float) + 3ULL * sizeof(bool);
-			bindingSize += 5 * sizeof(uint32_t) + sizeof(bool) + binding.immutableSamplerInfos.size() * samplerInfoSize;
-		}
-		currentFileOffset += sizeof(uint32_t) + bindingSize;
-	}
-
-	for (auto& set : setLayoutInfos) {
-		uint32_t bindingCount = static_cast<uint32_t>(set.size());
-		outStream.write(reinterpret_cast<char*>(&bindingCount), sizeof(uint32_t));
-
-		for (auto& binding : set) {
-			outStream.write(reinterpret_cast<char*>(&binding.binding.binding), sizeof(uint32_t));
-			outStream.write(reinterpret_cast<char*>(&binding.binding.descriptorType), sizeof(uint32_t));
-			outStream.write(reinterpret_cast<char*>(&binding.binding.descriptorCount), sizeof(uint32_t));
-			outStream.write(reinterpret_cast<char*>(&binding.binding.stageFlags), sizeof(uint32_t));
-			outStream.write(reinterpret_cast<char*>(&binding.usesImmutableSamplers), sizeof(bool));
-			uint32_t immutableSamplerCount = binding.immutableSamplerInfos.size();
-			outStream.write(reinterpret_cast<char*>(&immutableSamplerCount), sizeof(uint32_t));
-
-			for (auto& sampler : binding.immutableSamplerInfos) {
-				outStream.write(reinterpret_cast<char*>(&sampler.magFilter), sizeof(uint32_t));
-				outStream.write(reinterpret_cast<char*>(&sampler.minFilter), sizeof(uint32_t));
-				outStream.write(reinterpret_cast<char*>(&sampler.mipmapMode), sizeof(uint32_t));
-				outStream.write(reinterpret_cast<char*>(&sampler.addressModeU), sizeof(uint32_t));
-				outStream.write(reinterpret_cast<char*>(&sampler.addressModeV), sizeof(uint32_t));
-				outStream.write(reinterpret_cast<char*>(&sampler.addressModeW), sizeof(uint32_t));
-				outStream.write(reinterpret_cast<char*>(&sampler.mipLodBias), sizeof(float));
-				outStream.write(reinterpret_cast<char*>(&sampler.anisotropyEnable), sizeof(bool));
-				outStream.write(reinterpret_cast<char*>(&sampler.maxAnisotropy), sizeof(float));
-				outStream.write(reinterpret_cast<char*>(&sampler.compareEnable), sizeof(bool));
-				outStream.write(reinterpret_cast<char*>(&sampler.compareOp), sizeof(uint32_t));
-				outStream.write(reinterpret_cast<char*>(&sampler.minLod), sizeof(float));
-				outStream.write(reinterpret_cast<char*>(&sampler.maxLod), sizeof(float));
-				outStream.write(reinterpret_cast<char*>(&sampler.borderColor), sizeof(uint32_t));
-				outStream.write(reinterpret_cast<char*>(&sampler.unnormalizedCoordinates), sizeof(bool));
-			}
-		}
-	}
-
 	uint32_t fileNameIndex = 0;
-	currentFileOffset += sizeof(uint64_t) * options.fileNames.size();
 	for (auto& record : records) {
 		path filePath = absolute(options.fileNames[fileNameIndex]);
 		auto shaders =
 			record.archetypeRecord.retrieveCompileResults(filePath.string(), localRecordPaths[fileNameIndex].string());
 
-		outStream.write(reinterpret_cast<char*>(&currentFileOffset), sizeof(uint64_t));
-		record.totalRecordSize = 0;
-		// number of instances/offsets of instances
-		record.totalRecordSize += sizeof(uint32_t);
-		record.totalRecordSize += record.instanceRecords.size() * sizeof(uint32_t);
-
-		record.totalRecordSize += record.archetypeRecord.serializedSize();
-
-		record.instanceOffset = currentFileOffset + record.totalRecordSize;
-
-		for (auto& instance : record.instanceRecords) {
-			record.totalRecordSize += instance.serializedSize();
-		}
-		currentFileOffset += record.totalRecordSize;
 		record.archetypeRecord.verifyArchetype(filePath.string(), setLayoutInfos, shaders);
 
 		bool isValid = record.archetypeRecord.isValid();
@@ -272,32 +207,15 @@ int main(int argc, char** argv) {
 		++fileNameIndex;
 	}
 
+	// Construct VCP file
+
+	serialize(VCPFileHeader{}, outStream);
+	serializeVector(setLayoutInfos, outStream);
+
 	for (auto& record : records) {
-		void* dstData = new char[record.totalRecordSize];
-		void* nextData = dstData;
+		record.archetypeRecord.serialize(outStream);
+		serializeVector(record.instanceRecords, outStream);
 
-		record.archetypeRecord.serialize(nextData);
-		nextData = offsetVoidPtr(nextData, record.archetypeRecord.serializedSize());
-
-		uint32_t instanceCount = record.instanceRecords.size();
-		std::memcpy(nextData, &instanceCount, sizeof(uint32_t));
-		nextData = offsetVoidPtr(nextData, sizeof(uint32_t));
-		for (auto& instance : record.instanceRecords) {
-			std::memcpy(nextData, &record.instanceOffset, sizeof(uint32_t));
-			nextData = offsetVoidPtr(nextData, sizeof(uint32_t));
-			record.instanceOffset += instance.serializedSize();
-		}
-
-		for (auto& instance : record.instanceRecords) {
-			instance.serialize(nextData);
-			nextData = offsetVoidPtr(nextData, instance.serializedSize());
-		}
-
-		outStream.write(reinterpret_cast<char*>(dstData), record.totalRecordSize);
-
-		currentFileOffset += record.totalRecordSize;
-
-		delete[] reinterpret_cast<char*>(dstData);
 		record.archetypeRecord.freeShaders();
 	}
 
