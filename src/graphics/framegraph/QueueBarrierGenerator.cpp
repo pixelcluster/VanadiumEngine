@@ -214,7 +214,7 @@ namespace vanadium::graphics {
 	std::vector<SlotmapHandle> QueueBarrierGenerator::unusedBuffers() const {
 		std::vector<SlotmapHandle> result;
 		for (auto& [handle, info] : m_bufferAccessInfos) {
-			if(info.modifications.empty() && info.reads.empty()) {
+			if (info.modifications.empty() && info.reads.empty()) {
 				result.push_back(handle);
 			}
 		}
@@ -224,7 +224,7 @@ namespace vanadium::graphics {
 	std::vector<SlotmapHandle> QueueBarrierGenerator::unusedImages() const {
 		std::vector<SlotmapHandle> result;
 		for (auto& [handle, info] : m_imageAccessInfos) {
-			if(info.modifications.empty() && info.reads.empty()) {
+			if (info.modifications.empty() && info.reads.empty()) {
 				result.push_back(handle);
 			}
 		}
@@ -440,18 +440,35 @@ namespace vanadium::graphics {
 			return;
 		auto& match = matchOptional.value();
 
+		/*
+		 * If the found write doesn't cover the whole range of the read, additional barriers need to be emitted for the
+		 * missing regions.
+		 */
 		if (match.isPartial) {
+			/*
+			 * There is a missing region between the beginning of the read access and the beginning of the write access
+			 */
 			if (match.offset > read.offset) {
 				BufferSubresourceAccess partialRead = read;
 				partialRead.offset = read.offset;
 				partialRead.size = match.offset - read.offset;
 				emitBarriersForRead(nodeIndex, buffer, info, partialRead);
 			}
+
+			/*
+			 * There is a missing region between the end of the write access and the end of the read access (special
+			 * case for VK_WHOLE_SIZE)
+			 */
 			if (read.size == VK_WHOLE_SIZE && match.size != VK_WHOLE_SIZE) {
 				BufferSubresourceAccess partialRead = read;
 				partialRead.offset = match.offset + match.size;
 				emitBarriersForRead(nodeIndex, buffer, info, partialRead);
-			} else if (match.size != VK_WHOLE_SIZE && match.offset + match.size < read.offset + read.size) {
+			}
+			/*
+			 * There is a missing region between the end of the write access and the end of the read access (case
+			 * without VK_WHOLE_SIZE)
+			 */
+			else if (match.size != VK_WHOLE_SIZE && match.offset + match.size < read.offset + read.size) {
 				BufferSubresourceAccess partialRead = read;
 				partialRead.offset = match.offset + match.size;
 				partialRead.size = (read.offset + read.size) - (partialRead.offset);
@@ -479,28 +496,47 @@ namespace vanadium::graphics {
 			return;
 		}
 		auto& match = matchOptional.value();
-
+		/*
+		 * If the found write doesn't cover the whole range of the read, additional barriers need to be emitted for the
+		 * missing regions.
+		 */
 		if (match.isPartial) {
+			/*
+			 * The read covers additional aspects that are not written to by the found write.
+			 */
 			if (match.range.aspectMask != read.subresourceRange.aspectMask) {
 				ImageSubresourceAccess partialRead = read;
 				partialRead.subresourceRange.aspectMask = read.subresourceRange.aspectMask & ~match.range.aspectMask;
 				emitBarriersForRead(nodeIndex, image, info, partialRead);
 			}
 
+			/*
+			 * The read covers additional array layers before the layers written to by the found write.
+			 */
 			if (match.range.baseArrayLayer > read.subresourceRange.baseArrayLayer) {
 				ImageSubresourceAccess partialRead = read;
 				partialRead.subresourceRange.baseArrayLayer = read.subresourceRange.baseArrayLayer;
 				partialRead.subresourceRange.layerCount =
 					match.range.baseArrayLayer - read.subresourceRange.baseArrayLayer;
 				emitBarriersForRead(nodeIndex, image, info, partialRead);
-			} else if (read.subresourceRange.layerCount == VK_REMAINING_ARRAY_LAYERS &&
-					   match.range.layerCount != VK_REMAINING_ARRAY_LAYERS) {
+			}
+			/*
+			 * The read covers additional array layers after the layers written to by the found write (special case
+			 * for VK_REMAINING_ARRAY_LAYERS).
+			 */
+			else if (read.subresourceRange.layerCount == VK_REMAINING_ARRAY_LAYERS &&
+					 match.range.layerCount != VK_REMAINING_ARRAY_LAYERS) {
 				ImageSubresourceAccess partialRead = read;
 				partialRead.subresourceRange.baseArrayLayer = match.range.baseArrayLayer + match.range.layerCount;
 				emitBarriersForRead(nodeIndex, image, info, partialRead);
-			} else if (match.range.layerCount != VK_REMAINING_ARRAY_LAYERS &&
-					   match.range.baseArrayLayer + match.range.layerCount <
-						   read.subresourceRange.baseArrayLayer + read.subresourceRange.layerCount) {
+			}
+			/*
+			 * The read covers additional array layers after the layers written to by the found write (without
+			 * VK_REMAINING_ARRAY_LAYERS).
+			 */
+			else if (match.range.layerCount != VK_REMAINING_ARRAY_LAYERS &&
+					 match.range.baseArrayLayer + match.range.layerCount <
+						 read.subresourceRange.baseArrayLayer + read.subresourceRange.layerCount) {
 				ImageSubresourceAccess partialRead = read;
 				partialRead.subresourceRange.baseArrayLayer = match.range.baseArrayLayer + match.range.layerCount;
 				partialRead.subresourceRange.layerCount =
@@ -509,6 +545,9 @@ namespace vanadium::graphics {
 				emitBarriersForRead(nodeIndex, image, info, partialRead);
 			}
 
+			/*
+			 * Similar to array layer logic.
+			 */
 			if (match.range.baseMipLevel > read.subresourceRange.baseMipLevel) {
 				ImageSubresourceAccess partialRead = read;
 				partialRead.subresourceRange.baseMipLevel = read.subresourceRange.baseMipLevel;
@@ -538,11 +577,17 @@ namespace vanadium::graphics {
 		const std::vector<BufferSubresourceAccess>& modifications, const BufferSubresourceAccess& read) {
 		if (modifications.empty())
 			return std::nullopt;
+		/*
+		 * Find first modification after read
+		 */
 		auto nextModificationIterator = std::lower_bound(modifications.begin(), modifications.end(), read);
 
 		if (nextModificationIterator == modifications.begin() || nextModificationIterator == modifications.end()) {
 			return std::nullopt;
 		}
+		/*
+		 * Go to previous modification, now nextModificationIterator is the last modification before the read
+		 */
 		--nextModificationIterator;
 
 		while (true) {
@@ -589,12 +634,17 @@ namespace vanadium::graphics {
 		const std::vector<ImageSubresourceAccess>& modifications, const ImageSubresourceAccess& read) {
 		if (modifications.empty())
 			return std::nullopt;
+
+		/*
+		 * See the buffer version of findLastModification
+		 */
 		auto nextModificationIterator = std::lower_bound(modifications.begin(), modifications.end(), read);
 
 		if (nextModificationIterator == modifications.begin() || nextModificationIterator == modifications.end()) {
 			return std::nullopt;
 		}
 		--nextModificationIterator;
+
 		while (true) {
 			auto& srcRange = nextModificationIterator->subresourceRange;
 			auto& dstRange = read.subresourceRange;

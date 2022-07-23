@@ -1,10 +1,11 @@
 */out/*
 out/*
-build/*
-*/build/*
+*build*/*
+*/*build*/*
 .vs/*
 .vscode/*
 .kdev4/*
+.idea/*
 *.kdev4
 include/Debug.hpp
 include/VCPPath.hpp
