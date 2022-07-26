@@ -1,3 +1,19 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -25,10 +41,12 @@ struct Options {
 
 bool checkOption(int argc, char** argv, size_t index, const std::string_view& argName) {
 	if (static_cast<size_t>(argc) <= index + 1) {
-		std::cout << "Warning: Not enough arguments given to " << argName << ".\n";
+		std::cout << "Warning: Not enough arguments given to " << argName << ".
+";
 		return false;
 	} else if (*argv[index + 1] == '-') {
-		std::cout << "Warning: " << argv[index + 1] << "Invalid argument for " << argName << ".\n";
+		std::cout << "Warning: " << argv[index + 1] << "Invalid argument for " << argName << ".
+";
 		return false;
 	}
 	return true;
@@ -51,7 +69,8 @@ size_t parseOption(int argc, char** argv, size_t index, Options& options) {
 			return index + 1;
 		}
 	} else {
-		std::cout << "Warning: Skipping unknown command line option " << argv[index] << ".\n ";
+		std::cout << "Warning: Skipping unknown command line option " << argv[index] << ".
+ ";
 	}
 	return index;
 }

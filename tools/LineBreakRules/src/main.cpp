@@ -1,3 +1,19 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include <cmath>
 #include <fstream>
 #include <util/UTF8.hpp>
@@ -145,15 +161,17 @@ unsigned int indentationLevel = 0;
 
 void writeLine(std::ofstream& outStream, const std::string& text) {
 	for (unsigned int i = 0; i < indentationLevel; ++i) {
-		outStream << "\t";
+		outStream << "	";
 	}
-	outStream << text << "\n";
+	outStream << text << "
+";
 }
 
 int main() {
 	std::ifstream inFile = std::ifstream("./UnicodeCharacterAssoc.txt");
 	if (!inFile.is_open()) {
-		std::cerr << "Could not open character association file!\n";
+		std::cerr << "Could not open character association file!
+";
 		return 1;
 	}
 
@@ -289,8 +307,10 @@ int main() {
 
 	std::ofstream outStream = std::ofstream("./generated_include/CharacterGroup.hpp", std::ios::trunc);
 
-	writeLine(outStream, "#pragma once\n");
-	writeLine(outStream, "#include <util/UTF8.hpp>\n");
+	writeLine(outStream, "#pragma once
+");
+	writeLine(outStream, "#include <util/UTF8.hpp>
+");
 	writeLine(outStream, "inline BreakClass codepointBreakClass(uint32_t value) {");
 	++indentationLevel;
 	for (auto& range : breakClassRanges) {
@@ -322,7 +342,8 @@ int main() {
 	writeLine(outStream, "}");
 	writeLine(outStream, "return BreakClass::AL;");
 	--indentationLevel;
-	writeLine(outStream, "}\n");
+	writeLine(outStream, "}
+");
 
 	writeLine(outStream, "inline EastAsianWidth codepointEastAsianWidth(uint32_t value) {");
 	++indentationLevel;
@@ -342,7 +363,8 @@ int main() {
 	}
 	writeLine(outStream, "return EastAsianWidth::Other;");
 	--indentationLevel;
-	writeLine(outStream, "}\n");
+	writeLine(outStream, "}
+");
 
 	writeLine(outStream, "inline bool isCodepointExtendedPictographic(uint32_t value) {");
 	++indentationLevel;

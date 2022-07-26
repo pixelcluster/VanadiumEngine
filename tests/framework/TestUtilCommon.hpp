@@ -1,3 +1,19 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #pragma once
 
 #include <cmath>
@@ -18,7 +34,8 @@ void testFloatEqualWithError(F expected, F actual, const std::string_view& messa
 #ifdef TEST_TRACE_PASSED
 	else {
 		std::cout << "Floating-point equality check with message \"" << message << "\" passed, error was "
-				  << actualErrorPercent << "%.\n";
+				  << actualErrorPercent << "%.
+";
 	}
 #endif
 }
@@ -48,7 +65,8 @@ requires(CanTestWithComparator<T, std::less<T>>&& CanCout<T>) void testLess(cons
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Less check with message \"" << message << "\" passed.\n";
+		std::cout << "Less check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -63,7 +81,8 @@ requires(CanTestWithComparator<T, std::less<T>> && !CanCout<T> &&
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Less check with message \"" << message << "\" passed.\n";
+		std::cout << "Less check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -78,7 +97,8 @@ requires(CanTestWithComparator<T, std::less_equal<T>>&& CanCout<T>) void testLes
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Less or equal check with message \"" << message << "\" passed.\n";
+		std::cout << "Less or equal check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -93,7 +113,8 @@ requires(CanTestWithComparator<T, std::less_equal<T>> && !CanCout<T> &&
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Less or equal check with message \"" << message << "\" passed.\n";
+		std::cout << "Less or equal check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -108,7 +129,8 @@ requires(CanTestWithComparator<T, std::equal_to<T>>&& CanCout<T>) void testEqual
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Equal check with message \"" << message << "\" passed.\n";
+		std::cout << "Equal check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -122,7 +144,8 @@ requires(CanTestWithComparator<T, std::equal_to<T>> && !CanCout<T> &&
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Equal check with message \"" << message << "\" passed.\n";
+		std::cout << "Equal check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -137,7 +160,8 @@ requires(CanTestWithComparator<T, std::equal_to<T>>&& CanCout<T>) void testNotEq
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Not equal check with message \"" << message << "\" passed.\n";
+		std::cout << "Not equal check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -151,7 +175,8 @@ requires(CanTestWithComparator<T, std::equal_to<T>> && !CanCout<T> &&
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Not equal check with message \"" << message << "\" passed.\n";
+		std::cout << "Not equal check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -166,7 +191,8 @@ requires(CanTestWithComparator<T, std::greater_equal<T>>&& CanCout<T>) void test
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Greater or equal check with message \"" << message << "\" passed.\n";
+		std::cout << "Greater or equal check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -181,7 +207,8 @@ requires(CanTestWithComparator<T, std::greater_equal<T>> && !CanCout<T> &&
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Greater or equal check with message \"" << message << "\" passed.\n";
+		std::cout << "Greater or equal check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -196,7 +223,8 @@ requires(CanTestWithComparator<T, std::greater<T>>&& CanCout<T>) void testGreate
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Greater check with message \"" << message << "\" passed.\n";
+		std::cout << "Greater check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }
@@ -210,7 +238,8 @@ requires(CanTestWithComparator<T, std::greater<T>> && !CanCout<T>) void testGrea
 	}
 #ifdef TEST_TRACE_PASSED
 	else {
-		std::cout << "Greater check with message \"" << message << "\" passed.\n";
+		std::cout << "Greater check with message \"" << message << "\" passed.
+";
 	}
 #endif
 }

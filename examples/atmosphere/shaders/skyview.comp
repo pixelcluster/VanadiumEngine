@@ -1,23 +1,143 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
 
 layout(local_size_x = 8, local_size_y = 8) in;
 
-layout(set = 0, binding = 0, rgba32f) uniform readonly image2D skyViewLUT;
+layout(set = 0, binding = 0, rgba32f) uniform image2D skyViewLUT;
 layout(set = 1, binding = 0) uniform sampler2D transmittanceLUT;
 
-layout(push_constant) uniform Constants {
-	ivec4 lutSize;
-	vec4 rayleighScattering;
-	float mieScattering;
-	float rayleighScaleHeight;
-	float mieScaleHeight;
-	float maxHeight;
-	float groundRadius;
+// A spherical light source, projected onto the unit sphere around the camera
+struct Sphere {
+	vec2 center;
+	float radiusSquared;
 };
 
-#include "functions/skyview-compute.glsl"
+layout(set = 1, binding = 1, std140) uniform Constants {
+	ivec4 lutSize;
+	vec4 betaExtinctionZeroMie;
+	vec4 betaExtinctionZeroRayleigh;
+	vec4 absorptionZeroOzone;
+	float heightScaleRayleigh;
+	float heightScaleMie;
+	float layerHeightOzone;
+	float layer0ConstantFactorOzone;
+	float layer1ConstantFactorOzone;
+	float heightRangeOzone;
+	float maxHeight;
+	float groundRadius;
+	float currentHeight;
+	vec4 rayleighScattering;
+	float mieScattering;
+	Sphere sunSphere;
+	vec3 sunLuminance;
+};
+
+#include "functions/common.glsl"
+
+vec3 luminanceAtAtmosphere(float theta, float phi) {
+	vec2 directionToCenter = vec2(theta, phi) - sunSphere.center;
+	return dot(directionToCenter, directionToCenter) < sunSphere.radiusSquared ? sunLuminance : vec3(0.0f);
+}
+
+float shadowFactor(float height, float sinTheta, float cosTheta) {
+	return nearestDistanceToSphere(height, vec2(sinTheta, cosTheta), groundRadius) > 0 ? 0.0f : 1.0f;
+}
+
+// Theta refers to the angle between view direction (elsewhere view angle = theta) and light direction
+float rayleighPhase(float cosTheta) {
+								       // 3 / 16pi
+	return (1 + cosTheta * cosTheta) * 0.0596831037;
+}
+
+const float miePhaseG = 0.8;
+const float miePhaseGSquared = miePhaseG * miePhaseG;
+
+// Theta refers to the angle between view direction (elsewhere view angle = theta) and light direction
+float miePhase(float cosTheta) {
+	float cosThetaSquared = cosTheta * cosTheta;
+		   // 3 / 8pi
+	return 0.119366207 * (1 - miePhaseGSquared) * (1 + cosThetaSquared) / 
+		   ((2 + miePhaseGSquared) * pow(1 + miePhaseGSquared - 2 * miePhaseG * cosTheta, 1.5));
+}
+
+vec3 inscatteredLuminance(float height, float cosTheta, float sinTheta, float sinPhi, float cosPhi, float dstT) {
+	float sunCosTheta = cos(sunSphere.center.y);
+	float sunSinTheta = sqrt(1.0f - sunCosTheta * sunCosTheta);
+	float sunCosPhi = cos(sunSphere.center.x);
+	float sunSinPhi = sqrt(1.0f - sunCosPhi * sunCosPhi);
+
+	vec3 viewDir = vec3(sinTheta * cosPhi, cosTheta, -sinTheta * sinPhi);
+	vec3 sunDir = vec3(sunSinTheta * sunCosPhi, sunCosTheta, -sunSinTheta * sunSinPhi);
+
+	float phaseCosTheta = dot(viewDir, sunDir);
+
+
+	vec3 transmittance = calcTransmittance(vec2(0.0f, height), vec2(sinTheta, cosTheta), dstT / nSamples);
+	return (rayleighScattering.xyz * rayleighPhase(phaseCosTheta) * betaExtinctionRayleigh(height) +
+			mieScattering * miePhase(phaseCosTheta) * betaExtinctionMie(height)) *
+			transmittance * shadowFactor(height, sinTheta, cosTheta) * sunLuminance;
+}
+
+const int numInscatteringSamples = 40;
+
+vec3 luminance(float height, float sinTheta, float cosTheta, float atmosphereT, float theta, float phi, float sinPhi,
+			   float cosPhi) {
+	float deltaT = atmosphereT / numInscatteringSamples;
+
+	vec2 pos = vec2(0.0f, height);
+	vec2 direction = vec2(sinTheta, cosTheta);
+	vec3 integratedLuminance = vec3(0.0f);
+	for (uint i = 1; i < numInscatteringSamples - 1; ++i, pos += direction * deltaT) {
+		integratedLuminance += inscatteredLuminance(pos.y, cosTheta, sinTheta, sinPhi, cosPhi, deltaT);
+	}
+	integratedLuminance *= deltaT;
+	return //texture(transmittanceLUT, heightCosThetaToUv(height, cosTheta)).rgb * luminanceAtAtmosphere(theta, phi) +
+	       integratedLuminance;
+}
+
+vec3 computeLuminance(float height, float theta, float cosTheta, float phi, float cosPhi) {
+	float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
+	vec2 direction = vec2(sqrt(1 - cosTheta * cosTheta), cosTheta);
+
+	float atmosphereT = nearestDistanceToSphere(height, direction, groundRadius + maxHeight);
+	float groundT = nearestDistanceToSphere(height, direction, groundRadius);
+
+	float endPosT = atmosphereT;
+	bool intersectsWithGround = false;
+	if(groundT > 0.0f) {
+		intersectsWithGround = true;
+		endPosT = groundT;
+	}
+
+	return luminance(height, sinTheta, cosTheta, endPosT, theta, phi, sqrt(1.0f - cosPhi * cosPhi), cosPhi);
+}
+
+const float tau = 6.28318531;
 
 void main() {
-	
+	ivec2 imageCoordinate = ivec2(gl_LocalInvocationID.xy) + ivec2(gl_WorkGroupID.xy) * ivec2(gl_WorkGroupSize.xy);
+	vec2 normalizedCoordinates = imageCoordinate / vec2(lutSize.xy);
+
+	float theta = compressedLatitudeFromTexcoord(normalizedCoordinates.y) + halfPi;
+	float phi = normalizedCoordinates.x * pi;
+
+	if (imageCoordinate.x < lutSize.x && imageCoordinate.y < lutSize.y) {
+		imageStore(skyViewLUT, imageCoordinate, vec4(computeLuminance(groundRadius + currentHeight, theta, cos(theta), phi, cos(phi)), 1.0f));
+	}
 }

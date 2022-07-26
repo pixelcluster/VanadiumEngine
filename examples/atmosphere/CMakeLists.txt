@@ -24,11 +24,8 @@ add_executable(ExampleAtmosphere ${CPP_SOURCES} ${HEADERS})
 target_include_directories(ExampleAtmosphere PUBLIC "include" "${CMAKE_SOURCE_DIR}/examples/dependencies/stb")
 target_link_libraries(ExampleAtmosphere VanadiumEngine glm)
 
-add_custom_target(atmosphere_shaders DEPENDS ${SHADER_DEPENDS})
-
-add_dependencies(ExampleAtmosphere atmosphere_shaders)
-
 vanadium_init_vcp_project()
 vanadium_add_vcp_shader("shaders/transmittance.json")
+vanadium_add_vcp_shader("shaders/skyview.json")
 vanadium_add_vcp_shader("shaders/planet.json")
 vanadium_compile_vcp_shaders(ExampleAtmosphere)

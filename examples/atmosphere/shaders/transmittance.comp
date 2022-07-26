@@ -1,3 +1,19 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #version 450 core
 
 #extension GL_GOOGLE_include_directive : require
@@ -5,10 +21,6 @@
 layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(set = 0, binding = 0, rgba32f) uniform writeonly image2D transmittanceLUT;
-
-const float pi = 3.14159265359;
-const float pi3 = pi * pi * pi;
-const uint nSamples = 40;
 
 layout(push_constant) uniform Constants {
 	ivec4 lutSize;
@@ -25,7 +37,8 @@ layout(push_constant) uniform Constants {
 	float groundRadius;
 };
 
-#include "functions/transmittance-compute.glsl"
+#include "functions/common.glsl"
+const float pi3 = pi * pi * pi;
 
 void main() {
 	ivec2 imageCoordinate = ivec2(gl_LocalInvocationID.xy) + ivec2(gl_WorkGroupID.xy) * ivec2(gl_WorkGroupSize.xy);
@@ -38,10 +51,10 @@ void main() {
 	float tGround = nearestDistanceToSphere(startHeight, direction, groundRadius);
 	float endPosT = nearestDistanceToSphere(startHeight, direction, groundRadius + maxHeight);
 	
-	if(tGround > 0.0f)
+	if (tGround > 0.0f)
 		endPosT = min(endPosT, tGround);
 
-	if(imageCoordinate.x < lutSize.x && imageCoordinate.y < lutSize.y) {
+	if (imageCoordinate.x < lutSize.x && imageCoordinate.y < lutSize.y) {
 		imageStore(transmittanceLUT, imageCoordinate, vec4(calcTransmittance(vec2(0.0f, startHeight), direction, endPosT / nSamples), 1.0f));
 	}
 }

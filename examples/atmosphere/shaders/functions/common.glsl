@@ -1,14 +1,52 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 //? #version 450 core
+// For the code from UnrealEngineSkyAtmosphere:
+// Copyright (c) 2020 Epic Games, Inc.
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+//! void main() {}
+//! float groundRadius;
+//! float maxHeight;
+
+
 // https://github.com/sebh/UnrealEngineSkyAtmosphere/blob/master/Resources/SkyAtmosphereCommon.hlsl#L142 ported to GLSL with minor modifications
 // - h0 - origin height
 // - rd: normalized ray direction
 // - sR: sphere radius
 // - Returns distance from r0 to first intersecion with sphere,
 //   or -1.0 if no intersection.
-//! void main() {}
-//! float groundRadius;
-//! float maxHeight;
-
 float nearestDistanceToSphere(float h0, vec2 rd, float sR)
 {
 	float a = dot(rd, rd);
@@ -73,3 +111,89 @@ vec2 heightCosThetaToUv(float height, float cosTheta)
 }
 
 #endif
+//! float groundRadius;
+//! float heightScaleRayleigh;
+//! vec3 betaExtinctionZeroRayleigh;
+//! float heightScaleMie;
+//! vec3 betaExtinctionZeroMie;
+//! float layerHeightOzone;
+//! float heightRangeOzone;
+//! float layer0ConstantFactorOzone;
+//! float layer1ConstantFactorOzone;
+//! vec3 absorptionZeroOzone;
+//! uint nSamples;
+
+float betaExtinctionRayleigh(float height) {
+	return exp(-(height - groundRadius) / heightScaleRayleigh);
+}
+
+float betaExtinctionMie(float height) {
+	return exp(-(height - groundRadius) / heightScaleMie);
+}
+
+float betaExtinctionOzone(float height) {
+	float densityFactor = (height - groundRadius) > layerHeightOzone ? -(height - groundRadius) / heightRangeOzone : (height - groundRadius) / heightRangeOzone;
+	densityFactor += (height - groundRadius) > layerHeightOzone ? layer1ConstantFactorOzone : layer0ConstantFactorOzone;
+	return clamp(densityFactor, 0.0f, 1.0f);
+}
+
+#ifndef GLSL_C_TEST
+const uint nSamples = 40;
+#endif
+
+vec3 calcTransmittance(vec2 pos, vec2 direction, float deltaT) {
+	vec3 result = vec3(0.0f);
+
+	vec3 rayleighExtinctionZero = vec3(betaExtinctionZeroRayleigh.r, betaExtinctionZeroRayleigh.g, betaExtinctionZeroRayleigh.b);
+	vec3 ozoneExtinctionZero = vec3(absorptionZeroOzone.r, absorptionZeroOzone.g, absorptionZeroOzone.b);
+	
+	float mieExtinction = betaExtinctionMie(length(pos)) * betaExtinctionZeroMie.r;
+	vec3 rayleighExtinction = betaExtinctionRayleigh(length(pos)) * rayleighExtinctionZero;
+	vec3 ozoneExtinction = betaExtinctionOzone(length(pos)) * ozoneExtinctionZero;
+	result += (rayleighExtinction + mieExtinction + ozoneExtinction) * 0.5f;
+
+	pos += direction * deltaT;
+
+	mieExtinction = 0.0f;
+	rayleighExtinction = vec3(0.0f);
+	ozoneExtinction = vec3(0.0f);
+	for (uint i = 1; i < nSamples; ++i, pos += direction * deltaT) {
+		mieExtinction += betaExtinctionMie(length(pos));
+		rayleighExtinction += betaExtinctionRayleigh(length(pos));
+		ozoneExtinction += betaExtinctionOzone(length(pos));
+	}
+	result += rayleighExtinction * rayleighExtinctionZero + mieExtinction * betaExtinctionZeroMie.r +
+			  ozoneExtinction * ozoneExtinctionZero;
+
+	mieExtinction = betaExtinctionMie(length(pos)) * betaExtinctionZeroMie.r;
+	rayleighExtinction = betaExtinctionRayleigh(length(pos)) * rayleighExtinctionZero;
+	ozoneExtinction = betaExtinctionOzone(length(pos)) * ozoneExtinctionZero;
+	result += (rayleighExtinction + mieExtinction + ozoneExtinction) * 0.5f;
+
+	result *= deltaT;
+	result = exp(-result);
+
+	return result;
+}
+
+#ifndef GLSL_C_TEST
+const float pi = 3.14159265359;
+#endif
+const float halfPi = 1.57079633;
+const float sqrt2 = 1.41421356;
+const float halfSqrt2 = 0.707106781;
+
+float compressedLatitudeFromTexcoord(float v) {
+	if (v < 0.5) {
+		float sqrtResult = sqrt2 * v - halfSqrt2;
+		return -sqrtResult * sqrtResult * pi;
+	}
+	else if (v == 0.5) return 0.0f;
+	else {
+		return halfPi * (4 * v * v - 4 * v + 1);
+	}
+}
+
+float texcoordFromCompressedLatitude(float l) {
+	return 0.5 + 0.5 * sign(l) * sqrt(abs(l) / halfPi);
+}

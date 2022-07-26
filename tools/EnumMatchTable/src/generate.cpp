@@ -1,3 +1,19 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include "generate.hpp"
 #include "parsing_utils.hpp"
 #include <iostream>
@@ -10,7 +26,8 @@ unsigned int indentationLevel = 0;
 void generateFromDocument(const XMLDocument& document, std::ostream& outStream) {
 	const XMLElement* registry = document.FirstChildElement("registry");
 	if (!registry) {
-		std::cout << "Error: Unable to find registry root node, is vk.xml valid?\n";
+		std::cout << "Error: Unable to find registry root node, is vk.xml valid?
+";
 		return;
 	}
 
@@ -25,7 +42,8 @@ EnumMap parseBasicEnums(const XMLElement* registry) {
 
 	const XMLElement* enumsNode = registry->FirstChildElement("enums");
 	if (!enumsNode) {
-		std::cout << "Error: Unable to find enums nodes, is vk.xml valid?\n";
+		std::cout << "Error: Unable to find enums nodes, is vk.xml valid?
+";
 		return enumMap;
 	}
 	if (enumsNode->Attribute("name") && !strcmp(enumsNode->Attribute("name"), "API Constants")) {
@@ -56,7 +74,8 @@ EnumMap parseBasicEnums(const XMLElement* registry) {
 void includeFeatureEnums(const XMLElement* registry, EnumMap& enumMap) {
 	const XMLElement* featureNode = registry->FirstChildElement("feature");
 	if (!featureNode) {
-		std::cout << "Error: Unable to find feature nodes, is vk.xml valid?\n";
+		std::cout << "Error: Unable to find feature nodes, is vk.xml valid?
+";
 		return;
 	}
 	while (featureNode) {

@@ -1,3 +1,19 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include <Debug.hpp>
 #include <cstdio>
 #include <graphics/framegraph/FramegraphContext.hpp>
@@ -123,13 +139,15 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
 		if (nodeIterator == m_nodes.end()) {
-			printf("invalid node as creator!\n");
+			printf("invalid node as creator!
+");
 			return ~0U;
 		}
 
 		auto usageIterator = m_buffers.find(handle);
 		if (usageIterator == m_buffers.end()) {
-			printf("invalid resource for dependency!\n");
+			printf("invalid resource for dependency!
+");
 			return ~0U;
 		}
 
@@ -149,7 +167,8 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
 		if (nodeIterator == m_nodes.end()) {
-			printf("invalid node as creator!\n");
+			printf("invalid node as creator!
+");
 			return ~0U;
 		}
 
@@ -174,13 +193,15 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
 		if (nodeIterator == m_nodes.end()) {
-			printf("invalid node as creator!\n");
+			printf("invalid node as creator!
+");
 			return ~0U;
 		}
 
 		auto usageIterator = m_buffers.find(bufferHandle);
 		if (usageIterator == m_buffers.end()) {
-			printf("invalid resource for dependency!\n");
+			printf("invalid resource for dependency!
+");
 			return ~0U;
 		}
 
@@ -199,7 +220,8 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [creator](const auto& info) { return info.node == creator; });
 		if (nodeIterator == m_nodes.end()) {
-			printf("invalid node as creator!\n");
+			printf("invalid node as creator!
+");
 			return ~0U;
 		}
 		m_images[imageHandle].usage |= usage.usageFlags;
@@ -219,13 +241,15 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [user](const auto& info) { return info.node == user; });
 		if (nodeIterator == m_nodes.end()) {
-			printf("invalid node for dependency!\n");
+			printf("invalid node for dependency!
+");
 			return;
 		}
 
 		auto usageIterator = m_buffers.find(handle);
 		if (usageIterator == m_buffers.end()) {
-			printf("invalid resource for dependency!\n");
+			printf("invalid resource for dependency!
+");
 			return;
 		}
 
@@ -246,13 +270,15 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [user](const auto& info) { return info.node == user; });
 		if (nodeIterator == m_nodes.end()) {
-			printf("invalid node for dependency!\n");
+			printf("invalid node for dependency!
+");
 			return;
 		}
 
 		auto usageIterator = m_images.find(handle);
 		if (usageIterator == m_images.end()) {
-			printf("invalid resource for dependency!\n");
+			printf("invalid resource for dependency!
+");
 			return;
 		}
 
@@ -267,7 +293,8 @@ namespace vanadium::graphics {
 			NodeImageAccess{ .subresourceAccesses = usage.subresourceAccesses, .image = handle });
 		if (!usage.viewInfos.empty()) {
 			if (nodeIterator == m_nodes.end()) {
-				printf("invalid node as creator!\n");
+				printf("invalid node as creator!
+");
 				return;
 			}
 			nodeIterator->resourceViewInfos.insert(
@@ -280,7 +307,8 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [user](const auto& info) { return info.node == user; });
 		if (nodeIterator == m_nodes.end()) {
-			printf("invalid node for dependency!\n");
+			printf("invalid node for dependency!
+");
 			return;
 		}
 
@@ -292,7 +320,8 @@ namespace vanadium::graphics {
 			nodeIterator - m_nodes.begin(), NodeImageAccess{ .subresourceAccesses = usage.subresourceAccesses });
 		for (auto& info : usage.viewInfos) {
 			if (nodeIterator == m_nodes.end()) {
-				printf("invalid node as creator!\n");
+				printf("invalid node as creator!
+");
 				return;
 			}
 			nodeIterator->swapchainResourceViewInfos.push_back(info);
@@ -367,7 +396,8 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [node](const auto& info) { return info.node == node; });
 		if (nodeIterator == m_nodes.end()) {
-			printf("invalid node for dependency!\n");
+			printf("invalid node for dependency!
+");
 			return VK_NULL_HANDLE;
 		}
 		return m_context.resourceAllocator->requestImageView(m_images[handle].resourceHandle,
@@ -378,12 +408,14 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [node](const auto& info) { return info.node == node; });
 		if (nodeIterator == m_nodes.end()) {
-			printf("getting image view of unknown node!\n");
+			printf("getting image view of unknown node!
+");
 			return VK_NULL_HANDLE;
 		}
 
 		if (nodeIterator->swapchainResourceViewInfos.empty()) {
-			printf("getting swapchain image view of node that doesn't use swapchain images!\n");
+			printf("getting swapchain image view of node that doesn't use swapchain images!
+");
 			return VK_NULL_HANDLE;
 		} else
 			return m_context.targetSurface->currentTargetView(nodeIterator->swapchainResourceViewInfos[index]);

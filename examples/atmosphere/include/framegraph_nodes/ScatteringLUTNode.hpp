@@ -1,7 +1,23 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #pragma once
 
-#include <graphics/framegraph/FramegraphNode.hpp>
 #include <glm/glm.hpp>
+#include <graphics/framegraph/FramegraphNode.hpp>
 
 struct TransmittanceComputeData {
 	glm::ivec4 lutSize;
@@ -18,39 +34,67 @@ struct TransmittanceComputeData {
 	float groundRadius;
 };
 
+struct Sphere {
+	glm::vec2 center;
+	float radiusSquared;
+	float _pad;
+};
+
+struct SkyViewComputeData {
+	TransmittanceComputeData commonData;
+	float currentHeight;
+	glm::vec3 _pad = {};
+	glm::vec4 rayleighScattering;
+	float mieScattering;
+	glm::vec3 _pad2 = {};
+	Sphere sunSphere;
+	glm::vec4 sunLuminance;
+};
+
 class ScatteringLUTNode : public vanadium::graphics::FramegraphNode {
   public:
 	ScatteringLUTNode() { m_name = "Scattering LUT \"pre\"computation"; }
 
-	virtual void create(vanadium::graphics::FramegraphContext* context);
+	void create(vanadium::graphics::FramegraphContext* context) override;
 
-	virtual void afterResourceInit(vanadium::graphics::FramegraphContext* context);
+	void afterResourceInit(vanadium::graphics::FramegraphContext* context) override;
 
-	virtual void recordCommands(vanadium::graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
-								const vanadium::graphics::FramegraphNodeContext& nodeContext);
+	void recordCommands(vanadium::graphics::FramegraphContext* context, VkCommandBuffer targetCommandBuffer,
+								const vanadium::graphics::FramegraphNodeContext& nodeContext) override;
 
-	virtual void recreateSwapchainResources(vanadium::graphics::FramegraphContext* context, uint32_t width, uint32_t height) {}
+	void recreateSwapchainResources(vanadium::graphics::FramegraphContext* context, uint32_t width,
+									uint32_t height) override {}
 
-	virtual void destroy(vanadium::graphics::FramegraphContext* context);
+	void destroy(vanadium::graphics::FramegraphContext* context) override;
 
-	vanadium::graphics::FramegraphImageHandle transmittanceLUTHandle() { return m_transmittanceLUTHandle; }
-	vanadium::graphics::FramegraphImageHandle skyViewLUTHandle() { return m_skyViewLUTHandle; }
-	vanadium::graphics::FramegraphImageHandle aerialPerspectiveLUTHandle() { return m_aerialPerspectiveLUTHandle; }
-	vanadium::graphics::FramegraphImageHandle multiscatterLUTHandle() { return m_multiscatterLUTHandle; }
+	[[nodiscard]] vanadium::graphics::FramegraphImageHandle transmittanceLUTHandle() const {
+		return m_transmittanceLUTHandle;
+	}
+	[[nodiscard]] vanadium::graphics::FramegraphImageHandle skyViewLUTHandle() const { return m_skyViewLUTHandle; }
+	[[nodiscard]] vanadium::graphics::FramegraphImageHandle aerialPerspectiveLUTHandle() const {
+		return m_aerialPerspectiveLUTHandle;
+	}
+	[[nodiscard]] vanadium::graphics::FramegraphImageHandle multiscatterLUTHandle() const {
+		return m_multiscatterLUTHandle;
+	}
 
   private:
-	vanadium::graphics::FramegraphImageHandle m_transmittanceLUTHandle;
-	vanadium::graphics::FramegraphImageHandle m_skyViewLUTHandle;
-	vanadium::graphics::FramegraphImageHandle m_aerialPerspectiveLUTHandle;
-	vanadium::graphics::FramegraphImageHandle m_multiscatterLUTHandle;
+	vanadium::graphics::FramegraphImageHandle m_transmittanceLUTHandle = {};
+	vanadium::graphics::FramegraphImageHandle m_skyViewLUTHandle = {};
+	vanadium::graphics::FramegraphImageHandle m_aerialPerspectiveLUTHandle = {};
+	vanadium::graphics::FramegraphImageHandle m_multiscatterLUTHandle = {};
 
-	uint32_t m_transmittanceComputationID;
+	vanadium::graphics::BufferResourceHandle m_skyViewInputBufferHandle;
 
-	VkDescriptorSet m_transmittanceComputationOutputSet;
-	VkDescriptorSet m_skyViewComputationOutputSet;
-	VkDescriptorSet m_aerialPerspectiveComputationOutputSet;
-	VkDescriptorSet m_multiscatterComputationOutputSet;
+	uint32_t m_transmittanceComputationID = ~0U;
+	uint32_t m_skyViewComputationID = ~0U;
 
-	VkDescriptorSetLayout m_lutSetLayout;
-	VkDescriptorSet m_lutSet;
+	VkDescriptorSet m_transmittanceComputationOutputSet = {};
+	VkDescriptorSet m_skyViewComputationInputSets[vanadium::graphics::frameInFlightCount] = {};
+	VkDescriptorSet m_skyViewComputationOutputSet = {};
+	VkDescriptorSet m_aerialPerspectiveComputationOutputSet = {};
+	VkDescriptorSet m_multiscatterComputationOutputSet = {};
+
+	VkDescriptorSetLayout m_lutSetLayout = {};
+	VkDescriptorSet m_lutSet = {};
 };

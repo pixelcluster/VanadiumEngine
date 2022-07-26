@@ -1,3 +1,19 @@
+/* VanadiumEngine, a Vulkan rendering toolkit
+ * Copyright (C) 2022 Friedrich Vock
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include <ParsingUtils.hpp>
 #include <fstream>
 #include <util/WholeFileReader.hpp>
@@ -16,10 +32,12 @@ struct Font {
 
 bool checkOption(int argc, char** argv, size_t index, const std::string_view& argName) {
 	if (static_cast<size_t>(argc) <= index + 1) {
-		std::cout << "Warning: Not enough arguments given to " << argName << ".\n";
+		std::cout << "Warning: Not enough arguments given to " << argName << ".
+";
 		return false;
 	} else if (*argv[index + 1] == '-') {
-		std::cout << "Warning: " << argv[index + 1] << "Invalid argument for " << argName << ".\n";
+		std::cout << "Warning: " << argv[index + 1] << "Invalid argument for " << argName << ".
+";
 		return false;
 	}
 	return true;
@@ -32,7 +50,8 @@ size_t parseOption(int argc, char** argv, size_t index, Options& options) {
 			return index + 1;
 		}
 	} else {
-		std::cout << "Warning: Skipping unknown command line option " << argv[index] << ".\n";
+		std::cout << "Warning: Skipping unknown command line option " << argv[index] << ".
+";
 	}
 	return index;
 }
@@ -44,7 +63,8 @@ Options parseArguments(int argc, char** argv) {
 			i = parseOption(argc, argv, i, options);
 			continue;
 		} else if (!options.inFile.empty()) {
-			std::cout << "Warning: Multiple input files specified, overwriting first choice.\n";
+			std::cout << "Warning: Multiple input files specified, overwriting first choice.
+";
 		}
 		options.inFile = argv[i];
 	}
@@ -82,7 +102,8 @@ int main(int argc, char** argv) {
 	if (!(rootValue["custom-font-paths"].isArray() || rootValue["custom-font-paths"].isNull()) ||
 		!(rootValue["fonts"].isArray() || rootValue["fonts"].isNull()) ||
 		!(rootValue["fallback-path"].isString() || rootValue["fallback-path"].isNull())) {
-		std::cerr << "Error: " << options.inFile << ": Invalid font configuration!\n";
+		std::cerr << "Error: " << options.inFile << ": Invalid font configuration!
+";
 	}
 
 	// fallback path
@@ -95,7 +116,8 @@ int main(int argc, char** argv) {
 	tableSize += sizeof(uint32_t);
 	for (auto& path : rootValue["custom-font-paths"]) {
 		if (!(path.isString() || path.isNull())) {
-			std::cerr << "Error: " << options.inFile << ": Invalid font configuration!\n";
+			std::cerr << "Error: " << options.inFile << ": Invalid font configuration!
+";
 		}
 		customFontPaths.push_back(path.asString());
 		tableSize += 2 * sizeof(uint32_t); // table entry: offset + size
@@ -110,7 +132,8 @@ int main(int argc, char** argv) {
 
 		if (!name.isObject() || !(name["primary-name"].isString() || name["primary-name"].isNull()) ||
 			!(name["fallback-names"].isArray() || name["fallback-names"].isNull())) {
-			std::cerr << "Error: " << options.inFile << ": Invalid font configuration!\n";
+			std::cerr << "Error: " << options.inFile << ": Invalid font configuration!
+";
 		}
 
 		Font newFont;
@@ -118,7 +141,8 @@ int main(int argc, char** argv) {
 		tableSize += 2 * sizeof(uint32_t);
 		for (auto& fallbackName : name["fallback-names"]) {
 			if (!fallbackName.isString()) {
-				std::cerr << "Error: " << options.inFile << ": Invalid font configuration!\n";
+				std::cerr << "Error: " << options.inFile << ": Invalid font configuration!
+";
 			}
 			newFont.fontNames.push_back(fallbackName.asString());
 			tableSize += 2 * sizeof(uint32_t);
