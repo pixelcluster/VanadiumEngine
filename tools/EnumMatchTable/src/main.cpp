@@ -58,8 +58,7 @@ std::vector<Argument> parseArguments(int argc, char** argv) {
 
 int main(int argc, char** argv) {
 	if (argc == 1) {
-		std::cout << "Error: No input file specified!
-";
+		std::cout << "Error: No input file specified!\n";
 		return EXIT_FAILURE;
 	}
 
@@ -68,15 +67,13 @@ int main(int argc, char** argv) {
 	tinyxml2::XMLDocument vkXml;
 	vkXml.LoadFile(xmlPath.c_str());
 	if (vkXml.Error()) {
-		std::cout << "Error: Error opening or parsing " << xmlPath <<  "! Does the file exist?
-";
+		std::cout << "Error: Error opening or parsing " << xmlPath <<  "! Does the file exist?\n";
 		return EXIT_FAILURE;
 	}
 
 	std::ofstream cppFile = std::ofstream("EnumMatchTable.hpp", std::ios::trunc);
 	if (!cppFile.is_open()) {
-		std::cout << "Error: Error opening the output file! Is it in use?
-";
+		std::cout << "Error: Error opening the output file! Is it in use?\n";
 		return EXIT_FAILURE;
 	}
 	generateFromDocument(vkXml, cppFile);

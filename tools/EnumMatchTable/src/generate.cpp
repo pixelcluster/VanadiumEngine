@@ -26,8 +26,7 @@ unsigned int indentationLevel = 0;
 void generateFromDocument(const XMLDocument& document, std::ostream& outStream) {
 	const XMLElement* registry = document.FirstChildElement("registry");
 	if (!registry) {
-		std::cout << "Error: Unable to find registry root node, is vk.xml valid?
-";
+		std::cout << "Error: Unable to find registry root node, is vk.xml valid?\n";
 		return;
 	}
 
@@ -42,8 +41,7 @@ EnumMap parseBasicEnums(const XMLElement* registry) {
 
 	const XMLElement* enumsNode = registry->FirstChildElement("enums");
 	if (!enumsNode) {
-		std::cout << "Error: Unable to find enums nodes, is vk.xml valid?
-";
+		std::cout << "Error: Unable to find enums nodes, is vk.xml valid?\n";
 		return enumMap;
 	}
 	if (enumsNode->Attribute("name") && !strcmp(enumsNode->Attribute("name"), "API Constants")) {
@@ -74,8 +72,7 @@ EnumMap parseBasicEnums(const XMLElement* registry) {
 void includeFeatureEnums(const XMLElement* registry, EnumMap& enumMap) {
 	const XMLElement* featureNode = registry->FirstChildElement("feature");
 	if (!featureNode) {
-		std::cout << "Error: Unable to find feature nodes, is vk.xml valid?
-";
+		std::cout << "Error: Unable to find feature nodes, is vk.xml valid?\n";
 		return;
 	}
 	while (featureNode) {

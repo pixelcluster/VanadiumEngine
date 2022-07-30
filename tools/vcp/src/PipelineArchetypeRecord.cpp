@@ -143,8 +143,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 						if (magFilter == static_cast<VkFilter>(~0U)) {
 							std::cout
 								<< srcPath
-								<< ": Warning: Invalid magnification filter! Choosing Nearest, might cause errors...
-";
+								<< ": Warning: Invalid magnification filter! Choosing Nearest, might cause errors...\n";
 							magFilter = VK_FILTER_NEAREST;
 						}
 
@@ -152,8 +151,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 						if (minFilter == static_cast<VkFilter>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid minification filter! Choosing Nearest, might cause "
-										 "unintended behaviour...
-";
+										 "unintended behaviour...\n";
 							minFilter = VK_FILTER_NEAREST;
 						}
 
@@ -162,8 +160,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 						if (mipmapMode == static_cast<VkSamplerMipmapMode>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid mipmap mode! Choosing Nearest, might cause unintended "
-										 "behaviour...
-";
+										 "behaviour...\n";
 							mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 						}
 
@@ -172,8 +169,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 						if (addressModeU == static_cast<VkSamplerAddressMode>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid U address mode! Choosing Repeat, might cause unintended "
-										 "behaviour...
-";
+										 "behaviour...\n";
 							addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 						}
 
@@ -182,8 +178,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 						if (addressModeV == static_cast<VkSamplerAddressMode>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid V address mode! Choosing Repeat, might cause unintended "
-										 "behaviour...
-";
+										 "behaviour...\n";
 							addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 						}
 
@@ -192,8 +187,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 						if (addressModeW == static_cast<VkSamplerAddressMode>(~0U)) {
 							std::cout << srcPath
 									  << ": Warning: Invalid W address mode! Choosing Repeat, might cause unintended "
-										 "behaviour...
-";
+										 "behaviour...\n";
 							addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 						}
 
@@ -203,8 +197,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 							std::cout << srcPath
 									  << ": Warning: Invalid sampler compare operation! Choosing Always, might cause "
 										 "unintended "
-										 "behaviour...
-";
+										 "behaviour...\n";
 							compareOp = VK_COMPARE_OP_ALWAYS;
 						}
 
@@ -214,8 +207,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 							std::cout << srcPath
 									  << ": Warning: Invalid sampler border color! Choosing transparent black (float), "
 										 "might cause unintended "
-										 "behaviour...
-";
+										 "behaviour...\n";
 							borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
 						}
 
@@ -290,8 +282,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 			if (!constant.isObject() || !constant["offset"].isUInt() || !constant["size"].isUInt() ||
 				!constant["stages"].isString()) {
 				std::cout << srcPath << ": Warning: Invalid push constant for pipeline archetype at index "
-						  << m_pushConstantRanges.size() << ".
-";
+						  << m_pushConstantRanges.size() << ".\n";
 				continue;
 			}
 
@@ -301,8 +292,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 				auto flagBit = VkShaderStageFlagBitsFromString(flag);
 				if (flagBit == static_cast<VkShaderStageFlagBits>(~0U)) {
 					std::cout << srcPath << ": Warning: Invalid shader stage flag bits at push constant index "
-							  << m_pushConstantRanges.size() << ", ignoring bit.
-";
+							  << m_pushConstantRanges.size() << ", ignoring bit.\n";
 				} else {
 					shaderStageFlags |= flagBit;
 				}
@@ -310,8 +300,7 @@ PipelineArchetypeRecord::PipelineArchetypeRecord(
 
 			if (!shaderStageFlags) {
 				std::cout << srcPath << ": Error: Invalid stage flags at push constant index "
-						  << m_pushConstantRanges.size() << ".
-";
+						  << m_pushConstantRanges.size() << ".\n";
 				continue;
 			}
 
@@ -390,8 +379,7 @@ std::vector<ReflectedShader> PipelineArchetypeRecord::retrieveCompileResults(con
 			spvReflectCreateShaderModule(fileSize, data, &shaderModule);
 			shaderModules.push_back({ .stage = file.stage, .shader = shaderModule });
 		} else {
-			std::cout << srcPath << ": Warning: Compiled file expected but could not be read, did compilation fail?
-";
+			std::cout << srcPath << ": Warning: Compiled file expected but could not be read, did compilation fail?\n";
 		}
 		++subprocessIDIndex;
 	}
@@ -418,13 +406,11 @@ void PipelineArchetypeRecord::verifyArchetype(
 			if (rangeIterator == m_pushConstantRanges.end()) {
 				std::cout << srcPath << ": Error: Unbound push constant range at offset " << constant->absolute_offset
 						  << " (size " << constant->size << ")"
-						  << ".
-";
+						  << ".\n";
 				m_isValid = false;
 			} else if (!(rangeIterator->stageFlags & shader.stage)) {
 				std::cout << srcPath << ": Error: Missing stage flags for push constant range at offset "
-						  << constant->absolute_offset << ".
-";
+						  << constant->absolute_offset << ".\n";
 				m_isValid = false;
 			}
 		}
@@ -437,8 +423,7 @@ void PipelineArchetypeRecord::verifyArchetype(
 
 		for (auto& set : descriptorSets) {
 			if (set->set >= m_setLayoutIndices.size()) {
-				std::cout << srcPath << ": Error: Not enough descriptor sets specified.
-";
+				std::cout << srcPath << ": Error: Not enough descriptor sets specified.\n";
 				m_isValid = false;
 				break;
 			}
@@ -452,8 +437,7 @@ void PipelineArchetypeRecord::verifyArchetype(
 								 [binding](const auto& info) { return info.binding.binding == binding->binding; });
 				if (pipelineBindingIterator == bindingInfos.end()) {
 					std::cout << srcPath << ": Error: Unbound descriptor at set " << set->set << ", binding " << i
-							  << ".
-";
+							  << ".\n";
 					m_isValid = false;
 					continue;
 				}
@@ -462,20 +446,17 @@ void PipelineArchetypeRecord::verifyArchetype(
 
 				if (static_cast<VkDescriptorType>(binding->descriptor_type) != pipelineBinding.binding.descriptorType) {
 					std::cout << srcPath << ": Error: Descriptor type mismatch at set " << set->set << ", binding " << i
-							  << ".
-";
+							  << ".\n";
 					m_isValid = false;
 				}
 				if (binding->count != pipelineBinding.binding.descriptorCount) {
 					std::cout << srcPath << ": Error: Descriptor count mismatch at set " << set->set << ", binding "
-							  << i << ".
-";
+							  << i << ".\n";
 					m_isValid = false;
 				}
 				if (!(pipelineBinding.binding.stageFlags & shader.stage)) {
 					std::cout << srcPath << ": Error: Missing stage flags for descriptor at set " << set->set
-							  << ", binding " << i << ".
-";
+							  << ", binding " << i << ".\n";
 					m_isValid = false;
 				}
 			}

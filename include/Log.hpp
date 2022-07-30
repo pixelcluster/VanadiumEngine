@@ -22,34 +22,29 @@ namespace vanadium {
 	template <typename... Ts> void logInfo(const char* message, Ts... values) {
 		if constexpr (vanadiumDebug) {
 			fmt::print(fmt::runtime(message), values...);
-			fmt::print("
-");
+			fmt::print("\n");
 		}
 	}
 
 	template <typename... Ts> void logWarning(const char* message, Ts... values) {
 		fmt::print(fmt::runtime(message), values...);
-		fmt::print("
-");
+		fmt::print("\n");
 	}
 
 	template <typename... Ts> void logError(const char* message, Ts... values) {
 		fmt::print(stderr, fmt::runtime(message), values...);
-		fmt::print(stderr, "
-");
+		fmt::print(stderr, "\n");
 	}
 
 	template <typename... Ts> void logFatal(const char* message, Ts... values) {
 		fmt::print(stderr, fmt::runtime(message), values...);
-		fmt::print(stderr, "
-");
+		fmt::print(stderr, "");
 		std::abort();
 	}
 
 	template <typename... Ts> void logFatal(int exitCode, const char* message, Ts... values) {
 		fmt::print(stderr, fmt::runtime(message), values...);
-		fmt::print(stderr, "
-");
+		fmt::print(stderr, "\n");
 		std::exit(exitCode);
 	}
 

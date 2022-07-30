@@ -19,8 +19,7 @@
 
 int main(int argc, char** argv) {
 	if (argc == 1) {
-		std::cerr << "Enter a test name.
-";
+		std::cerr << "Enter a test name.\n";
 		return EXIT_FAILURE;
 	}
 	for (auto& test : testFunctions) {
@@ -29,7 +28,6 @@ int main(int argc, char** argv) {
 			return 0;
 		}
 	}
-	std::cerr << "Test not found.
-";
+	std::cerr << "Test not found.\n";
 	return EXIT_FAILURE;
 }

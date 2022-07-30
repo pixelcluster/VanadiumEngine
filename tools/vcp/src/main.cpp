@@ -41,12 +41,10 @@ struct Options {
 
 bool checkOption(int argc, char** argv, size_t index, const std::string_view& argName) {
 	if (static_cast<size_t>(argc) <= index + 1) {
-		std::cout << "Warning: Not enough arguments given to " << argName << ".
-";
+		std::cout << "Warning: Not enough arguments given to " << argName << ".\n";
 		return false;
 	} else if (*argv[index + 1] == '-') {
-		std::cout << "Warning: " << argv[index + 1] << "Invalid argument for " << argName << ".
-";
+		std::cout << "Warning: " << argv[index + 1] << "Invalid argument for " << argName << ".\n";
 		return false;
 	}
 	return true;
@@ -69,8 +67,7 @@ size_t parseOption(int argc, char** argv, size_t index, Options& options) {
 			return index + 1;
 		}
 	} else {
-		std::cout << "Warning: Skipping unknown command line option " << argv[index] << ".
- ";
+		std::cout << "Warning: Skipping unknown command line option " << argv[index] << ".\n";
 	}
 	return index;
 }

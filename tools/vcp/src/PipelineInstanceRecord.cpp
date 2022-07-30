@@ -56,8 +56,7 @@ void PipelineInstanceRecord::verifyVertexShader(const std::string_view& srcPath,
 	result = spvReflectEnumerateInputVariables(&shader, &inputVariableCount, nullptr);
 
 	if (result != SPV_REFLECT_RESULT_SUCCESS) {
-		std::cout << srcPath << ": Error: Internal error when verifying vertex shader.
-";
+		std::cout << srcPath << ": Error: Internal error when verifying vertex shader.\n";
 		return;
 	}
 
@@ -65,8 +64,7 @@ void PipelineInstanceRecord::verifyVertexShader(const std::string_view& srcPath,
 
 	result = spvReflectEnumerateInputVariables(&shader, &inputVariableCount, inputVariables.data());
 	if (result != SPV_REFLECT_RESULT_SUCCESS) {
-		std::cout << srcPath << ": Error: Internal error when verifying vertex shader.
-";
+		std::cout << srcPath << ": Error: Internal error when verifying vertex shader.\n";
 		return;
 	}
 
@@ -75,8 +73,7 @@ void PipelineInstanceRecord::verifyVertexShader(const std::string_view& srcPath,
 								m_data.instanceVertexInputConfig.attributes.end(),
 								[variable](const auto& attrib) { return attrib.location == variable->location; });
 		if (var == m_data.instanceVertexInputConfig.attributes.end() && variable->location != ~0U) {
-			std::cout << srcPath << ": Error: Unbound vertex attribute at location " << variable->location << ".
-";
+			std::cout << srcPath << ": Error: Unbound vertex attribute at location " << variable->location << ".\n";
 			m_isValid = false;
 		}
 	}
@@ -89,8 +86,7 @@ void PipelineInstanceRecord::verifyFragmentShader(const std::string_view& srcPat
 	result = spvReflectEnumerateOutputVariables(&shader, &outputVariableCount, nullptr);
 
 	if (result != SPV_REFLECT_RESULT_SUCCESS) {
-		std::cout << srcPath << ": Error: Internal error when verifying fragment shader.
-";
+		std::cout << srcPath << ": Error: Internal error when verifying fragment shader.\n";
 		return;
 	}
 
@@ -98,16 +94,14 @@ void PipelineInstanceRecord::verifyFragmentShader(const std::string_view& srcPat
 
 	result = spvReflectEnumerateOutputVariables(&shader, &outputVariableCount, outputVariables.data());
 	if (result != SPV_REFLECT_RESULT_SUCCESS) {
-		std::cout << srcPath << ": Error: Internal error when verifying fragment shader.
-";
+		std::cout << srcPath << ": Error: Internal error when verifying fragment shader.\n";
 		return;
 	}
 
 	for (auto& variable : outputVariables) {
 		if (variable->location >= m_data.instanceColorAttachmentBlendConfigs.size()) {
 			std::cout << srcPath << ": Error: Unbound color attachment output at location " << variable->location
-					  << ".
-";
+					  << ".\n";
 			m_isValid = false;
 		}
 	}
@@ -117,8 +111,7 @@ void PipelineInstanceRecord::serialize(std::ofstream& outStream) const { ::seria
 
 void PipelineInstanceRecord::deserializeVertexInput(const std::string_view& srcPath, const Json::Value& config) {
 	if (config.type() != Json::objectValue) {
-		std::cout << srcPath << ": Error: Invalid vertex input structure value.
-";
+		std::cout << srcPath << ": Error: Invalid vertex input structure value.\n";
 		m_isValid = false;
 		return;
 	}
@@ -133,8 +126,7 @@ void PipelineInstanceRecord::deserializeVertexInput(const std::string_view& srcP
 		VkFormat format = VkFormatFromString(asCStringOr(attrib, "format", "VK_FORMAT_R32G32B32A32_SFLOAT"));
 
 		if (format == static_cast<VkFormat>(~0U)) {
-			std::cout << srcPath << ": Warning: Invalid Format! Choosing R32G32B32A32_SFLOAT, might cause errors...
-";
+			std::cout << srcPath << ": Warning: Invalid Format! Choosing R32G32B32A32_SFLOAT, might cause errors...\n";
 			format = VK_FORMAT_R32G32B32A32_SFLOAT;
 		}
 
@@ -144,8 +136,7 @@ void PipelineInstanceRecord::deserializeVertexInput(const std::string_view& srcP
 																.offset = asUIntOr(attrib, "offset", 0) };
 		if (attribDescription.binding >= bindingNode.size()) {
 			std::cout << srcPath << ": Error: Invalid binding index for attribute at location "
-					  << attribDescription.location << ".
-";
+					  << attribDescription.location << ".\n";
 			m_isValid = false;
 		}
 		m_data.instanceVertexInputConfig.attributes.push_back(attribDescription);
@@ -157,8 +148,7 @@ void PipelineInstanceRecord::deserializeVertexInput(const std::string_view& srcP
 
 		if (inputRate == static_cast<VkVertexInputRate>(~0U)) {
 			std::cout << srcPath
-					  << ": Warning: Invalid Input Rate! Choosing VERTEX, might cause unintended behaviour...
-";
+					  << ": Warning: Invalid Input Rate! Choosing VERTEX, might cause unintended behaviour...\n";
 			inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		}
 
@@ -171,8 +161,7 @@ void PipelineInstanceRecord::deserializeVertexInput(const std::string_view& srcP
 
 void PipelineInstanceRecord::deserializeInputAssembly(const std::string_view& srcPath, const Json::Value& config) {
 	if (config.type() != Json::objectValue) {
-		std::cout << srcPath << ": Error: Invalid input assembly structure value.
-";
+		std::cout << srcPath << ": Error: Invalid input assembly structure value.\n";
 		m_isValid = false;
 		return;
 	}
@@ -181,8 +170,7 @@ void PipelineInstanceRecord::deserializeInputAssembly(const std::string_view& sr
 
 	if (topology == static_cast<VkPrimitiveTopology>(~0U)) {
 		std::cout << srcPath
-				  << ": Warning: Invalid Primitive Topology! Choosing TRIANGLE_LIST, might cause errors...
-";
+				  << ": Warning: Invalid Primitive Topology! Choosing TRIANGLE_LIST, might cause errors...\n";
 		topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	}
 
@@ -192,8 +180,7 @@ void PipelineInstanceRecord::deserializeInputAssembly(const std::string_view& sr
 
 void PipelineInstanceRecord::deserializeRasterization(const std::string_view& srcPath, const Json::Value& config) {
 	if (config.type() != Json::objectValue) {
-		std::cout << srcPath << ": Error: Invalid rasterization structure value.
-";
+		std::cout << srcPath << ": Error: Invalid rasterization structure value.\n";
 		m_isValid = false;
 		return;
 	}
@@ -206,8 +193,7 @@ void PipelineInstanceRecord::deserializeRasterization(const std::string_view& sr
 		if (flagBit == static_cast<VkCullModeFlagBits>(~0U)) {
 			std::cout << srcPath
 					  << ": Warning: Invalid Cull Mode flag bit specified. Ignoring bit. If flags are 0, "
-						 "VK_CULL_MODE_BACK_BIT is used.
-";
+						 "VK_CULL_MODE_BACK_BIT is used.\n";
 		} else {
 			cullMode |= flagBit;
 		}
@@ -215,8 +201,7 @@ void PipelineInstanceRecord::deserializeRasterization(const std::string_view& sr
 
 	auto polygonMode = VkPolygonModeFromString(asCStringOr(config, "polygon-mode", "VK_POLYGON_MODE_FILL"));
 	if (polygonMode == static_cast<VkPolygonMode>(~0U)) {
-		std::cout << srcPath << ": Warning: Invalid Polygon Mode specified. Choosing FILL, may cause errors...
-";
+		std::cout << srcPath << ": Warning: Invalid Polygon Mode specified. Choosing FILL, may cause errors...\n";
 		polygonMode = VK_POLYGON_MODE_FILL;
 	}
 
@@ -224,8 +209,7 @@ void PipelineInstanceRecord::deserializeRasterization(const std::string_view& sr
 	if (frontFace == static_cast<VkFrontFace>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Front Face specified. Choosing COUNTER_CLOCKWISE, may cause unintended "
-					 "behaviour...
-";
+					 "behaviour...\n";
 		frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	}
 
@@ -251,28 +235,24 @@ void PipelineInstanceRecord::deserializeViewportScissor(const std::string_view& 
 		return;
 	}
 	if (config.type() != Json::objectValue) {
-		std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.
-";
+		std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
 		m_isValid = false;
 		return;
 	}
 
 	if (config["viewports"].type() != Json::arrayValue) {
-		std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.
-";
+		std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
 		m_isValid = false;
 		return;
 	}
 	if (config["scissor-rects"].type() != Json::arrayValue) {
-		std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.
-";
+		std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
 		m_isValid = false;
 		return;
 	}
 	for (auto& viewport : config["viewports"]) {
 		if (viewport.type() != Json::objectValue) {
-			std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.
-";
+			std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
 			m_isValid = false;
 			return;
 		}
@@ -286,8 +266,7 @@ void PipelineInstanceRecord::deserializeViewportScissor(const std::string_view& 
 	}
 	for (auto& scissor : config["scissor-rects"]) {
 		if (scissor.type() != Json::objectValue) {
-			std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.
-";
+			std::cout << srcPath << ": Error: Invalid viewport/scissor structure value.\n";
 			m_isValid = false;
 			return;
 		}
@@ -300,8 +279,7 @@ void PipelineInstanceRecord::deserializeViewportScissor(const std::string_view& 
 
 void PipelineInstanceRecord::deserializeMultisample(const std::string_view& srcPath, const Json::Value& config) {
 	if (config.type() != Json::objectValue) {
-		std::cout << srcPath << ": Error: Invalid multisample structure value.
-";
+		std::cout << srcPath << ": Error: Invalid multisample structure value.\n";
 		m_isValid = false;
 		return;
 	}
@@ -312,16 +290,14 @@ void PipelineInstanceRecord::deserializeMultisample(const std::string_view& srcP
 	if (m_data.instanceMultisampleConfig == static_cast<VkSampleCountFlagBits>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Sample count specified. Choosing 1, may cause unintended "
-					 "behaviour...
-";
+					 "behaviour...\n";
 		m_data.instanceMultisampleConfig = VK_SAMPLE_COUNT_1_BIT;
 	}
 }
 
 void PipelineInstanceRecord::deserializeDepthStencil(const std::string_view& srcPath, const Json::Value& config) {
 	if (config.type() != Json::objectValue) {
-		std::cout << srcPath << ": Error: Invalid depth/stencil structure value.
-";
+		std::cout << srcPath << ": Error: Invalid depth/stencil structure value.\n";
 		m_isValid = false;
 		return;
 	}
@@ -330,8 +306,7 @@ void PipelineInstanceRecord::deserializeDepthStencil(const std::string_view& src
 	if (depthCompareOp == static_cast<VkCompareOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Depth Compare Op specified. Choosing LESS, may cause "
-					 "unintended behaviour...
-";
+					 "unintended behaviour...\n";
 		depthCompareOp = VK_COMPARE_OP_LESS;
 	}
 
@@ -353,8 +328,7 @@ VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::stri
 	}
 
 	if (config.type() != Json::objectValue) {
-		std::cout << srcPath << ": Error: Invalid stencil state structure value.
-";
+		std::cout << srcPath << ": Error: Invalid stencil state structure value.\n";
 		m_isValid = false;
 		return {};
 	}
@@ -362,16 +336,14 @@ VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::stri
 	auto failOp = VkStencilOpFromString(asCStringOr(config, "fail", "VK_STENCIL_OP_KEEP"));
 	if (failOp == static_cast<VkStencilOp>(~0U)) {
 		std::cout << srcPath
-				  << ": Warning: Invalid Stencil Fail Op specified. Choosing KEEP, may cause unintended behaviour...
-";
+				  << ": Warning: Invalid Stencil Fail Op specified. Choosing KEEP, may cause unintended behaviour...\n";
 		failOp = VK_STENCIL_OP_KEEP;
 	}
 
 	auto passOp = VkStencilOpFromString(asCStringOr(config, "pass", "VK_STENCIL_OP_KEEP"));
 	if (passOp == static_cast<VkStencilOp>(~0U)) {
 		std::cout << srcPath
-				  << ": Warning: Invalid Stencil Pass Op specified. Choosing KEEP, may cause unintended behaviour...
-";
+				  << ": Warning: Invalid Stencil Pass Op specified. Choosing KEEP, may cause unintended behaviour...\n";
 		passOp = VK_STENCIL_OP_KEEP;
 	}
 
@@ -379,8 +351,7 @@ VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::stri
 	if (depthFailOp == static_cast<VkStencilOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Stencil Pass/Depth Fail Op specified. Choosing KEEP, may cause unintended "
-					 "behaviour...
-";
+					 "behaviour...\n";
 		depthFailOp = VK_STENCIL_OP_KEEP;
 	}
 
@@ -390,8 +361,7 @@ VkStencilOpState PipelineInstanceRecord::deserializeStencilState(const std::stri
 	if (compareOp == static_cast<VkCompareOp>(~0U)) {
 		std::cout << srcPath
 				  << ": Warning: Invalid Stencil Compare Op specified. Choosing LESS, may cause "
-					 "unintended behaviour...
-";
+					 "unintended behaviour...\n";
 		stencilCompareOp = VK_COMPARE_OP_LESS;
 	}
 
@@ -408,16 +378,14 @@ void PipelineInstanceRecord::deserializeDynamicState(const std::string_view& src
 	if (config.type() == Json::nullValue)
 		return;
 	if (config.type() != Json::arrayValue) {
-		std::cout << srcPath << ": Error: Invalid dynamic state structure value.
-";
+		std::cout << srcPath << ": Error: Invalid dynamic state structure value.\n";
 		m_isValid = false;
 		return;
 	}
 	for (auto& state : config) {
 		VkDynamicState dynamicState = VkDynamicStateFromString(state.asCString());
 		if (dynamicState == static_cast<VkDynamicState>(~0U)) {
-			std::cout << srcPath << ": Warning: Invalid Dynamic state specified, ignoring state...
-";
+			std::cout << srcPath << ": Warning: Invalid Dynamic state specified, ignoring state...\n";
 		} else {
 			m_data.instanceDynamicStateConfig.dynamicStates.push_back(dynamicState);
 		}
@@ -426,30 +394,26 @@ void PipelineInstanceRecord::deserializeDynamicState(const std::string_view& src
 
 void PipelineInstanceRecord::deserializeColorBlend(const std::string_view& srcPath, const Json::Value& config) {
 	if (config.type() != Json::objectValue) {
-		std::cout << srcPath << ": Warning: Invalid color blend structure value, ignoring value.
-";
+		std::cout << srcPath << ": Warning: Invalid color blend structure value, ignoring value.\n";
 		return;
 	}
 
 	auto logicOp = VkLogicOpFromString(asCStringOr(config, "logic-op", "VK_LOGIC_OP_NO_OP"));
 	if (logicOp == static_cast<VkLogicOp>(~0U)) {
 		std::cout << srcPath
-				  << ": Warning: Invalid Logic Op specified. Choosing NO_OP, may cause unintended behaviour...
-";
+				  << ": Warning: Invalid Logic Op specified. Choosing NO_OP, may cause unintended behaviour...\n";
 		logicOp = VK_LOGIC_OP_NO_OP;
 	}
 
 	float blendConstants[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	if (config["blend-constants"].size() > 4) {
-		std::cout << srcPath << ": Warning: More than 4 blend constants specified. Ignoring superfluous constants.
-";
+		std::cout << srcPath << ": Warning: More than 4 blend constants specified. Ignoring superfluous constants.\n";
 	}
 	for (uint32_t i = 0; i < config["blend-constants"].size() && i < 4; ++i) {
 		if (config["blend-constants"][i].isNumeric()) {
 			blendConstants[i] = config["blend-constants"][i].asFloat();
 		} else {
-			std::cout << srcPath << ": Warning: Blend constant " << i << " is not numeric, treating value like 0.0.
-";
+			std::cout << srcPath << ": Warning: Blend constant " << i << " is not numeric, treating value like 0.0.\n";
 		}
 	}
 
@@ -463,8 +427,7 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 	m_data.instanceColorAttachmentBlendConfigs.reserve(node.size());
 
 	if (!node.isArray()) {
-		std::cout << srcPath << ": Error: Invalid color attachment blend array.
-";
+		std::cout << srcPath << ": Error: Invalid color attachment blend array.\n";
 		m_isValid = false;
 		return;
 	}
@@ -473,8 +436,7 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 		VkColorComponentFlags componentFlags = 0;
 
 		if (!config.isObject()) {
-			std::cout << srcPath << ": Error: Invalid color attachment blend structure.
-";
+			std::cout << srcPath << ": Error: Invalid color attachment blend structure.\n";
 			continue;
 		}
 
@@ -484,8 +446,7 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 			std::cout
 				<< srcPath
 				<< ": Warning: Invalid Src Color Blend Factor specified. Choosing SRC_ALPHA, might lead to unintended "
-				   "behaviour...
-";
+				   "behaviour...\n";
 			srcColorFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 		}
 
@@ -496,8 +457,7 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 				<< srcPath
 				<< ": Warning: Invalid Dst Color Blend Factor specified. Choosing ONE_MINUS_SRC_ALPHA, might lead "
 				   "to unintended "
-				   "behaviour...
-";
+				   "behaviour...\n";
 			dstColorFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 		}
 
@@ -507,8 +467,7 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 			std::cout
 				<< srcPath
 				<< ": Warning: Invalid Src Alpha Blend Factor specified. Choosing SRC_ALPHA, might lead to unintended "
-				   "behaviour...
-";
+				   "behaviour...\n";
 			srcAlphaFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 		}
 
@@ -519,8 +478,7 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 				<< srcPath
 				<< ": Warning: Invalid Dst Alpha Blend Factor specified. Choosing ONE_MINUS_SRC_ALPHA, might lead to "
 				   "unintended "
-				   "behaviour...
-";
+				   "behaviour...\n";
 			dstAlphaFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 		}
 
@@ -528,8 +486,7 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 		if (colorBlendOp == static_cast<VkBlendOp>(~0U)) {
 			std::cout
 				<< srcPath
-				<< ": Warning: Invalid Color Blend Op specified. Choosing ADD, might lead to unintended behaviour...
-";
+				<< ": Warning: Invalid Color Blend Op specified. Choosing ADD, might lead to unintended behaviour...\n";
 			colorBlendOp = VK_BLEND_OP_ADD;
 		}
 
@@ -537,8 +494,7 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 		if (alphaBlendOp == static_cast<VkBlendOp>(~0U)) {
 			std::cout
 				<< srcPath
-				<< ": Warning: Invalid Alpha Blend Op specified. Choosing ADD, might lead to unintended behaviour...
-";
+				<< ": Warning: Invalid Alpha Blend Op specified. Choosing ADD, might lead to unintended behaviour...\n";
 			alphaBlendOp = VK_BLEND_OP_ADD;
 		}
 
@@ -549,8 +505,7 @@ void PipelineInstanceRecord::deserializeColorAttachmentBlend(const std::string_v
 			auto bit = VkColorComponentFlagBitsFromString(flagBit);
 			if (bit == static_cast<VkColorComponentFlagBits>(~0U)) {
 				std::cout << "Invalid Color Component Flag Bit specified, ignoring bit. If the flag is zero, all "
-							 "components will be set.
-";
+							 "components will be set.\n";
 			} else {
 				componentFlags |= bit;
 			}
@@ -579,16 +534,14 @@ void PipelineInstanceRecord::deserializeSpecializationConfigs(const std::string_
 		return;
 
 	if (!node.isArray()) {
-		std::cout << srcPath << ": Error: Invalid specialization constant stage array.
-";
+		std::cout << srcPath << ": Error: Invalid specialization constant stage array.\n";
 		m_isValid = false;
 		return;
 	}
 
 	for (auto& stage : node) {
 		if (!stage.isArray()) {
-			std::cout << srcPath << ": Error: Invalid specialization constant array.
-";
+			std::cout << srcPath << ": Error: Invalid specialization constant array.\n";
 			m_isValid = false;
 			return;
 		}
@@ -598,24 +551,21 @@ void PipelineInstanceRecord::deserializeSpecializationConfigs(const std::string_
 
 		auto stageBit = VkShaderStageFlagBitsFromString(asCStringOr(stage, "stage", " "));
 		if (stage == static_cast<VkShaderStageFlagBits>(~0U)) {
-			std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.
-";
+			std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
 			m_isValid = false;
 			return;
 		} else {
 			switch (m_type) {
 				case PipelineType::Graphics:
 					if (stageBit != VK_SHADER_STAGE_VERTEX_BIT && stageBit != VK_SHADER_STAGE_FRAGMENT_BIT) {
-						std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.
-";
+						std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
 						m_isValid = false;
 						return;
 					}
 					break;
 				case PipelineType::Compute:
 					if (stageBit != VK_SHADER_STAGE_COMPUTE_BIT) {
-						std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.
-";
+						std::cout << srcPath << ": Error: Invalid stage flags for specialization constant.\n";
 						m_isValid = false;
 						return;
 					}
@@ -627,16 +577,14 @@ void PipelineInstanceRecord::deserializeSpecializationConfigs(const std::string_
 		auto& configArray = stage["values"];
 
 		if (!configArray.isArray()) {
-			std::cout << srcPath << ": Error: Invalid specialization constant array.
-";
+			std::cout << srcPath << ": Error: Invalid specialization constant array.\n";
 			m_isValid = false;
 			return;
 		}
 
 		for (auto& config : stage) {
 			if (!config.isObject()) {
-				std::cout << srcPath << ": Error: Invalid specialization constant structure.
-";
+				std::cout << srcPath << ": Error: Invalid specialization constant structure.\n";
 				m_isValid = false;
 				return;
 			}

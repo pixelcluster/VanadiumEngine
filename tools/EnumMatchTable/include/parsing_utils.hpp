@@ -39,6 +39,5 @@ inline void addLine(std::ostream& stream, const std::string& string) {
 	for (unsigned int i = 0; i < indentationLevel; ++i) {
 		stream << "	";
 	}
-	stream << string << "
-";
+	stream << string << "\n";
 }

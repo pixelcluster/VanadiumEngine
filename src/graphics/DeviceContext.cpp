@@ -64,8 +64,7 @@ const char* platformSurfaceExtensionName(const std::vector<VkExtensionProperties
 VKAPI_ATTR VkBool32 VKAPI_CALL debugLog(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 										VkDebugUtilsMessageTypeFlagsEXT messageTypes,
 										const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-	std::cout << pCallbackData->pMessage << "
-";
+	std::cout << pCallbackData->pMessage << "\n";
 	return VK_FALSE;
 }
 

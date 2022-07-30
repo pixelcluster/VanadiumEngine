@@ -163,15 +163,13 @@ void writeLine(std::ofstream& outStream, const std::string& text) {
 	for (unsigned int i = 0; i < indentationLevel; ++i) {
 		outStream << "	";
 	}
-	outStream << text << "
-";
+	outStream << text << "\n";
 }
 
 int main() {
 	std::ifstream inFile = std::ifstream("./UnicodeCharacterAssoc.txt");
 	if (!inFile.is_open()) {
-		std::cerr << "Could not open character association file!
-";
+		std::cerr << "Could not open character association file!\n";
 		return 1;
 	}
 
@@ -307,10 +305,8 @@ int main() {
 
 	std::ofstream outStream = std::ofstream("./generated_include/CharacterGroup.hpp", std::ios::trunc);
 
-	writeLine(outStream, "#pragma once
-");
-	writeLine(outStream, "#include <util/UTF8.hpp>
-");
+	writeLine(outStream, "#pragma once\n");
+	writeLine(outStream, "#include <util/UTF8.hpp>\n");
 	writeLine(outStream, "inline BreakClass codepointBreakClass(uint32_t value) {");
 	++indentationLevel;
 	for (auto& range : breakClassRanges) {
@@ -342,8 +338,7 @@ int main() {
 	writeLine(outStream, "}");
 	writeLine(outStream, "return BreakClass::AL;");
 	--indentationLevel;
-	writeLine(outStream, "}
-");
+	writeLine(outStream, "}");
 
 	writeLine(outStream, "inline EastAsianWidth codepointEastAsianWidth(uint32_t value) {");
 	++indentationLevel;
@@ -363,8 +358,7 @@ int main() {
 	}
 	writeLine(outStream, "return EastAsianWidth::Other;");
 	--indentationLevel;
-	writeLine(outStream, "}
-");
+	writeLine(outStream, "}");
 
 	writeLine(outStream, "inline bool isCodepointExtendedPictographic(uint32_t value) {");
 	++indentationLevel;

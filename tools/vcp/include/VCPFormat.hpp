@@ -35,8 +35,7 @@ template <typename T> inline void serialize(const T& data, std::ofstream& outStr
 	outStream.write(reinterpret_cast<const char*>(&data), sizeof(data));
 }
 template <typename T> inline T deserialize(std::ifstream& inStream) {
-	vanadium::assertFatal(inStream.good(), "Invalid VCP file!
-");
+	vanadium::assertFatal(inStream.good(), "Invalid VCP file!\n");
 	T t;
 	char data[sizeof(T)];
 	inStream.read(data, sizeof(T));
@@ -53,8 +52,7 @@ template <> inline void serialize(const std::string& data, std::ofstream& outStr
 	outStream.write(data.data(), count);
 }
 template <> inline std::string deserialize(std::ifstream& inStream) {
-	vanadium::assertFatal(inStream.good(), "Invalid VCP file!
-");
+	vanadium::assertFatal(inStream.good(), "Invalid VCP file!\n");
 	uint32_t count;
 	inStream.read(reinterpret_cast<char*>(&count), sizeof(uint32_t));
 	std::string result = std::string(count, '?');
@@ -75,8 +73,7 @@ template <typename T> inline void serializeVector(const std::vector<T>& data, st
 }
 
 template <typename T> inline std::vector<T> deserializeVector(std::ifstream& inStream) {
-	vanadium::assertFatal(inStream.good(), "Invalid VCP file!
-");
+	vanadium::assertFatal(inStream.good(), "Invalid VCP file!\n");
 	uint32_t count;
 	inStream.read(reinterpret_cast<char*>(&count), sizeof(uint32_t));
 
