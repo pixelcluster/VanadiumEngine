@@ -207,4 +207,6 @@ is sufficient to know the transmittance between a point $p$ in the atmosphere,
 and points $i$ on the top atmosphere boundary. This transmittance depends on
 only two parameters, which can be taken as the radius $r=\Vertop\Vert$ and
 the cosine of the "view zenith angle",
-$\mu=op
+$\mu=op*/
+
+int main() {}

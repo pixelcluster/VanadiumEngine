@@ -141,12 +141,12 @@ float betaExtinctionOzone(float height) {
 const uint nSamples = 40;
 #endif
 
-vec3 calcTransmittance(vec2 pos, vec2 direction, float deltaT) {
+vec3 calcExtinction(vec2 pos, vec2 direction, float deltaT) {
 	vec3 result = vec3(0.0f);
 
 	vec3 rayleighExtinctionZero = vec3(betaExtinctionZeroRayleigh.r, betaExtinctionZeroRayleigh.g, betaExtinctionZeroRayleigh.b);
 	vec3 ozoneExtinctionZero = vec3(absorptionZeroOzone.r, absorptionZeroOzone.g, absorptionZeroOzone.b);
-	
+
 	float mieExtinction = betaExtinctionMie(length(pos)) * betaExtinctionZeroMie.r;
 	vec3 rayleighExtinction = betaExtinctionRayleigh(length(pos)) * rayleighExtinctionZero;
 	vec3 ozoneExtinction = betaExtinctionOzone(length(pos)) * ozoneExtinctionZero;
@@ -170,10 +170,11 @@ vec3 calcTransmittance(vec2 pos, vec2 direction, float deltaT) {
 	ozoneExtinction = betaExtinctionOzone(length(pos)) * ozoneExtinctionZero;
 	result += (rayleighExtinction + mieExtinction + ozoneExtinction) * 0.5f;
 
-	result *= deltaT;
-	result = exp(-result);
-
 	return result;
+}
+
+vec3 calcTransmittance(vec2 pos, vec2 direction, float deltaT) {
+	return exp(-calcExtinction(pos, direction, deltaT) * deltaT);
 }
 
 #ifndef GLSL_C_TEST
@@ -197,3 +198,100 @@ float compressedLatitudeFromTexcoord(float v) {
 float texcoordFromCompressedLatitude(float l) {
 	return 0.5 + 0.5 * sign(l) * sqrt(abs(l) / halfPi);
 }
+
+
+float shadowFactor(float height, float sinTheta, float cosTheta) {
+	return nearestDistanceToSphere(height, vec2(sinTheta, cosTheta), groundRadius) > 0 ? 0.0f : 1.0f;
+}
+
+// Theta refers to the angle between view direction (elsewhere view angle = theta) and light direction
+float rayleighPhase(float cosTheta) {
+	// 3 / 16pi
+	return (1 + cosTheta * cosTheta) * 0.0596831037;
+}
+
+const float miePhaseG = 0.8;
+const float miePhaseGSquared = miePhaseG * miePhaseG;
+
+// Theta refers to the angle between view direction (elsewhere view angle = theta) and light direction
+float miePhase(float cosTheta) {
+	float cosThetaSquared = cosTheta * cosTheta;
+	// 3 / 8pi
+	return 0.119366207 * (1 - miePhaseGSquared) * (1 + cosThetaSquared) /
+	((2 + miePhaseGSquared) * pow(1 + miePhaseGSquared - 2 * miePhaseG * cosTheta, 1.5));
+}
+
+#ifdef HAS_TRANSMITTANCE_LUT
+
+#ifdef GLSL_C_TEST
+vec3 transmittanceToSun(float height, float cosTheta) {
+	vec2 direction = vec2(sqrt(1.0f - cosTheta * cosTheta), cosTheta);
+
+	float tGround = nearestDistanceToSphere(height, direction, groundRadius);
+	float endPosT = nearestDistanceToSphere(height, direction, groundRadius + maxHeight);
+
+	if (tGround > 0.0f)
+	endPosT = min(endPosT, tGround);
+	return calcTransmittance(vec2(0.0f, height), direction, endPosT / nSamples);
+}
+#else
+vec3 transmittanceToSun(float height, float cosTheta) {
+	return texture(transmittanceLUT, heightCosThetaToUv(height, cosTheta)).rgb;
+}
+#endif
+
+vec3 inscatteredLuminance(float height, float cosTheta, float sinTheta, float sinPhi, float cosPhi, float dstT) {
+	float sunCosTheta = cos(sunSphere.center.y);
+	float sunSinTheta = sqrt(1.0f - sunCosTheta * sunCosTheta);
+	float sunCosPhi = cos(sunSphere.center.x);
+	float sunSinPhi = sqrt(1.0f - sunCosPhi * sunCosPhi);
+
+	vec3 viewDir = vec3(sinTheta * cosPhi, cosTheta, -sinTheta * sinPhi);
+	vec3 sunDir = vec3(sunSinTheta * sunCosPhi, sunCosTheta, -sunSinTheta * sunSinPhi);
+
+	float phaseCosTheta = dot(viewDir, sunDir);
+
+
+	vec3 transmittance = transmittanceToSun(height, cosTheta);
+	return (vec3(rayleighScattering.x, rayleighScattering.y, rayleighScattering.z) * rayleighPhase(phaseCosTheta) * betaExtinctionRayleigh(height) +
+	mieScattering * miePhase(phaseCosTheta) * betaExtinctionMie(height)) *
+	transmittance * shadowFactor(height, sinTheta, cosTheta) * sunLuminance;
+}
+
+const int numInscatteringSamples = 40;
+
+vec3 luminance(float height, float sinTheta, float cosTheta, float atmosphereT, float theta, float phi, float sinPhi,
+float cosPhi, bool isGround) {
+	float deltaT = atmosphereT / numInscatteringSamples;
+
+	vec2 pos = vec2(0.0f, height);
+	vec2 direction = vec2(sinTheta, cosTheta);
+	vec3 integratedLuminance = vec3(0.0f);
+	vec3 throughput = vec3(1.0f);
+	for (uint i = 1; i < numInscatteringSamples - 1; ++i, pos += direction * deltaT) {
+		vec3 extinction = calcExtinction(vec2(0.0f, length(pos)), vec2(sinTheta, cosTheta), deltaT);
+		vec3 scatteredLuminance = inscatteredLuminance(length(pos), cosTheta, sinTheta, sinPhi, cosPhi, deltaT);
+		integratedLuminance += throughput * (scatteredLuminance - scatteredLuminance * exp(-extinction * deltaT)) / extinction;
+		throughput *= exp(-extinction * deltaT);
+	}
+
+	return integratedLuminance;
+}
+
+vec3 computeLuminance(float height, float theta, float cosTheta, float phi, float cosPhi) {
+	float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
+	vec2 direction = vec2(sqrt(1 - cosTheta * cosTheta), cosTheta);
+
+	float atmosphereT = nearestDistanceToSphere(height, direction, groundRadius + maxHeight);
+	float groundT = nearestDistanceToSphere(height, direction, groundRadius);
+
+	float endPosT = atmosphereT;
+	bool intersectsWithGround = false;
+	if(groundT > 0.0f) {
+		intersectsWithGround = true;
+		endPosT = groundT;
+	}
+
+	return luminance(height, sinTheta, cosTheta, endPosT, theta, phi, sqrt(1.0f - cosPhi * cosPhi), cosPhi, false);
+}
+#endif

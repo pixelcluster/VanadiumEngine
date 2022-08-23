@@ -24,6 +24,11 @@
 
 using namespace glm;
 
+struct Sphere {
+	vec2 center;
+	float radiusSquared;
+};
+
 using uint = uint32_t;
 
 constexpr float pi = 3.14159265359;
@@ -33,6 +38,8 @@ constexpr uint nSamples = 4000;
 ivec2 lutSize = ivec2(256, 64);
 vec4 betaExtinctionZeroMie = vec4(0.004440f);
 vec4 betaExtinctionZeroRayleigh = vec4(0.008612455256387713, 0.013011847505420919, 0.028268803129247174, 1.0f);
+#define rayleighScattering betaExtinctionZeroRayleigh
+#define mieScattering betaExtinctionZeroMie.x
 vec4 absorptionZeroOzone = vec4(0.002366656826034617f, 0.001620425091578396f, 0.00010373049232375621f, 1.0f);
 float heightScaleRayleigh = 8;
 float heightScaleMie = 1.2;
@@ -42,3 +49,10 @@ float layer1ConstantFactorOzone = 8.0f / 3.0f;
 float heightRangeOzone = 15.0f;
 float maxHeight = 100.0f;
 float groundRadius = 6360.0f;
+
+Sphere sunSphere =  {
+	.center = vec2(radians(60.0f), radians(10.0f)),
+	.radiusSquared = radians(5.0f)
+};
+
+vec3 sunLuminance = vec3(1.0f);

@@ -17,6 +17,11 @@ add_executable(ExtinctionTest height_exp.cpp AtmosphereParamsCommon.hpp)
 target_include_directories(ExtinctionTest PUBLIC ${CMAKE_SOURCE_DIR}/tests/framework)
 target_link_libraries(ExtinctionTest glm::glm TestCommon)
 
+add_executable(SkyViewTest skyview.cpp AtmosphereParamsCommon.hpp)
+target_include_directories(SkyViewTest PUBLIC ${CMAKE_SOURCE_DIR}/tests/framework)
+target_link_libraries(SkyViewTest glm::glm TestCommon)
+
 add_test(NAME "sphere_intersection" COMMAND SphereIntersectionTest)
 add_test(NAME "optical_depth" COMMAND OpticalDepthTest)
 add_test(NAME "extinction" COMMAND ExtinctionTest)
+add_test(NAME "skyview" COMMAND SkyViewTest)
