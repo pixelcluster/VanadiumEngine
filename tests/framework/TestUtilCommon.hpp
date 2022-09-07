@@ -26,7 +26,7 @@
 template <std::floating_point F>
 void testFloatEqualWithError(F expected, F actual, const std::string_view& message, F errorPercent = 0.001f) {
 	float actualErrorPercent = fabs(expected - actual) / expected * 100.0f;
-	if (actualErrorPercent > errorPercent) {
+	if (actualErrorPercent > errorPercent || isnan(expected) ^ isnan(actual)) {
 		std::cerr << "Test failed: Float value was expected to be " << expected << ", but was actually " << actual
 				  << " (" << actualErrorPercent << "% error)! Message : " << message << std::endl;
 		std::exit(1);

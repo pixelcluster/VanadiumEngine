@@ -141,6 +141,16 @@ float betaExtinctionOzone(float height) {
 const uint nSamples = 40;
 #endif
 
+vec3 calcExtinctionAtPoint(vec2 pos) {
+	vec3 rayleighExtinctionZero = vec3(betaExtinctionZeroRayleigh.r, betaExtinctionZeroRayleigh.g, betaExtinctionZeroRayleigh.b);
+	vec3 ozoneExtinctionZero = vec3(absorptionZeroOzone.r, absorptionZeroOzone.g, absorptionZeroOzone.b);
+
+	float mieExtinction = betaExtinctionMie(length(pos)) * betaExtinctionZeroMie.r;
+	vec3 rayleighExtinction = betaExtinctionRayleigh(length(pos)) * rayleighExtinctionZero;
+	vec3 ozoneExtinction = betaExtinctionOzone(length(pos)) * ozoneExtinctionZero;
+	return rayleighExtinction + vec3(mieExtinction) + ozoneExtinction;
+}
+
 vec3 calcExtinction(vec2 pos, vec2 direction, float deltaT) {
 	vec3 result = vec3(0.0f);
 
@@ -240,7 +250,7 @@ vec3 transmittanceToSun(float height, float cosTheta) {
 }
 #endif
 
-vec3 inscatteredLuminance(float height, float cosTheta, float sinTheta, float sinPhi, float cosPhi, float dstT) {
+vec3 inscatteredLuminance(vec2 pos, float cosTheta, float sinTheta, float sinPhi, float cosPhi, float dstT) {
 	float sunCosTheta = cos(sunSphere.center.y);
 	float sunSinTheta = sqrt(1.0f - sunCosTheta * sunCosTheta);
 	float sunCosPhi = cos(sunSphere.center.x);
@@ -251,8 +261,9 @@ vec3 inscatteredLuminance(float height, float cosTheta, float sinTheta, float si
 
 	float phaseCosTheta = dot(viewDir, sunDir);
 
+	float height = length(pos);
 
-	vec3 transmittance = transmittanceToSun(height, cosTheta);
+	vec3 transmittance = transmittanceToSun(height, dot(vec3(pos / height, 0.0f), sunDir));
 	return (vec3(rayleighScattering.x, rayleighScattering.y, rayleighScattering.z) * rayleighPhase(phaseCosTheta) * betaExtinctionRayleigh(height) +
 	mieScattering * miePhase(phaseCosTheta) * betaExtinctionMie(height)) *
 	transmittance * shadowFactor(height, sinTheta, cosTheta) * sunLuminance;
@@ -263,14 +274,21 @@ const int numInscatteringSamples = 40;
 vec3 luminance(float height, float sinTheta, float cosTheta, float atmosphereT, float theta, float phi, float sinPhi,
 float cosPhi, bool isGround) {
 	float deltaT = atmosphereT / numInscatteringSamples;
+	vec3 rayleighExtinctionZero = vec3(betaExtinctionZeroRayleigh.r, betaExtinctionZeroRayleigh.g, betaExtinctionZeroRayleigh.b);
 
+	vec2 orig_pos = vec2(0.0f, height);
 	vec2 pos = vec2(0.0f, height);
 	vec2 direction = vec2(sinTheta, cosTheta);
 	vec3 integratedLuminance = vec3(0.0f);
 	vec3 throughput = vec3(1.0f);
-	for (uint i = 1; i < numInscatteringSamples - 1; ++i, pos += direction * deltaT) {
-		vec3 extinction = calcExtinction(vec2(0.0f, length(pos)), vec2(sinTheta, cosTheta), deltaT);
-		vec3 scatteredLuminance = inscatteredLuminance(length(pos), cosTheta, sinTheta, sinPhi, cosPhi, deltaT);
+	float t = 0.0f;
+	for (uint i = 0; i < numInscatteringSamples; ++i, pos += direction * deltaT) {
+		float NewT = atmosphereT * (i + 0.3) / numInscatteringSamples;
+		deltaT = NewT - t;
+		t = NewT;
+		pos = orig_pos + t * direction;
+		vec3 extinction = calcExtinctionAtPoint(pos);
+		vec3 scatteredLuminance = inscatteredLuminance(pos, cosTheta, sinTheta, sinPhi, cosPhi, deltaT);
 		integratedLuminance += throughput * (scatteredLuminance - scatteredLuminance * exp(-extinction * deltaT)) / extinction;
 		throughput *= exp(-extinction * deltaT);
 	}

@@ -36,7 +36,7 @@ constexpr float pi3 = pi * pi * pi;
 constexpr uint nSamples = 4000;
 
 ivec2 lutSize = ivec2(256, 64);
-vec4 betaExtinctionZeroMie = vec4(0.004440f);
+vec4 betaExtinctionZeroMie = vec4(0.003996f);
 vec4 betaExtinctionZeroRayleigh = vec4(0.008612455256387713, 0.013011847505420919, 0.028268803129247174, 1.0f);
 #define rayleighScattering betaExtinctionZeroRayleigh
 #define mieScattering betaExtinctionZeroMie.x
