@@ -45,8 +45,8 @@ namespace vanadium::ui {
 	};
 
 	struct KeyMask {
-		windowing::KeyStateFlags stateMask;
-		windowing::KeyModifierFlags modifierMask;
+		windowing::KeyState stateMask;
+		windowing::KeyModifier modifierMask;
 	};
 
 	class Functionality {
@@ -57,10 +57,10 @@ namespace vanadium::ui {
 		virtual void mouseHoverHandler(UISubsystem* subsystem, Control* triggeringControl,
 									   const Vector2& absolutePosition) {}
 		virtual void keyInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t keyID,
-									 windowing::KeyModifierFlags modifierFlags, windowing::KeyState keyState) {}
+									 windowing::KeyModifier modifierFlags, windowing::KeyState keyState) {}
 		virtual void charInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t codepoint) {}
 
-		virtual KeyMask keyInputMask() const { return { 0, 0 }; }
+		virtual KeyMask keyInputMask() const { return { windowing::KeyState::None, windowing::KeyModifier::None }; }
 		virtual std::vector<uint32_t> keyCodes() const { return {}; }
 
 		virtual void inputFocusGained(UISubsystem* subsystem, Control* triggeringControl) {}
@@ -101,8 +101,8 @@ namespace vanadium::ui {
 
 		void invokeMouseButtonHandler(UISubsystem* subsystem, const Vector2& absolutePosition, uint32_t buttonID);
 		void invokeHoverHandler(UISubsystem* subsystem, const Vector2& absolutePosition);
-		void invokeKeyInputHandler(UISubsystem* subsystem, uint32_t keyID, windowing::KeyModifierFlags modifierFlags,
-								   windowing::KeyState keyStateFlags);
+		void invokeKeyInputHandler(UISubsystem* subsystem, uint32_t keyID, windowing::KeyModifier modifierFlags,
+								   windowing::KeyState KeyState);
 		void invokeCharInputHandler(UISubsystem* subsystem, uint32_t unicodeCodepoint);
 
 		void releaseInputFocus(UISubsystem* subsystem) { m_functionality->inputFocusLost(subsystem, this); }

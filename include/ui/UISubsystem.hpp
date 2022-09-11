@@ -43,7 +43,7 @@ namespace vanadium::ui {
 		uint32_t monitorDPIY() const { return m_windowInterface->contentScaleDPIY(); }
 
 		void acquireInputFocus(Control* newInputFocusControl, const std::vector<uint32_t>& keyCodes,
-							   windowing::KeyModifierFlags modifierMask, windowing::KeyStateFlags stateMask);
+							   windowing::KeyModifier modifierMask, windowing::KeyState stateMask);
 		void releaseInputFocus();
 		Control* inputFocusControl() { return m_inputFocusControl; }
 
@@ -53,7 +53,7 @@ namespace vanadium::ui {
 
 		void invokeMouseHover(const Vector2& mousePos);
 		void invokeMouseButton(uint32_t buttonID);
-		void invokeKey(uint32_t keyID, windowing::KeyModifierFlags modifierFlags, windowing::KeyState stateFlags);
+		void invokeKey(uint32_t keyID, windowing::KeyModifier modifierFlags, windowing::KeyState stateFlags);
 		void invokeCharacter(uint32_t codepoint);
 
 	  private:
@@ -66,8 +66,8 @@ namespace vanadium::ui {
 		Control* m_inputFocusControl = nullptr;
 
 		std::vector<uint32_t> m_inputFocusKeyCodes;
-		windowing::KeyModifierFlags m_inputFocusModifierMask;
-		windowing::KeyStateFlags m_inputFocusStateMask;
+		windowing::KeyModifier m_inputFocusModifierMask;
+		windowing::KeyState m_inputFocusStateMask;
 
 		std::vector<VkRect2D> m_layerScissors;
 	};

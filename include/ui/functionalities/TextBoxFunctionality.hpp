@@ -26,7 +26,7 @@ namespace vanadium::ui::functionalities {
 		~TextBoxFunctionality();
 
 		virtual void keyInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t keyID,
-									 windowing::KeyModifierFlags modifierFlags, windowing::KeyState keyState) override;
+									 windowing::KeyModifier modifierFlags, windowing::KeyState keyState) override;
 		virtual void charInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t codepoint) override;
 
 		virtual KeyMask keyInputMask() const override;

@@ -16,6 +16,7 @@
  */
 #pragma once
 // needed because this header is included as part of PCH, and other parts of this project need GLFW with Vulkan
+#include "graphics/helper/EnumClassFlags.hpp"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
@@ -32,49 +33,14 @@ namespace vanadium::windowing {
 
 	constexpr uint32_t platformDefaultDPI = 72;
 
-	using KeyStateFlags = uint8_t;
+	#undef None
 
-	enum class KeyState { Pressed = 2, Held = 4, Released = 1 };
-
-	inline KeyStateFlags operator|(const KeyState& one, const KeyState& other) {
-		return static_cast<KeyStateFlags>(one) | static_cast<KeyStateFlags>(other);
-	}
-
-	inline KeyStateFlags operator&(const KeyState& one, const KeyState& other) {
-		return static_cast<KeyStateFlags>(one) & static_cast<KeyStateFlags>(other);
-	}
-
-	inline KeyStateFlags operator^(const KeyState& one, const KeyState& other) {
-		return static_cast<KeyStateFlags>(one) ^ static_cast<KeyStateFlags>(other);
-	}
-
-	inline KeyStateFlags operator|(const KeyStateFlags& one, const KeyState& other) {
-		return one | static_cast<KeyStateFlags>(other);
-	}
-
-	inline KeyStateFlags operator&(const KeyStateFlags& one, const KeyState& other) {
-		return one & static_cast<KeyStateFlags>(other);
-	}
-
-	inline KeyStateFlags operator^(const KeyStateFlags& one, const KeyState& other) {
-		return one ^ static_cast<KeyStateFlags>(other);
-	}
-
-	inline KeyStateFlags operator|(const KeyState& one, const KeyStateFlags& other) {
-		return static_cast<KeyStateFlags>(one) | other;
-	}
-
-	inline KeyStateFlags operator&(const KeyState& one, const KeyStateFlags& other) {
-		return static_cast<KeyStateFlags>(one) & other;
-	}
-
-	inline KeyStateFlags operator^(const KeyState& one, const KeyStateFlags& other) {
-		return static_cast<KeyStateFlags>(one) ^ other;
-	}
-
-	using KeyModifierFlags = uint8_t;
+	enum class KeyState { Pressed = 2, Held = 4, Released = 1, None = 0 };
+	
+	DEFINE_FLAGS(KeyState)
 
 	enum class KeyModifier {
+		None = 0,
 		Shift = GLFW_MOD_SHIFT,
 		Ctrl = GLFW_MOD_CONTROL,
 		Alt = GLFW_MOD_ALT,
@@ -83,45 +49,11 @@ namespace vanadium::windowing {
 		NumLock = GLFW_MOD_NUM_LOCK
 	};
 
-	inline KeyModifierFlags operator|(const KeyModifier& one, const KeyModifier& other) {
-		return static_cast<KeyModifierFlags>(one) | static_cast<KeyModifierFlags>(other);
-	}
-
-	inline KeyModifierFlags operator&(const KeyModifier& one, const KeyModifier& other) {
-		return static_cast<KeyModifierFlags>(one) & static_cast<KeyModifierFlags>(other);
-	}
-
-	inline KeyModifierFlags operator^(const KeyModifier& one, const KeyModifier& other) {
-		return static_cast<KeyModifierFlags>(one) ^ static_cast<KeyModifierFlags>(other);
-	}
-
-	inline KeyModifierFlags operator|(const KeyModifierFlags& one, const KeyModifier& other) {
-		return one | static_cast<KeyModifierFlags>(other);
-	}
-
-	inline KeyModifierFlags operator&(const KeyModifierFlags& one, const KeyModifier& other) {
-		return one & static_cast<KeyModifierFlags>(other);
-	}
-
-	inline KeyModifierFlags operator^(const KeyModifierFlags& one, const KeyModifier& other) {
-		return one ^ static_cast<KeyModifierFlags>(other);
-	}
-
-	inline KeyModifierFlags operator|(const KeyModifier& one, const KeyModifierFlags& other) {
-		return static_cast<KeyModifierFlags>(one) | other;
-	}
-
-	inline KeyModifierFlags operator&(const KeyModifier& one, const KeyModifierFlags& other) {
-		return static_cast<KeyModifierFlags>(one) & other;
-	}
-
-	inline KeyModifierFlags operator^(const KeyModifier& one, const KeyModifierFlags& other) {
-		return static_cast<KeyModifierFlags>(one) ^ other;
-	}
+	DEFINE_FLAGS(KeyModifier)
 
 	using ListenerDestroyCallback = void (*)(void* userData);
 
-	using KeyEventCallback = void (*)(uint32_t keyCode, uint32_t modifiers, KeyState state, void* userData);
+	using KeyEventCallback = void (*)(uint32_t keyCode, KeyModifier modifiers, KeyState state, void* userData);
 	struct KeyListenerParams {
 		KeyEventCallback eventCallback;
 		ListenerDestroyCallback listenerDestroyCallback;
@@ -148,8 +80,8 @@ namespace vanadium::windowing {
 
 	struct KeyListenerData {
 		uint32_t keyCode;
-		uint32_t modifierMask;
-		KeyStateFlags keyStateMask;
+		KeyModifier modifierMask;
+		KeyState keyStateMask;
 
 		bool operator==(const KeyListenerData& other) const {
 			return keyCode == other.keyCode && modifierMask == other.modifierMask && keyStateMask == other.keyStateMask;
@@ -187,8 +119,8 @@ namespace vanadium::windowing {
 namespace robin_hood {
 	template <> struct hash<vanadium::windowing::KeyListenerData> {
 		size_t operator()(const vanadium::windowing::KeyListenerData& data) const {
-			return hashCombine(hash<uint32_t>()(data.keyCode), hash<uint32_t>()(data.modifierMask),
-							   hash<vanadium::windowing::KeyStateFlags>()(data.keyStateMask));
+			return hashCombine(hash<uint32_t>()(data.keyCode), hash<vanadium::windowing::KeyModifier>()(data.modifierMask),
+							   hash<vanadium::windowing::KeyState>()(data.keyStateMask));
 		}
 	};
 } // namespace robin_hood
@@ -208,14 +140,14 @@ namespace vanadium::windowing {
 		void pollEvents();
 		void waitEvents();
 
-		void addKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+		void addKeyListener(uint32_t keyCode, KeyModifier modifierMask, KeyState stateMask,
 							const KeyListenerParams& params);
-		void removeKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+		void removeKeyListener(uint32_t keyCode, KeyModifier modifierMask, KeyState stateMask,
 							   const KeyListenerParams& params);
 
-		void addMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+		void addMouseKeyListener(uint32_t keyCode, KeyModifier modifierMask, KeyState stateMask,
 								 const KeyListenerParams& params);
-		void removeMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+		void removeMouseKeyListener(uint32_t keyCode, KeyModifier modifierMask, KeyState stateMask,
 									const KeyListenerParams& params);
 
 		void addCharacterListener(const CharacterListenerParams& params);
@@ -230,8 +162,8 @@ namespace vanadium::windowing {
 		void addScrollListener(const MouseListenerParams& params);
 		void removeScrollListener(const MouseListenerParams& params);
 
-		void invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state);
-		void invokeMouseKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state);
+		void invokeKeyListeners(uint32_t keyCode, KeyModifier modifiers, KeyState state);
+		void invokeMouseKeyListeners(uint32_t keyCode, KeyModifier modifiers, KeyState state);
 		void invokeCharacterListeners(uint32_t keyCode);
 		void invokeSizeListeners(uint32_t newWidth, uint32_t newHeight);
 		void invokeMouseMoveListeners(double x, double y);
