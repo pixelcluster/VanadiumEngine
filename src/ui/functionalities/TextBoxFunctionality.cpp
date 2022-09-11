@@ -67,7 +67,7 @@ namespace vanadium::ui::functionalities {
 	}
 
 	void TextBoxFunctionality::keyInputHandler(UISubsystem* subsystem, Control* triggeringControl, uint32_t keyID,
-											   windowing::KeyModifierFlags modifierFlags,
+											   windowing::KeyModifier modifierFlags,
 											   windowing::KeyState keyState) {
 		styles::TextBoxStyle* style = reinterpret_cast<styles::TextBoxStyle*>(triggeringControl->style());
 		switch (keyID)
@@ -104,8 +104,8 @@ namespace vanadium::ui::functionalities {
 	}
 
 	KeyMask TextBoxFunctionality::keyInputMask() const {
-		return { .stateMask = static_cast<windowing::KeyStateFlags>(windowing::KeyState::Pressed),
-				 .modifierMask = static_cast<windowing::KeyModifierFlags>(~0U) };
+		return { .stateMask = static_cast<windowing::KeyState>(windowing::KeyState::Pressed),
+				 .modifierMask = static_cast<windowing::KeyModifier>(~0U) };
 	}
 	std::vector<uint32_t> TextBoxFunctionality::keyCodes() const { return { GLFW_KEY_BACKSPACE, GLFW_KEY_DELETE, GLFW_KEY_LEFT, GLFW_KEY_RIGHT }; }
 

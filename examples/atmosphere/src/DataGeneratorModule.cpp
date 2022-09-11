@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "windowing/WindowInterface.hpp"
 #include <DataGeneratorModule.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <numbers>
@@ -24,35 +25,35 @@
 #include <graphics/helper/TextureImageLoader.hpp>
 #include <volk.h>
 
-void forwardKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+void forwardKey(uint32_t keyCode, vanadium::windowing::KeyModifier modifiers, vanadium::windowing::KeyState state, void* userData) {
 	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
 	if (state == vanadium::windowing::KeyState::Released) {
 		generator->setForwardState(false);
 	} else
 		generator->setForwardState(true);
 }
-void backKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+void backKey(uint32_t keyCode, vanadium::windowing::KeyModifier modifiers, vanadium::windowing::KeyState state, void* userData) {
 	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
 	if (state == vanadium::windowing::KeyState::Released) {
 		generator->setBackState(false);
 	} else
 		generator->setBackState(true);
 }
-void rightKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+void rightKey(uint32_t keyCode, vanadium::windowing::KeyModifier modifiers, vanadium::windowing::KeyState state, void* userData) {
 	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
 	if (state == vanadium::windowing::KeyState::Released) {
 		generator->setRightState(false);
 	} else
 		generator->setRightState(true);
 }
-void leftKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+void leftKey(uint32_t keyCode, vanadium::windowing::KeyModifier modifiers, vanadium::windowing::KeyState state, void* userData) {
 	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
 	if (state == vanadium::windowing::KeyState::Released) {
 		generator->setLeftState(false);
 	} else
 		generator->setLeftState(true);
 }
-void mouseKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyState state, void* userData) {
+void mouseKey(uint32_t keyCode, vanadium::windowing::KeyModifier modifiers, vanadium::windowing::KeyState state, void* userData) {
 	DataGenerator* generator = std::launder(reinterpret_cast<DataGenerator*>(userData));
 	if (state == vanadium::windowing::KeyState::Released) {
 		generator->mouseRelease();
@@ -62,27 +63,27 @@ void mouseKey(uint32_t keyCode, uint32_t modifiers, vanadium::windowing::KeyStat
 
 DataGenerator::DataGenerator(vanadium::graphics::GraphicsSubsystem& subsystem,
 							 vanadium::windowing::WindowInterface& interface, PlanetRenderNode* renderNode) {
-	interface.addKeyListener(GLFW_KEY_W, 0,
+	interface.addKeyListener(GLFW_KEY_W, vanadium::windowing::KeyModifier::None,
 							 vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
 							 { .eventCallback = forwardKey,
 							   .listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,
 							   .userData = this });
-	interface.addKeyListener(GLFW_KEY_S, 0,
+	interface.addKeyListener(GLFW_KEY_S, vanadium::windowing::KeyModifier::None,
 							 vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
 							 { .eventCallback = backKey,
 							   .listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,
 							   .userData = this });
-	interface.addKeyListener(GLFW_KEY_A, 0,
+	interface.addKeyListener(GLFW_KEY_A, vanadium::windowing::KeyModifier::None,
 							 vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
 							 { .eventCallback = rightKey,
 							   .listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,
 							   .userData = this });
-	interface.addKeyListener(GLFW_KEY_D, 0,
+	interface.addKeyListener(GLFW_KEY_D, vanadium::windowing::KeyModifier::None,
 							 vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
 							 { .eventCallback = leftKey,
 							   .listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,
 							   .userData = this });
-	interface.addMouseKeyListener(GLFW_MOUSE_BUTTON_LEFT, 0,
+	interface.addMouseKeyListener(GLFW_MOUSE_BUTTON_LEFT, vanadium::windowing::KeyModifier::None,
 								  vanadium::windowing::KeyState::Pressed | vanadium::windowing::KeyState::Released,
 								  { .eventCallback = mouseKey,
 									.listenerDestroyCallback = vanadium::windowing::emptyListenerDestroyCallback,

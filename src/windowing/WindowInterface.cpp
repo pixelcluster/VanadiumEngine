@@ -56,7 +56,7 @@ namespace vanadium::windowing {
 				break;
 		}
 		if (key != GLFW_KEY_UNKNOWN)
-			interface->invokeKeyListeners(static_cast<uint32_t>(key), static_cast<KeyModifierFlags>(mods), state);
+			interface->invokeKeyListeners(static_cast<uint32_t>(key), static_cast<KeyModifier>(mods), state);
 	}
 
 	void mouseKeyCallback(GLFWwindow* window, int button, int action, int mods) {
@@ -78,7 +78,7 @@ namespace vanadium::windowing {
 				break;
 		}
 		if (button != GLFW_KEY_UNKNOWN)
-			interface->invokeMouseKeyListeners(static_cast<uint32_t>(button), static_cast<KeyModifierFlags>(mods),
+			interface->invokeMouseKeyListeners(static_cast<uint32_t>(button), static_cast<KeyModifier>(mods),
 											   state);
 	}
 
@@ -190,13 +190,13 @@ namespace vanadium::windowing {
 		m_elapsedTime = newTime;
 	}
 
-	void WindowInterface::addKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+	void WindowInterface::addKeyListener(uint32_t keyCode, KeyModifier modifierMask, KeyState stateMask,
 										 const KeyListenerParams& params) {
 		m_keyListeners[{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask }].push_back(
 			params);
 	}
 
-	void WindowInterface::removeKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+	void WindowInterface::removeKeyListener(uint32_t keyCode, KeyModifier modifierMask, KeyState stateMask,
 											const KeyListenerParams& params) {
 		auto iterator = m_keyListeners.find(
 			KeyListenerData{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask });
@@ -208,14 +208,14 @@ namespace vanadium::windowing {
 		}
 	}
 
-	void WindowInterface::addMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask, KeyStateFlags stateMask,
+	void WindowInterface::addMouseKeyListener(uint32_t keyCode, KeyModifier modifierMask, KeyState stateMask,
 											  const KeyListenerParams& params) {
 		m_mouseKeyListeners[{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask }].push_back(
 			params);
 	}
 
-	void WindowInterface::removeMouseKeyListener(uint32_t keyCode, KeyModifierFlags modifierMask,
-												 KeyStateFlags stateMask, const KeyListenerParams& params) {
+	void WindowInterface::removeMouseKeyListener(uint32_t keyCode, KeyModifier modifierMask,
+												 KeyState stateMask, const KeyListenerParams& params) {
 		auto iterator = m_mouseKeyListeners.find(
 			KeyListenerData{ .keyCode = keyCode, .modifierMask = modifierMask, .keyStateMask = stateMask });
 		if (iterator != m_mouseKeyListeners.end()) {
@@ -266,10 +266,10 @@ namespace vanadium::windowing {
 		}
 	}
 
-	void WindowInterface::invokeKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state) {
+	void WindowInterface::invokeKeyListeners(uint32_t keyCode, KeyModifier modifiers, KeyState state) {
 		for (auto [key, listenerGroup] : m_keyListeners) {
-			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) || modifiers == 0) &&
-				(key.keyStateMask & state)) {
+			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) != KeyModifier::None || modifiers == KeyModifier::None) &&
+				(key.keyStateMask & state) != KeyState::None) {
 				for (auto& listener : listenerGroup) {
 					listener.eventCallback(keyCode, modifiers, state, listener.userData);
 				}
@@ -277,10 +277,10 @@ namespace vanadium::windowing {
 		}
 	}
 
-	void WindowInterface::invokeMouseKeyListeners(uint32_t keyCode, KeyModifierFlags modifiers, KeyState state) {
+	void WindowInterface::invokeMouseKeyListeners(uint32_t keyCode, KeyModifier modifiers, KeyState state) {
 		for (auto [key, listenerGroup] : m_mouseKeyListeners) {
-			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) || modifiers == 0) &&
-				(key.keyStateMask & state)) {
+			if (key.keyCode == keyCode && ((key.modifierMask & modifiers) != KeyModifier::None || modifiers == KeyModifier::None) &&
+				(key.keyStateMask & state) != KeyState::None) {
 				for (auto& listener : listenerGroup) {
 					listener.eventCallback(keyCode, modifiers, state, listener.userData);
 				}

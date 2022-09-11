@@ -30,6 +30,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "windowing/WindowInterface.hpp"
 #include <ui/UISubsystem.hpp>
 
 namespace vanadium::ui {
@@ -39,7 +40,7 @@ namespace vanadium::ui {
 		subsystem->setWindowSize(width, height);
 	}
 
-	void mouseButtonListener(uint32_t keyCode, uint32_t modifiers, windowing::KeyState state, void* userData) {
+	void mouseButtonListener(uint32_t keyCode, vanadium::windowing::KeyModifier modifiers, windowing::KeyState state, void* userData) {
 		UISubsystem* subsystem = std::launder(reinterpret_cast<UISubsystem*>(userData));
 		subsystem->invokeMouseButton(keyCode);
 	}
@@ -49,9 +50,9 @@ namespace vanadium::ui {
 		subsystem->invokeMouseHover(pos);
 	}
 
-	void keyListener(uint32_t keyCode, uint32_t modifiers, windowing::KeyState state, void* userData) {
+	void keyListener(uint32_t keyCode, vanadium::windowing::KeyModifier modifiers, windowing::KeyState state, void* userData) {
 		UISubsystem* subsystem = std::launder(reinterpret_cast<UISubsystem*>(userData));
-		subsystem->invokeKey(keyCode, modifiers, state);
+		subsystem->invokeKey(keyCode, static_cast<windowing::KeyModifier>(modifiers), state);
 	}
 
 	void charListener(uint32_t codepoint, void* userData) {
@@ -70,8 +71,8 @@ namespace vanadium::ui {
 		windowInterface->addSizeListener({ .eventCallback = windowSizeListener,
 										   .listenerDestroyCallback = windowing::emptyListenerDestroyCallback,
 										   .userData = this });
-		windowInterface->addMouseKeyListener(GLFW_MOUSE_BUTTON_LEFT, static_cast<windowing::KeyModifierFlags>(~0U),
-											 static_cast<windowing::KeyStateFlags>(windowing::KeyState::Pressed),
+		windowInterface->addMouseKeyListener(GLFW_MOUSE_BUTTON_LEFT, static_cast<windowing::KeyModifier>(~0U),
+											 static_cast<windowing::KeyState>(windowing::KeyState::Pressed),
 											 { .eventCallback = mouseButtonListener,
 											   .listenerDestroyCallback = windowing::emptyListenerDestroyCallback,
 											   .userData = this });
@@ -93,7 +94,7 @@ namespace vanadium::ui {
 	}
 
 	void UISubsystem::acquireInputFocus(Control* newInputFocusControl, const std::vector<uint32_t>& keyCodes,
-										windowing::KeyModifierFlags modifierMask, windowing::KeyStateFlags stateMask) {
+										windowing::KeyModifier modifierMask, windowing::KeyState stateMask) {
 		if (m_inputFocusControl) {
 			for (auto& keyCode : m_inputFocusKeyCodes) {
 				m_windowInterface->removeKeyListener(
@@ -155,7 +156,7 @@ namespace vanadium::ui {
 		m_rootControl.invokeMouseButtonHandler(this, mousePos, buttonID);
 	}
 
-	void UISubsystem::invokeKey(uint32_t keyID, windowing::KeyModifierFlags modifierFlags,
+	void UISubsystem::invokeKey(uint32_t keyID, windowing::KeyModifier modifierFlags,
 								windowing::KeyState stateFlags) {
 		if (m_inputFocusControl)
 			m_inputFocusControl->invokeKeyInputHandler(this, keyID, modifierFlags, stateFlags);

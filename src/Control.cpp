@@ -69,7 +69,7 @@ namespace vanadium::ui {
 	}
 
 	void Control::invokeKeyInputHandler(UISubsystem* subsystem, uint32_t keyID,
-										windowing::KeyModifierFlags modifierFlags, windowing::KeyState keyState) {
+										windowing::KeyModifier modifierFlags, windowing::KeyState keyState) {
 		m_functionality->keyInputHandler(subsystem, this, keyID, modifierFlags, keyState);
 	}
 
