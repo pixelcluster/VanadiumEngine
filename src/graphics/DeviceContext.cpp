@@ -14,22 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-/* VanadiumEngine, a Vulkan rendering toolkit
- * Copyright (C) 2022 Friedrich Vock
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
 #include <Debug.hpp>
 #include <Log.hpp>
 #include <cstring>
@@ -47,10 +31,10 @@ const char* platformSurfaceExtensionName(const std::vector<VkExtensionProperties
 	return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
 #else
 	if (glfwGetPlatform() == GLFW_PLATFORM_WAYLAND) {
-		vanadium::logInfo("Using Wayland.");
+		vanadium::logInfo(vanadium::SubsystemID::RHI, "Using Wayland.");
 		return VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
 	}
-	vanadium::logInfo("Using X11.");
+	vanadium::logInfo(vanadium::SubsystemID::RHI, "Using X11.");
 	if (std::find_if(instanceExtensions.begin(), instanceExtensions.end(), [](const auto& properties) {
 			return !strcmp(properties.extensionName, VK_KHR_XCB_SURFACE_EXTENSION_NAME);
 		}) != instanceExtensions.end()) {
@@ -162,7 +146,7 @@ namespace vanadium::graphics {
 			if (chosenGraphicsQueueFamilyIndex != -1U && chosenTransferQueueFamilyIndex != -1U) {
 				if (queueFamilyProperties[chosenTransferQueueFamilyIndex].queueFlags &
 					(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
-					logWarning("DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.");
+					logWarning(SubsystemID::RHI, "DeviceContext: Didn't find a transfer-only queue family, using a general purpose one.");
 				}
 
 				chosenDevice = device;

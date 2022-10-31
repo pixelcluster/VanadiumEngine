@@ -194,7 +194,7 @@ namespace vanadium::graphics {
 			nodeIterator = std::find_if(m_nodes.begin(), m_nodes.end(),
 										[insertAfter](const auto& info) { return info.node == insertAfter; });
 			if (nodeIterator == m_nodes.end()) {
-				logError("Trying to insert after nonexistent node {}!", static_cast<void*>(insertAfter));
+				logError(SubsystemID::RHI, "Trying to insert after nonexistent node {}!", static_cast<void*>(insertAfter));
 				return nullptr;
 			}
 			++nodeIterator;
@@ -219,7 +219,7 @@ namespace vanadium::graphics {
 			nodeIterator = std::find_if(m_nodes.begin(), m_nodes.end(),
 										[insertAfter](const auto& info) { return info.node == insertAfter; });
 			if (nodeIterator == m_nodes.end()) {
-				logError("Trying to insert after nonexistent node {}!", static_cast<void*>(insertAfter));
+				logError(SubsystemID::RHI, "Trying to insert after nonexistent node {}!", static_cast<void*>(insertAfter));
 				return;
 			}
 			++nodeIterator;

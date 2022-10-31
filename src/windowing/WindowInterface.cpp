@@ -118,7 +118,7 @@ namespace vanadium::windowing {
 		interface->invokeCharacterListeners(codepoint);
 	}
 
-	void errorCallback(int code, const char* desc) { logError("GLFW Error: {}", desc); }
+	void errorCallback(int code, const char* desc) { logError(SubsystemID::RHI, "GLFW Error: {}", desc); }
 
 	WindowInterface::WindowInterface(const std::optional<WindowingSettingOverride>& override, const char* name) {
 		WindowingSettingOverride value =
@@ -129,7 +129,7 @@ namespace vanadium::windowing {
 		glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
 		if (!glfwInit()) {
 			glfwInitHint(GLFW_PLATFORM, GLFW_ANY_PLATFORM);
-			assertFatal(glfwInit(), "GLFW initialization failed!");
+			assertFatal(glfwInit(), SubsystemID::RHI, "GLFW initialization failed!");
 		}
 
 		GLFWmonitor* monitor = value.createFullScreen ? glfwGetPrimaryMonitor() : nullptr;
@@ -156,7 +156,7 @@ namespace vanadium::windowing {
 		m_contentScaleDPIX = platformDefaultDPI * contentScaleX;
 		m_contentScaleDPIY = platformDefaultDPI * contentScaleY;
 
-		assertFatal(m_window, "Couldn't create window!");
+		assertFatal(m_window, SubsystemID::RHI, "Couldn't create window!");
 
 		++m_glfwWindowCount;
 	}

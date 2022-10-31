@@ -38,11 +38,11 @@ namespace vanadium::graphics {
 
 	BinaryHeaderInfo AssetLibrary::parseLibraryFile() {
 		std::ifstream inFileStream = std::ifstream(m_libraryFileName);
-		assertFatal(inFileStream.is_open(), "AssetLibrary: Invalid asset library file!");
-		assertFatal(inFileStream.good(), "AssetLibrary: Invalid asset library file!");
+		assertFatal(inFileStream.is_open(), SubsystemID::RHI, "AssetLibrary: Invalid asset library file!");
+		assertFatal(inFileStream.good(), SubsystemID::RHI, "AssetLibrary: Invalid asset library file!");
 
 		uint32_t version = readFromFile<uint32_t>(inFileStream);
-		assertFatal(version == assetLibraryVersion, "AssetLibrary: Invalid asset library version!");
+		assertFatal(version == assetLibraryVersion, SubsystemID::RHI, "AssetLibrary: Invalid asset library version!");
 
 		uint32_t meshCount = readFromFile<uint32_t>(inFileStream);
 		uint32_t imageCount = readFromFile<uint32_t>(inFileStream);
@@ -52,7 +52,7 @@ namespace vanadium::graphics {
 
 		uint64_t totalDataSize = meshBinaryDataSize + imageBinaryDataSize;
 		void* data = new char[totalDataSize];
-		assertFatal(data, "AssetLibrary: Failed to allocate data for asset library!");
+		assertFatal(data, SubsystemID::RHI, "AssetLibrary: Failed to allocate data for asset library!");
 
 		return { .imageCount = imageCount,
 				 .meshCount = meshCount,

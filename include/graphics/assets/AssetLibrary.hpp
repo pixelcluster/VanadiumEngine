@@ -78,7 +78,7 @@ namespace vanadium::graphics {
 		T value;
 		stream.read(reinterpret_cast<char*>(&value), sizeof(T));
 		if (!expectEOF)
-			assertFatal(stream.good(), "AssetLibrary: Invalid asset library file!");
+			assertFatal(stream.good(), SubsystemID::RHI, "AssetLibrary: Invalid asset library file!");
 		return value;
 	}
 

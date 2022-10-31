@@ -74,11 +74,11 @@ namespace vanadium::graphics {
 		m_deviceContext = context;
 
 		m_fileStream = std::ifstream(std::string(libraryFileName), std::ios::binary);
-		assertFatal(m_fileStream.is_open(), "PipelineLibrary: Could not open pipeline file!");
+		assertFatal(m_fileStream.is_open(), SubsystemID::RHI, "PipelineLibrary: Could not open pipeline file!");
 
 		VCPFileHeader header = deserialize<VCPFileHeader>(m_fileStream);
-		assertFatal(header.magic == vcpMagicNumber, "PipelineLibrary: Invalid pipeline file!");
-		assertFatal(header.version == vcpFileVersion, "PipelineLibrary: Invalid pipeline file version!");
+		assertFatal(header.magic == vcpMagicNumber, SubsystemID::RHI, "PipelineLibrary: Invalid pipeline file!");
+		assertFatal(header.version == vcpFileVersion, SubsystemID::RHI, "PipelineLibrary: Invalid pipeline file version!");
 
 		std::vector<std::vector<DescriptorBindingLayoutInfo>> setLayoutInfos;
 		setLayoutInfos = deserializeVector<std::vector<DescriptorBindingLayoutInfo>>(m_fileStream);
@@ -142,7 +142,7 @@ namespace vanadium::graphics {
 			if (m_fileStream.eof())
 				break;
 
-			assertFatal(m_fileStream.good(), "PipelineLibrary: Error reading pipeline file!");
+			assertFatal(m_fileStream.good(), SubsystemID::RHI, "PipelineLibrary: Error reading pipeline file!");
 
 			switch (pipelineType) {
 				case PipelineType::Graphics:
@@ -152,7 +152,7 @@ namespace vanadium::graphics {
 					createComputePipeline();
 					break;
 				default:
-					logFatal("PipelineLibrary: Invalid pipeline file!");
+					logFatal(SubsystemID::RHI, "PipelineLibrary: Invalid pipeline file!");
 			}
 		}
 		m_fileStream.close();
@@ -306,7 +306,7 @@ namespace vanadium::graphics {
 				for (auto& config : specialization.configs) {
 					stageSpecialization.mapEntries.push_back(config.mapEntry);
 					dataSize = std::max(dataSize, config.mapEntry.offset + config.mapEntry.size);
-					assertFatal(config.mapEntry.size <= sizeof(float), "PipelineLibrary: Invalid pipeline file!");
+					assertFatal(config.mapEntry.size <= sizeof(float), SubsystemID::RHI, "PipelineLibrary: Invalid pipeline file!");
 				}
 				uint32_t specializationDataSize = dataSize;
 				stageSpecialization.specializationData = new char[specializationDataSize];
@@ -378,7 +378,7 @@ namespace vanadium::graphics {
 			shaderModules.push_back(shaderModule);
 		}
 
-		assertFatal(shaders.size() == 1, "PipelineLibrary: Invalid pipeline file!");
+		assertFatal(shaders.size() == 1, SubsystemID::RHI, "PipelineLibrary: Invalid pipeline file!");
 
 		VkPipelineShaderStageCreateInfo stageInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 													  .stage = VK_SHADER_STAGE_COMPUTE_BIT,
@@ -427,7 +427,7 @@ namespace vanadium::graphics {
 				for (auto& config : specialization.configs) {
 					stageSpecialization.mapEntries.push_back(config.mapEntry);
 					dataSize = std::max(dataSize, config.mapEntry.offset + config.mapEntry.size);
-					assertFatal(config.mapEntry.size <= sizeof(float), "PipelineLibrary: Invalid pipeline file!");
+					assertFatal(config.mapEntry.size <= sizeof(float), SubsystemID::RHI, "PipelineLibrary: Invalid pipeline file!");
 				}
 				uint32_t specializationDataSize = dataSize;
 				stageSpecialization.specializationData = new char[specializationDataSize];

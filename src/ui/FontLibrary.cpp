@@ -43,7 +43,7 @@ namespace vanadium::ui {
 		size_t bigSize;
 		void* data = readFile(libraryFileName.data(), &bigSize);
 		if(!data) {
-			logWarning("FontLibrary: Couldn't open font library file, no fonts will be used!");
+			logWarning(SubsystemID::RHI, "FontLibrary: Couldn't open font library file, no fonts will be used!");
 			return;
 		}
 
@@ -93,7 +93,7 @@ namespace vanadium::ui {
 			}
 			if (!font.fontFace && m_fallbackFace) {
 				if (!font.names.empty())
-					logWarning("FontLibrary: Font {} not found, using fallback.", font.names[0].c_str());
+					logWarning(SubsystemID::RHI, "FontLibrary: Font {} not found, using fallback.", font.names[0].c_str());
 				font.fontFace = m_fallbackFace;
 			}
 		}
@@ -116,7 +116,7 @@ namespace vanadium::ui {
 				if (error == FT_Err_Unknown_File_Format) {
 					continue;
 				} else if (error != FT_Err_Ok) {
-					logError("FontLibrary: Error opening face {}!", entryPathString.c_str());
+					logError(SubsystemID::RHI, "FontLibrary: Error opening face {}!", entryPathString.c_str());
 				} else {
 					faceCount = dummyFace->num_faces;
 					FT_Done_Face(dummyFace);
@@ -125,11 +125,11 @@ namespace vanadium::ui {
 					FT_Face face;
 					FT_Error error = FT_New_Face(m_library, entryPathString.c_str(), i, &face);
 					if (error != FT_Err_Ok) {
-						logError("FontLibrary: Error opening face {}!", entryPathString.c_str());
+						logError(SubsystemID::RHI, "FontLibrary: Error opening face {}!", entryPathString.c_str());
 					}
 					if (name == std::string(face->family_name) ||
 						name == std::string(face->family_name) + " " + std::string(face->style_name)) {
-						logInfo("FontLibrary: Found name {} in path {}", name.c_str(), entryPathString.c_str());
+						logInfo(SubsystemID::RHI, "FontLibrary: Found name {} in path {}", name.c_str(), entryPathString.c_str());
 						return face;
 					}
 					FT_Done_Face(face);

@@ -16,15 +16,13 @@
  */
 #pragma once
 
-#define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
 #include <vector>
 #include <optional>
 
 namespace vanadium::graphics {
 	struct MemoryRange {
-		VkDeviceSize offset;
-		VkDeviceSize size;
+		size_t offset;
+		size_t size;
 	};
 
 	struct RangeAllocationResult {
@@ -32,14 +30,14 @@ namespace vanadium::graphics {
 		MemoryRange usableRange;
 	};
 
-	VkDeviceSize roundUpAligned(VkDeviceSize n, VkDeviceSize alignment);
-	VkDeviceSize alignmentMargin(VkDeviceSize n, VkDeviceSize alignment);
+	size_t roundUpAligned(size_t n, size_t alignment);
+	size_t alignmentMargin(size_t n, size_t alignment);
 
 	std::optional<RangeAllocationResult> allocateFromRanges(std::vector<MemoryRange>& gapsOffsetSorted,
 															std::vector<MemoryRange>& gapsSizeSorted,
-															VkDeviceSize alignment, VkDeviceSize size);
+															size_t alignment, size_t size);
 
 	void freeToRanges(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted,
-					  VkDeviceSize offset, VkDeviceSize size);
+					  size_t offset, size_t size);
 	void mergeFreeAreas(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted);
 } // namespace vanadium::graphics

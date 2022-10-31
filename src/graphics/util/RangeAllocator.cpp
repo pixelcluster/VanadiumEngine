@@ -15,14 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include <Log.hpp>
-#include <graphics/util/RangeAllocator.hpp>
 #include <algorithm>
+#include <graphics/util/RangeAllocator.hpp>
 
 namespace vanadium::graphics {
-	VkDeviceSize roundUpAligned(VkDeviceSize n, VkDeviceSize alignment) { return n + alignmentMargin(n, alignment); }
-	VkDeviceSize alignmentMargin(VkDeviceSize n, VkDeviceSize alignment) {
+	size_t roundUpAligned(size_t n, size_t alignment) { return n + alignmentMargin(n, alignment); }
+	size_t alignmentMargin(size_t n, size_t alignment) {
 		if (alignment) {
-			VkDeviceSize remainder = n % alignment;
+			size_t remainder = n % alignment;
 			if (remainder) {
 				return alignment - remainder;
 			}
@@ -31,8 +31,8 @@ namespace vanadium::graphics {
 	}
 
 	std::optional<RangeAllocationResult> allocateFromRanges(std::vector<MemoryRange>& gapsOffsetSorted,
-															std::vector<MemoryRange>& gapsSizeSorted,
-															VkDeviceSize alignment, VkDeviceSize size) {
+															std::vector<MemoryRange>& gapsSizeSorted, size_t alignment,
+															size_t size) {
 		auto offsetComparator = [](const MemoryRange& one, const MemoryRange& other) {
 			return one.offset < other.offset;
 		};
@@ -50,7 +50,7 @@ namespace vanadium::graphics {
 			return std::nullopt;
 		}
 
-		VkDeviceSize margin = alignmentMargin(gapsSizeSorted[allocationIndex].offset, alignment);
+		size_t margin = alignmentMargin(gapsSizeSorted[allocationIndex].offset, alignment);
 		auto& usedRange = gapsSizeSorted[allocationIndex];
 
 		RangeAllocationResult result = { .allocationRange = { .offset = usedRange.offset, .size = size + margin },
@@ -78,7 +78,7 @@ namespace vanadium::graphics {
 	}
 
 	void freeToRanges(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted,
-					  VkDeviceSize offset, VkDeviceSize size) {
+					  size_t offset, size_t size) {
 		auto offsetComparator = [](const MemoryRange& one, const MemoryRange& other) {
 			return one.offset < other.offset;
 		};
@@ -113,7 +113,7 @@ namespace vanadium::graphics {
 
 	void mergeFreeAreas(std::vector<MemoryRange>& gapsOffsetSorted, std::vector<MemoryRange>& gapsSizeSorted) {
 		auto sizeComparator = [](const MemoryRange& one, const MemoryRange& other) { return one.size < other.size; };
-		
+
 		if (gapsOffsetSorted.empty())
 			return;
 		for (size_t i = 0; i < gapsOffsetSorted.size() - 1; ++i) {
@@ -124,13 +124,13 @@ namespace vanadium::graphics {
 				area.size += nextArea.size;
 				auto areaIterator = std::find_if(gapsSizeSorted.begin(), gapsSizeSorted.end(),
 												 [area](const auto& gap) { return area.offset == gap.offset; });
-				assertFatal(areaIterator != gapsSizeSorted.end(), "RangeAllocator inconsistency!");
+				assertFatal(areaIterator != gapsSizeSorted.end(), SubsystemID::Unknown, "RangeAllocator inconsistency!");
 				areaIterator->size += nextArea.size;
 
 				auto nextAreaIterator =
 					std::find_if(gapsSizeSorted.begin(), gapsSizeSorted.end(),
 								 [nextArea](const auto& gap) { return nextArea.offset == gap.offset; });
-				assertFatal(nextAreaIterator != gapsSizeSorted.end(), "RangeAllocator inconsistency!");
+				assertFatal(nextAreaIterator != gapsSizeSorted.end(), SubsystemID::Unknown, "RangeAllocator inconsistency!");
 				gapsOffsetSorted.erase(gapsOffsetSorted.begin() + i + 1);
 				gapsSizeSorted.erase(nextAreaIterator);
 

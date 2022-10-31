@@ -35,7 +35,7 @@ void configureEngine(vanadium::EngineConfig& config) {
 
 void mouseButtonOutput(vanadium::ui::Control* triggerControl, const vanadium::Vector2& absolutePosition,
 					   uint32_t buttonID) {
-	vanadium::logInfo("Button was clicked!!");
+	vanadium::logInfo(vanadium::SubsystemID::Unknown, "Button was clicked!!");
 	reinterpret_cast<vanadium::ui::styles::TextRoundedRectStyle*>(triggerControl->style())->setText("I was clicked!");
 }
 

@@ -56,5 +56,5 @@ namespace vanadium {
 	}
 
 	float Engine::deltaTime() const { return m_windowInterface->deltaTime(); }
-	float Engine::elapsedTime() const { return m_windowInterface->elapsedTime(); };
+	float Engine::elapsedTime() const { return m_windowInterface->elapsedTime(); }
 } // namespace vanadium

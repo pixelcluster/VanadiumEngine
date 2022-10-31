@@ -51,7 +51,7 @@ namespace vanadium {
 			return result;
 		}
 		float& operator[](uint32_t index) {
-			assertFatal(index < 2, "OOB vector access!");
+			assertFatal(index < 2, SubsystemID::Unknown, "OOB vector access!");
 			switch (index) {
 				case 0:
 					return x;
@@ -118,7 +118,7 @@ namespace vanadium {
 			return result;
 		}
 		float& operator[](uint32_t index) {
-			assertFatal(index < 3, "OOB vector access!");
+			assertFatal(index < 3, SubsystemID::Unknown, "OOB vector access!");
 			switch (index) {
 				case 0:
 					return x;
@@ -197,7 +197,7 @@ namespace vanadium {
 			return result;
 		}
 		float& operator[](uint32_t index) {
-			assertFatal(index < 4, "OOB vector access!");
+			assertFatal(index < 4, SubsystemID::Unknown, "OOB vector access!");
 			switch (index) {
 				case 0:
 					return x;

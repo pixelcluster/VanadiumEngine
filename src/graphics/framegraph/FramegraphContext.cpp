@@ -77,7 +77,7 @@ namespace vanadium::graphics {
 		auto nodeIterator =
 			std::find_if(m_nodes.begin(), m_nodes.end(), [node](const auto& info) { return info.node == node; });
 		if (nodeIterator == m_nodes.end()) {
-			logError("Trying to delete nonexistent node {}!", static_cast<void*>(node));
+			logError(SubsystemID::RHI, "Trying to delete nonexistent node {}!", static_cast<void*>(node));
 		}
 		m_barrierGenerator.removeNodeIndex(nodeIterator - m_nodes.begin());
 		auto unusedBuffers = m_barrierGenerator.unusedBuffers();
